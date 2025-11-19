@@ -1,5 +1,7 @@
 # 🧹 LeanTabs – Smart Tab & Workspace Manager
 
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support%20my%20work-yellow.svg?style=for-the-badge&logo=buy-me-a-coffee&logoColor=white)](https://www.buymeacoffee.com/YOUR_USERNAME)
+
 **Hundreds of open tabs? A sluggish browser? Drowning in tab clutter?**
 
 LeanTabs is the smart solution that transforms your browser back into a productivity powerhouse.
@@ -35,7 +37,7 @@ Restores your tabs exactly how you left them – respecting your **original wind
 
 ### 🛡️ Privacy First
 Your data belongs to you. LeanTabs stores all your sessions and links **locally on your device** (`chrome.storage`). We do not track you, we have no analytics, and we do not upload your data to any cloud servers.
->
+
 > *Note: The extension only connects to the internet when you manually add a link (to fetch the title) or to load website icons.*
 
 ---
@@ -53,7 +55,7 @@ You are working on "Project A" in one window/workspace but need to switch to "Pr
 ### 2. The "Performance Booster" (Gaming & Editing) ⚡
 You need maximum PC performance for a video call, a game, or video editing software, but your browser is eating 4GB of RAM.
 *   **The Problem:** Closing the browser means losing your setup. Keeping it open slows down your PC.
-*   **The LeanTabs Fix:** Click **Clean**. LeanTabs closes *all* tabs but intelligently keeps the **last 3 active tabs** open (customizable setting).
+*   **The LeanTabs Fix:** Click **Clean**. LeanTabs closes all tabs but intelligently keeps the **last 3 active tabs** open (customizable setting).
 *   **The Result:** Your memory is freed up instantly, but you are not completely kicked out of your browsing flow.
 
 ### 3. The "Research Curator" (Active Collecting) 📝
@@ -92,7 +94,7 @@ It's Friday afternoon. You have 3 different windows open with unfinished tasks, 
 *   🔜 **Opera Add-ons:** *Coming Soon*
 
 ### 💻 For Developers (Build from Source)
-If you want to inspect the code or test the latest features before the official release:
+*If you want to inspect the code or test the latest features before the official release:*
 
 1.  Download this repository or clone it via Git.
 2.  Open `chrome://extensions` (or `opera://extensions`) in your browser.
@@ -102,17 +104,16 @@ If you want to inspect the code or test the latest features before the official 
 
 ---
 
+## ☕ Support the Project
+
+LeanTabs is an open-source project developed in my free time. If it helps you save RAM and stay organized, I'd be super happy if you invited me for a coffee!
+
+<a href="https://www.buymeacoffee.com/YOUR_USERNAME" target="_blank">
+  <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" >
+</a>
+
+---
+
 ### Take back control now and experience a clean, fast, and organized browser. Install LeanTabs! 🚀
-
-
-
-
-
-
-
-
-
-
-
 
 

@@ -34,7 +34,9 @@ Restores your tabs exactly how you left them – respecting your **original wind
 *   **Export/Import:** Move your data to another device easily.
 
 ### 🛡️ Privacy First
-LeanTabs runs **100% offline**. Your data is stored locally on your device via `chrome.storage`. No tracking, no analytics, no cloud servers.
+Your data belongs to you. LeanTabs stores all your sessions and links **locally on your device** (`chrome.storage`). We do not track you, we have no analytics, and we do not upload your data to any cloud servers.
+>
+> *Note: The extension only connects to the internet when you manually add a link (to fetch the title) or to load website icons.*
 
 ---
 
@@ -65,9 +67,5 @@ If you want to inspect the code or test the latest features before the official 
 ---
 
 ### Take back control now and experience a clean, fast, and organized browser. Install LeanTabs! 🚀
-
-
-
-
 
 

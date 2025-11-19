@@ -1,28 +1,73 @@
-# LeanTabs – Smart Tab & Workspace Manager
+# 🧹 LeanTabs – Smart Tab & Workspace Manager
 
-**Hundreds of open tabs? A sluggish browser? Drowning in tab clutter? LeanTabs is the smart solution that transforms your browser back into a productivity powerhouse.**
+**Hundreds of open tabs? A sluggish browser? Drowning in tab clutter?**
 
-LeanTabs is more than just a tab closer — it's your personal tab management assistant. Unlike simple "tab suspenders," LeanTabs intelligently closes old tabs but saves them instantly into a beautiful, searchable dashboard. Designed for power users who demand efficiency without ever losing an important link.
+LeanTabs is the smart solution that transforms your browser back into a productivity powerhouse.
 
-**Why LeanTabs is the right choice for you:**
+It is more than just a tab closer — it's your personal tab management assistant. Unlike simple "tab suspenders," LeanTabs intelligently closes old tabs but saves them instantly into a beautiful, searchable dashboard. Designed for power users who demand efficiency without ever losing an important link.
 
-*   🚀 **Focus on One Project at a Time:** Clean up just your current window while leaving your other projects in other windows untouched. Need a full reset? You can also clean up all windows at once. You are in control!
-*   🧹 **One-Click "Tab Clean":** One click in the popup is all it takes, and LeanTabs closes all unnecessary tabs. The last few tabs (the number is customizable) stay open so you can keep working.
-*   🔒 **Nothing is Ever Lost:** Every closed tab is automatically saved into a dated and named "Session." You can access your old research and link collections at any time.
-*   🗂️ **Powerful Session Manager:** Open the "Saved Links" page to manage your sessions. Rename them, restore entire sessions with a single click, open individual links, or delete what you no longer need.
-*   ➕ **Add Links Manually:** Use LeanTabs as a research tool. Paste URLs into your sessions, and it automatically fetches the page title for you.
-*   🛡️ **Multiple Safety Nets:** Thanks to automatic backups and a full export/import feature, your data is always secure.
-*   🪟 **Smart Restore:** Restores your tabs exactly how you left them – respecting your original window structure.
-*   ✅ **Whitelist for What Matters:** Protect your most important sites (like email, calendars, or key documents) so they are never closed automatically.
-*   ⚙️ **Fully Customizable:** In the settings, you decide exactly how LeanTabs should work for you.
+---
 
-**🛡️ Privacy First:**
-LeanTabs runs 100% offline. Your data is stored locally on your device. No tracking, no analytics, no cloud.
+## 🚀 Why LeanTabs is the right choice for you
 
-**Who is LeanTabs for?**
+### 🎯 Focus on One Project at a Time
+Clean up just your **current window or workspace** while leaving your other projects untouched. Need a full reset? You can also clean up all windows globally. You are in control!
 
-*   **Developers, Designers & Researchers:** Stay focused by keeping only the relevant window / workspace active.
-*   **Students & Knowledge Workers:** Automatically archive your research sessions and access them later.
-*   **Anyone suffering from "tab-itis":** Free your browser and your mind from digital clutter.
+### 🧹 One-Click "Tab Clean"
+One click in the popup is all it takes. LeanTabs closes all unnecessary tabs instantly. The last few active tabs (customizable, e.g., 3) stay open so you can keep working without interruption.
 
-**Take back control now and experience a clean, fast, and organized browser. Install LeanTabs!**
+### 🔒 Nothing is Ever Lost
+Every closed tab is automatically saved into a dated and named **"Session"**. You can access your old research and link collections at any time via the dashboard.
+
+### 🗂️ Powerful Session Manager
+Open the "Saved Links" page to manage your sessions. Rename them, restore entire sessions with a single click, open individual links, or delete what you no longer need.
+
+### ➕ Research Assistant
+Add links manually to your sessions! Paste a URL, and LeanTabs **automatically fetches the page title** for you (e.g., converting a YouTube link into the video title).
+
+### 🪟 Smart Restore
+Restores your tabs exactly how you left them – respecting your **original window structure**. If a session had tabs from two different windows, LeanTabs can reopen them in two new windows.
+
+### 🛡️ Multiple Safety Nets
+*   **Automatic Backups:** Your data is safe, even if you close the browser.
+*   **Whitelist:** Protect important sites (Email, Music, Calendar) so they are never closed automatically.
+*   **Export/Import:** Move your data to another device easily.
+
+### 🛡️ Privacy First
+LeanTabs runs **100% offline**. Your data is stored locally on your device via `chrome.storage`. No tracking, no analytics, no cloud servers.
+
+---
+
+## 👥 Who is LeanTabs for?
+
+*   **Developers, Designers & Researchers:** Stay focused by keeping only the relevant window or **Opera Workspace** active.
+*   **Students & Knowledge Workers:** Automatically archive your research sessions and access them later for citations.
+*   **Anyone suffering from "tab-itis":** Free your browser (and your mind) from digital clutter.
+
+---
+
+## 📦 Installation
+
+### 🛒 From the Add-on Store
+*(Links will be added once the review process is complete)*
+*   🔜 **Chrome Web Store:** *Coming Soon*
+*   🔜 **Opera Add-ons:** *Coming Soon*
+
+### 💻 For Developers (Build from Source)
+If you want to inspect the code or test the latest features before the official release:
+
+1.  Download this repository or clone it via Git.
+2.  Open `chrome://extensions` (or `opera://extensions`) in your browser.
+3.  Enable **Developer mode** (toggle in the top right corner).
+4.  Click **Load unpacked**.
+5.  Select the folder containing the `manifest.json` file.
+
+---
+
+### Take back control now and experience a clean, fast, and organized browser. Install LeanTabs! 🚀
+
+
+
+
+
+

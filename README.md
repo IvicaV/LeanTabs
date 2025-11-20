@@ -1,6 +1,6 @@
 # 🧹 LeanTabs – Smart Tab & Workspace Manager
 
-[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support%20my%20work-yellow.svg?style=for-the-badge&logo=buy-me-a-coffee&logoColor=white)](https://www.buymeacoffee.com/YOUR_USERNAME)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20my%20work-F16061?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/ivicav)
 
 **Hundreds of open tabs? A sluggish browser? Drowning in tab clutter?**
 
@@ -108,9 +108,7 @@ It's Friday afternoon. You have 3 different windows open with unfinished tasks, 
 
 LeanTabs is an open-source project developed in my free time. If it helps you save RAM and stay organized, I'd be super happy if you invited me for a coffee!
 
-<a href="https://www.buymeacoffee.com/YOUR_USERNAME" target="_blank">
-  <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" >
-</a>
+<a href='https://ko-fi.com/ivicav' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi2.png?v=3' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
 
 ---
 

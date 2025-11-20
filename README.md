@@ -1,4 +1,7 @@
 # 🧹 LeanTabs – Smart Tab & Workspace Manager
+> **Compatible with:** ![Chrome](https://raw.githubusercontent.com/alrra/browser-logos/main/src/chrome/chrome_16x16.png) Chrome | ![Opera](https://raw.githubusercontent.com/alrra/browser-logos/main/src/opera/opera_16x16.png) Opera | ![Edge](https://raw.githubusercontent.com/alrra/browser-logos/main/src/edge/edge_16x16.png) Edge | ![Brave](https://raw.githubusercontent.com/alrra/browser-logos/main/src/brave/brave_16x16.png) Brave | ![Vivaldi](https://raw.githubusercontent.com/alrra/browser-logos/main/src/vivaldi/vivaldi_16x16.png) Vivaldi
+
+
 
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20my%20work-F16061?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/ivicav)
 
@@ -19,7 +22,7 @@ Clean up just your **current window or workspace** while leaving your other proj
 One click in the popup is all it takes. LeanTabs closes all unnecessary tabs instantly. The last few active tabs (customizable, e.g., 3) stay open so you can keep working without interruption.
 
 ### 🔒 Nothing is Ever Lost
-Every closed tab is automatically saved into a dated and named **"Session"**. You can access your old research and link collections at any time via the dashboard.
+Every tab closed **by LeanTabs** is automatically saved into a dated and named **"Session"**. You can access your old research and link collections at any time via the dashboard.
 
 ### 🗂️ Powerful Session Manager
 Open the "Saved Links" page to manage your sessions. Rename them, restore entire sessions with a single click, open individual links, or delete what you no longer need.
@@ -31,9 +34,9 @@ You can also add links manually to your sessions! Paste a URL, and LeanTabs **au
 Restores your tabs exactly how you left them – respecting your **original window structure**. If a session had tabs from two different windows, LeanTabs can reopen them in two new windows.
 
 ### 🛡️ Multiple Safety Nets
-*   **Automatic Backups:** Your data is safe, even if you close the browser.
-*   **Whitelist:** Protect important sites (Email, Music, Calendar) so they are never closed automatically.
-*   **Export/Import:** Move your data to another device easily.
+*   **Automatic Backups:** Every cleaning session is automatically backed up in the background, providing an extra layer of security against accidental deletion.
+*   **Whitelist:** Define specific domains (like Music players or Email) that should remain open during the cleaning process.
+*   **Export/Import:** Create manual backups or transfer your data to another device easily.
 
 ### 🛡️ Privacy First
 Your data belongs to you. LeanTabs stores all your sessions and links **locally on your device** (`chrome.storage`). We do not track you, we have no analytics, and we do not upload your data to any cloud servers.

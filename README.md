@@ -25,7 +25,7 @@ It is more than just a tab closer — it's your personal tab management assistan
 ## 🚀 Why LeanTabs is the right choice for you
 
 ### 🎯 True Multi-Tasking (Window & Workspace Aware)
-LeanTabs is smart. It distinguishes between different **Windows** (Chrome, Edge, Brave, Vivaldi) and **Opera Workspaces**.
+LeanTabs is smart. It distinguishes between different **Windows** (all Chromium browsers) and **Opera Workspaces**.
 *   **Respects Your Setup:** Whether you separate "Work" and "Private" by windows or workspaces, LeanTabs recognizes these boundaries. Cleaning your active project will never close tabs in your background projects.
 *   **Scope Selection:** You decide the reach of the cleanup. Choose to close tabs only in your current active view to save memory immediately, or run a browser-wide cleanup to reset all your open sessions at once.
 

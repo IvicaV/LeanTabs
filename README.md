@@ -1,9 +1,29 @@
-# 🧹 LeanTabs – Smart Tab & Workspace Manager
-> **Compatible with:** ![Chrome](https://raw.githubusercontent.com/alrra/browser-logos/main/src/chrome/chrome_16x16.png) Chrome | ![Opera](https://raw.githubusercontent.com/alrra/browser-logos/main/src/opera/opera_16x16.png) Opera | ![Edge](https://raw.githubusercontent.com/alrra/browser-logos/main/src/edge/edge_16x16.png) Edge | ![Brave](https://raw.githubusercontent.com/alrra/browser-logos/main/src/brave/brave_16x16.png) Brave | ![Vivaldi](https://raw.githubusercontent.com/alrra/browser-logos/main/src/vivaldi/vivaldi_16x16.png) Vivaldi
+<div align="center">
+  <img src="icon128.png" alt="LeanTabs Logo" width="128" height="128">
 
+  <h1>LeanTabs</h1>
+  
+  <p>
+    <strong>Smart Tab & Workspace Manager</strong>
+  </p>
 
+  <p>
+    <a href="https://ko-fi.com/ivicav">
+      <img src="https://img.shields.io/badge/Ko--fi-Support%20my%20work-F16061?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Buy Me a Coffee">
+    </a>
+  </p>
 
-[![Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20my%20work-F16061?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/ivicav)
+  <p>
+    <strong>Compatible with:</strong><br>
+    <img src="https://raw.githubusercontent.com/alrra/browser-logos/main/src/chrome/chrome_16x16.png" width="16" height="16"> Chrome | 
+    <img src="https://raw.githubusercontent.com/alrra/browser-logos/main/src/opera/opera_16x16.png" width="16" height="16"> Opera | 
+    <img src="https://raw.githubusercontent.com/alrra/browser-logos/main/src/edge/edge_16x16.png" width="16" height="16"> Edge | 
+    <img src="https://raw.githubusercontent.com/alrra/browser-logos/main/src/brave/brave_16x16.png" width="16" height="16"> Brave | 
+    <img src="https://raw.githubusercontent.com/alrra/browser-logos/main/src/vivaldi/vivaldi_16x16.png" width="16" height="16"> Vivaldi
+  </p>
+</div>
+
+<br>
 
 **Hundreds of open tabs? A sluggish browser? Drowning in tab clutter?**
 
@@ -11,7 +31,7 @@ LeanTabs is the smart solution that transforms your browser back into a producti
 
 It is more than just a tab closer — it's your personal tab management assistant. Unlike simple "tab suspenders," LeanTabs intelligently closes old tabs but saves them instantly into a beautiful, searchable dashboard. Designed for power users who demand efficiency without ever losing an important link.
 
-✨ Special Highlight: Unlike generic cleaners, LeanTabs features native support for Opera Workspaces, ensuring your separate workflows remain isolated and safe.
+✨ Special Highlight: Unlike generic cleaners, LeanTabs features native support for **Opera Workspaces**, ensuring your separate workflows remain isolated and safe.
 
 ---
 
@@ -135,5 +155,3 @@ LeanTabs is an open-source project developed in my free time. If it helps you sa
 ---
 
 ### Take back control now and experience a clean, fast, and organized browser. Install LeanTabs! 🚀
-
-

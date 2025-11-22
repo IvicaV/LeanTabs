@@ -4,7 +4,7 @@
   <h1>LeanTabs</h1>
   
   <p>
-    <strong>Smart Tab & Workspace Manager</strong>
+    <strong>The Smart Tab & Workspace Manager - Reclaim your RAM. Master your Workspaces.</strong>
   </p>
 
   <p>
@@ -25,38 +25,48 @@
 
 <br>
 
-**Hundreds of open tabs? A sluggish browser? Drowning in tab clutter?**
+> **"Don't just suspend your clutter. Solve it."**
 
-LeanTabs is the smart solution that transforms your browser back into a productivity powerhouse.
+**LeanTabs** transforms your browser from a resource-hogging mess into a streamlined productivity machine.
 
-It is more than just a tab closer — it's your personal tab management assistant. Unlike simple "tab suspenders," LeanTabs intelligently closes old tabs but saves them instantly into a beautiful, searchable dashboard. Designed for power users who demand efficiency without ever losing an important link.
+### ⛔ The Problem with other tools
+*   **Tab Suspenders:** They keep tabs open but "frozen". This saves memory but still leaves your tab bar cluttered, causing mental fatigue ("Where was that tab again?").
+*   **Simple Cleaners:** They ruthlessly close everything. You lose context, window positions, and active workflows.
 
-✨ Special Highlight for Opera users: Unlike generic cleaners, LeanTabs features native support for **Opera Workspaces**, ensuring your separate workflows remain isolated and safe.
+### ✅ The LeanTabs Solution
+LeanTabs is based on a simple philosophy: **Tabs eat RAM. Links don't.**
+
+It acts as a **Smart Converter**. Instead of keeping resource-heavy tabs open, it instantly converts them into organized, lightweight **Lists of Links**. It secures your data first, then selectively clears memory, giving you the performance of a fresh browser with the safety of a full backup.
+
+✨ **Advanced Workspace Support:** LeanTabs is designed for multitaskers. It features native detection for multiple windows and deep integration for things like **Opera Workspaces**, ensuring that your separate project areas remain isolated, are correctly named, and can be easily restored.
 
 ---
 
 ### ⚡ How it works in 3 seconds:
-1. **Click "Clean"** 🧹 → **Instant Zen.** Clutter vanishes, RAM is freed, and your browser speeds up immediately.
-2. **Tabs are Saved** 💾 → **Zero Stress.** Your tabs are auto-saved into a neat, searchable session. Nothing is ever lost.
-3. **Restore Later** ↩️ → **Resume Flow.** Bring back an entire workspace setup or just pick the links you need—exactly when you need them.
+1.  **Select Scope** 🎯 → Choose your cleanup level: Clean just the **Current Window** to tidy up, or perform a **Global Clean** across all screens to reset your workday.
+2.  **Click "Clean"** 🧹 → **Instant Zen.** Background clutter vanishes. RAM is freed instantly. Your browser speeds up immediately.
+3.  **Tabs become Links** 💾 → **Zero RAM.** LeanTabs converts every single tab (even the ones kept open) into a secure link within a named session.
+4.  **Restore Precision** ↩️ → **Resume Flow.** Turn any link back into a live tab. Restore a specific window or an entire workspace setup with one click.
 
 ---
 
-## 🚀 Why LeanTabs is the right choice for you
+## 🚀 Power Features: Why LeanTabs?
 
-### 🎯 True Multi-Tasking (Window & Workspace Aware)
-LeanTabs is smart. It distinguishes between different **Windows** (all Chromium browsers) and **Opera Workspaces**.
-*   **Respects Your Setup:** Whether you separate "Work" and "Private" by windows or workspaces, LeanTabs recognizes these boundaries. Cleaning your active project will never close tabs in your background projects.
-*   **Scope Selection:** You decide the reach of the cleanup. Choose to close tabs only in your current active view to save memory immediately, or run a browser-wide cleanup to reset all your open sessions at once.
+### 🧠 Context-Aware Intelligence
+LeanTabs distinguishes between your **Active Focus** and **Background Noise**.
+*   **Active Window Logic:** In your current window, it keeps your most recent tabs open (customizable, e.g., last 3) so your immediate flow isn't interrupted.
+*   **Deep Hibernation:** In "Global Mode", background windows and workspaces are saved as separate Link Sessions and then **closed completely** to maximize system performance.
 
-### 🧹 One-Click "Tab Clean"
-One click in the popup is all it takes. LeanTabs closes all unnecessary tabs instantly. The last few active tabs (customizable, e.g., 3) stay open so you can keep working without interruption.
+### 🛡️ Frictionless Protection
+Found a site you never want to close (Spotify, CRM, WhatsApp)?
+*   **Instant Shield:** Simply click the **Shield Icon 🛡️** next to any link in the dashboard.
+*   **Domain Lock:** This domain is now whitelisted. LeanTabs will clean around it, keeping your essential tools running while converting the rest into links.
 
-### 🔒 Nothing is Ever Lost
-Every tab closed **by LeanTabs** is automatically saved into a dated and named **"Session"**. You can access your old research and link collections at any time via the dashboard.
-
-### 🗂️ Powerful Session Manager
-Open the "Saved Links" page to manage your sessions. Organize your history with **collapsible lists**, rename sessions to give them context, restore entire sessions with a single click, open individual links, or delete what you no longer need.
+### 🗂️ Your Productivity Database
+The "Saved Links" dashboard turns your browsing history into an organized asset.
+*   **Granular Restoration:** Even after a global clean, every window and workspace is saved as a separate tile. You have the freedom to restore specific projects individually, exactly when you need them.
+*   **Live Search:** Stop digging through history. Find any link by title, URL, or category instantly.
+*   **Smart Organization:** Manage hundreds of sessions easily with collapsible lists and the global "Collapse/Expand" controls.
 
 ### ➕ Research Assistant
 You can also add links manually to your sessions! Paste a URL, and LeanTabs **automatically fetches the page title** for you (e.g., converting a YouTube link into the video title).
@@ -64,59 +74,52 @@ You can also add links manually to your sessions! Paste a URL, and LeanTabs **au
 ### 🏷️ Smart Auto-Categorization
 Chaos is the enemy. LeanTabs **automatically detects the source** of every link (e.g., "YouTube", "GitHub", "Amazon") and applies a clean category tag. Want custom organization? You can rename any category tag manually to fit your project needs (e.g., change "Google Docs" to "Thesis Sources").
 
-### 🔍 Instant Search & Filtering
-Stop scrolling through endless history lists. LeanTabs turns your saved tabs into a searchable database.
-*   **Live Search:** Find any link by title or URL instantly.
-*   **Smart Filters:** Drill down by **Category** (e.g., "Show me only YouTube videos") or filter by **Origin Window** to find exactly what you need in seconds.
+### 🔒 The "Triple Safety" Net
+I engineered LeanTabs to make data loss impossible.
+1.  **Session Archives:** Every clean action creates a visible, editable list of links in your dashboard.
+2.  **Unified Auto-Backup:** A fail-safe background mechanism that creates a full backup file of *everything* you cleaned. Even if you delete a session by mistake, the global backup has you covered.
+3.  **Privacy First:** Your data belongs to you. LeanTabs stores all your sessions and links **locally on your device** (`chrome.storage`). I do not track you, have no analytics, and do not upload your data to any cloud servers.
 
-### 🪟 Smart Restore
-Restores your tabs exactly how you left them – respecting your **original window structure**. If a session had tabs from two different windows, LeanTabs can reopen them in two new windows.
-
-### 🛡️ Multiple Safety Nets
-*   **Automatic Backups:** Every cleaning session is automatically backed up in the background, providing an extra layer of security against accidental deletion.
-*   **Whitelist:** Define specific domains (like Music players or Email) that should remain open during the cleaning process.
-*   **Export/Import:** Create manual backups or transfer your data to another device easily.
-
-### 🛡️ Privacy First
-Your data belongs to you. LeanTabs stores all your sessions and links **locally on your device** (`chrome.storage`). We do not track you, we have no analytics, and we do not upload your data to any cloud servers.
-
-> *Note: The extension only connects to the internet when you manually add a link (to fetch the title) or to load website icons.*
+> *Note: The extension only connects to the internet when you manually add a link (to fetch the title) or to load website icons (favicons).*
 
 ---
 
-## 💡 Real-World Use Cases
+## 💡 7 Real-World Scenarios: Do you recognize yourself?
 
-Not sure how LeanTabs fits into your workflow? Here are 5 scenarios based on its actual features:
+### 1. The "Panic" Screen Share (Privacy & Professionalism) 🎥
+You are in a meeting and need to share your screen immediately. But you have 40 tabs open—some work, some private (Amazon, Reddit), and it looks chaotic.
+*   **The LeanTabs Move:** Select **Global Scope** and click **Clean**.
+*   **The Result:** In 1 second, your browser looks professional and clean. Only your 3 active work tabs remain. Your private tabs aren't lost—they are safely converted to links in the dashboard, ready to be reopened later.
 
-### 1. The "Context Switcher" (Project Management) 🔀
-You are working on "Project A" in one window/workspace but need to switch to "Project B" immediately.
-*   **The Problem:** You don't want to lose your 15 open tabs for Project A, but you need the RAM for Project B.
-*   **The LeanTabs Fix:** Set the scope to *"Current Window / Workspace"* and hit **Clean**.
-*   **The Result:** Your current project is saved as a timestamped session (e.g., "Workspace 1 - 14:30"). You can now work on Project B in a fresh browser. Later, simply click **Restore Session** to bring Project A back exactly where it was.
+### 2. The "Deep Work" Tunnel (Focus) 🧠
+You need to write a report or code a feature. You open a new window, but your other 3 windows (Email, Slack, News) are blinking and distracting you in the background.
+*   **The LeanTabs Move:** Hit **Global Clean**.
+*   **The Result:** *Ruthless Focus.* LeanTabs aggressively closes all background windows (removing the visual noise) but saves them as separate sessions. You can focus 100% on your task. When you're done, just restore the "Email Window" tile.
 
-### 2. The "Performance Booster" (Gaming & Editing) ⚡
-You need maximum PC performance for a video call, a game, or video editing software, but your browser is eating 4GB of RAM.
-*   **The Problem:** Closing the browser means losing your setup. Keeping it open slows down your PC.
-*   **The LeanTabs Fix:** Click **Clean**. LeanTabs closes all tabs but intelligently keeps the **last 3 active tabs** open (customizable setting).
-*   **The Result:** Your memory is freed up instantly, but you are not completely kicked out of your browsing flow.
+### 3. The "Project Juggler" (Agency/Freelancer) 🤹
+You are switching between "Client A" (Workspace 1) and "Client B" (Workspace 2) multiple times a day. Keeping everything open eats 8GB of RAM.
+*   **The LeanTabs Move:** Before switching, run a clean.
+*   **The Result:** You essentially "freeze" Client A's entire workspace state into a session file. You open Client B on a fresh canvas. No lag, no confusion. Swapping clients creates zero friction—you pick up exactly where you left off.
 
-### 3. The "Research Curator" (Active Collecting) 📝
-You are researching a topic (e.g., "New Laptop") and collecting links from various sources over several days.
-*   **The Problem:** Bookmarks are too permanent; keeping tabs open is too messy.
-*   **The LeanTabs Fix:** Create a session (or use an existing one) and use the **"Add Link"** input field. Paste raw URLs from YouTube or Amazon.
-*   **The Result:** LeanTabs automatically fetches the page titles for you and auto-tags the source. You get a clean, categorized list of resources that you can edit and restore all at once when you are ready to buy.
+### 4. The "Background Music" Survivor (The Shield Feature) 🛡️
+You want to clean up your mess, but you are listening to a podcast on YouTube or waiting for an important email in Outlook. You are afraid a "Cleaner" will kill the audio.
+*   **The LeanTabs Move:** Go to Saved Links once. Click the **Shield Icon 🛡️** next to YouTube and Outlook. Now hit **Global Clean**.
+*   **The Result:** 50 tabs vanish, RAM is freed, but your music keeps playing and your inbox stays open. The perfect balance between order and utility.
 
-### 4. The "Device Migrator" (Work vs. Home) 💾
-You finished your research at work and want to continue exactly where you left off on your home laptop.
-*   **The Problem:** Syncing tabs via browser accounts often syncs *everything* or nothing specific.
-*   **The LeanTabs Fix:** Go to Settings -> **Export All Data**. Save the JSON file to your cloud storage or USB stick. At home, click **Import Data**.
-*   **The Result:** Your exact session history and saved links appear on your home machine, ready to be restored.
+### 5. The "Friday Afternoon" Reset (Mental Health) 🧘
+It's Friday, 5 PM. You have 3 windows open with unfinished tasks. You want to shut down, but you're anxious you'll forget where you left off on Monday.
+*   **The LeanTabs Move:** Run a clean. Go to the dashboard and rename the newest session to *"To Do Monday"*.
+*   **The Result:** You leave work with "Inbox Zero" for your browser. On Monday, you don't face a chaotic mess; you see one clear button labeled "To Do Monday" that restores your entire environment instantly.
 
-### 5. The "Monday Morning" Setup (Weekend Peace) 🧘
-It's Friday afternoon. You have 3 different windows open with unfinished tasks, but you want to shut down your computer for the weekend.
-*   **The Problem:** The anxiety of "Will I remember what I was doing?" makes you hesitate to close the browser.
-*   **The LeanTabs Fix:** Run a global Clean. Go to the dashboard and **rename** the session to "To Do Monday".
-*   **The Result:** You close the browser with zero guilt. On Monday, you see one clear session labeled "To Do Monday". If you had "Restore Window Structure" enabled, it even re-opens the tabs in their original window arrangement.
+### 6. The "Thesis Defender" (Knowledge Management) 🎓
+You are researching a complex topic. You have 30 tabs open (PDFs, Sources). You find a goldmine of info, but you need to restart your PC or switch tasks.
+*   **The LeanTabs Move:** Don't bookmark (bookmarks are where links go to die). Let LeanTabs save it.
+*   **The Result:** Your research is now a searchable database of links. You can search for keywords in the page titles later ("What was that PDF about Quantum Physics?"). Restoring the session brings back the *exact* window arrangement, so you don't lose your mental map.
+
+### 7. The "FPS Hunter" (Gaming & Rendering) ⚡
+You want to launch a heavy game (Cyberpunk) or render a 4K video. Chrome is running in the background, consuming resources even when minimized.
+*   **The LeanTabs Move:** Don't just minimize Chrome. **Global Clean** it.
+*   **The Result:** LeanTabs keeps your browser open (so you don't lose your login sessions/cookies) but strips it down to the bare minimum (e.g., 1 blank tab). Your CPU and RAM are fully released for your game. When you're done gaming, one click restores your browsing life.
 
 ---
 
@@ -131,7 +134,7 @@ It's Friday afternoon. You have 3 different windows open with unfinished tasks, 
 ## 📦 Installation
 
 ### 🛒 From the Add-on Store
-*(Links will be added once the review process is complete)*
+*(Links will be added soon)*
 *   🔜 **Chrome Web Store:** *Coming Soon*
 *   🔜 **Opera Add-ons:** *Coming Soon*
 

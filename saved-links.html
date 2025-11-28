@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Saved Links - LeanTabs</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="theme.js"></script>
+</head>
+<body class="page">
+  <div class="page-container">
+    <header>
+      <h1>
+        <img src="icon128.png" alt="LeanTabs Logo" class="logo-icon">
+        LeanTabs - Saved Links
+      </h1>
+      
+      <div class="header-controls">
+        <input type="text" id="searchInput" placeholder="Search saved tabs..." class="search-input">
+        <select id="categoryFilter" class="filter-select">
+          <option value="">All Categories</option>
+        </select>
+        <select id="windowFilter" class="filter-select">
+          <option value="">All Windows</option>
+        </select>
+        
+        <button id="goToSettingsBtn" class="btn btn-header-action" title="Open Settings" style="padding: 0 12px; margin-left: 8px;">
+            <svg class="icon-svg" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+
+        <div style="margin-left:auto; display: flex; gap: 8px;">
+          <button id="exportBtn" class="btn btn-header-action" title="Export ALL Sessions">Export All</button>
+          <button id="clearAllBtn" class="btn btn-header-action" title="Delete ALL Sessions">Delete All</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="stats-bar">
+      <div class="stats-left">
+        <span>Total: <strong id="totalCount" class="stat-highlight">0</strong></span>
+        <span class="stat-divider">|</span>
+        <span>Filtered: <strong id="filteredCount" class="stat-highlight">0</strong></span>
+        <span class="stat-divider">|</span>
+        <span>Sessions: <strong id="sessionCount" class="stat-highlight">0</strong></span>
+        
+        <span id="selectedInfo" class="selection-info-inline hidden" style="margin-left: 15px;">
+          <strong id="selectionCount">0</strong> selected
+        </span>
+      </div>
+      
+      <div class="stats-right">
+        <button id="createSessionBtn" class="btn-toggle-pill" title="Create a new empty session">
+          <span class="icon" style="font-weight:800; font-size:14px; color:var(--primary);">+</span> New Session
+        </button>
+        
+        <button id="toggleAllBtn" class="btn-toggle-pill">
+          <span class="icon">▼</span> Collapse All
+        </button>
+      </div>
+    </div>
+
+    <div id="linksContainer" class="links-container">
+      <p class="empty-state">No links saved yet. Use the "Run Tab Clean" function!</p>
+    </div>
+  </div>
+
+  <div id="customModal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <h3 id="modalTitle" class="modal-title">Confirm Action</h3>
+      <div id="modalMessage" class="modal-text"></div>
+      
+      <input type="text" id="modalInput" class="modal-input" placeholder="Enter text...">
+      
+      <select id="modalSelect" class="modal-input" style="display:none; cursor:pointer;">
+      </select>
+
+      <div id="modalActions" class="modal-actions">
+      </div>
+    </div>
+  </div>
+
+  <script src="saved-links.js"></script>
+</body>
+</html>

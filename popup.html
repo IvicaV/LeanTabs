@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LeanTabs</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="theme.js"></script>
+</head>
+<body>
+  <div class="container">
+    <div class="popup-header">
+      <h1>
+        <img src="icon128.png" alt="LeanTabs Logo" class="logo-icon">
+        LeanTabs
+      </h1>
+      <div class="header-actions">
+        <button id="themeToggleBtn" class="btn-theme-toggle" title="Switch Theme">
+          </button>
+        
+        <button id="resetBtn" class="btn-reset" title="EMERGENCY RESET: This will close ALL tabs immediately. NO TABS WILL BE SAVED.">
+          <svg class="icon-svg" viewBox="0 0 24 24"><path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </div>
+    
+    <div class="stats">
+      <div class="stat-item">
+        <span class="stat-label">Open Tabs</span>
+        <span class="stat-value" id="tabCount">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Saved Links</span>
+        <span class="stat-value" id="savedCount">0</span>
+      </div>
+    </div>
+
+    <div class="scope-control">
+      <label for="cleanScope">Cleaning Scope</label>
+      <select id="cleanScope" class="scope-select">
+        <option value="current">Current Window Only</option>
+        <option value="global">Global (All Windows)</option>
+      </select>
+    </div>
+
+    <div class="action-stack">
+      <button id="cleanBtn" class="btn btn-primary btn-block">
+        <svg style="width:20px; height:20px; stroke:white;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+        <span>Run Tab Clean</span>
+        <span id="cleanBtnSubtext" style="display:none;"></span>
+      </button>
+
+      <button id="viewLinksBtn" class="btn btn-secondary btn-block">
+        <svg class="icon-lg" style="color:var(--primary);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Saved Links</span>
+      </button>
+    </div>
+
+    <button id="optionsBtn" class="btn btn-secondary" style="width:100%; margin-bottom:10px;">
+      <svg class="icon-svg" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Settings
+    </button>
+
+    <div id="status" class="status hidden"></div>
+
+    <div id="confirmModal" class="modal-overlay hidden">
+      <div class="modal-content">
+        <div id="modalMessage" class="modal-text"></div>
+        <div class="modal-actions">
+          <button id="modalCancelBtn" class="btn-modal btn-modal-cancel">Cancel</button>
+          <button id="modalConfirmBtn" class="btn-modal btn-modal-confirm">Proceed</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-link">
+      <a id="aboutLink" href="#" style="cursor: pointer;">
+        <svg style="width:16px; height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+        About LeanTabs
+      </a>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

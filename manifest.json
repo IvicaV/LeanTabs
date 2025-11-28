@@ -1,0 +1,56 @@
+{
+  "manifest_version": 3,
+  "name": "LeanTabs - Smart Tab Manager",
+  "version": "1.0.0",
+  "description": "Automatically saves and closes old tabs to save resources",
+  "permissions": [
+    "tabs",
+    "storage",
+    "downloads",
+    "unlimitedStorage",
+    "contextMenus"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_page": "options.html",
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "commands": {
+    "run-clean": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+S",
+        "mac": "Command+Shift+S"
+      },
+      "description": "Clean & Save Tabs"
+    },
+    "open-saved": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+L",
+        "mac": "Command+Shift+L"
+      },
+      "description": "Open Saved Links Dashboard"
+    },
+    "run-reset": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+K",
+        "mac": "Command+Shift+K"
+      },
+      "description": "⚠️ RESET Window (Delete all)"
+    }
+  }
+}

@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="icon128.png" alt="LeanTabs Logo" width="128" height="128">
+  <img src="assets/icon128.png" alt="LeanTabs Logo" width="128" height="128">
 
   <h1>LeanTabs</h1>
   

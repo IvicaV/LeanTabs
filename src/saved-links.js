@@ -1,4 +1,4 @@
-// --- START OF saved-links.js (Final: Left-Side Selection, Sorted Categories & Windows) ---
+// --- START OF saved-links.js (Final: Smart Import Refresh & UI State Sync) ---
 
 let allLinks = [];
 let filteredLinks = [];
@@ -7,6 +7,9 @@ let collapsedSessions = new Set();
 let sessionsDefaultCollapsed = false; 
 let isUpdatingMasterCheckbox = false;
 let visibleLimit = 100; 
+
+// Track background updates to refresh UI upon visibility
+let hasPendingUpdate = false;
 
 // SVG Icons Constants
 const ICONS = {
@@ -34,12 +37,25 @@ window.addEventListener('storage', (e) => {
 });
 
 // --- ROBUSTNESS: Sync Data across Tabs ---
+// UPDATED LOGIC: Handles updates even if tab is in background (via Pending Flag)
 chrome.storage.onChanged.addListener((changes, namespace) => {
-  if (namespace === 'local' && changes.savedLinks) {
+  if (namespace === 'local' && (changes.savedLinks || changes.settings)) {
     if (!document.hidden) {
        loadLinks(); 
+       hasPendingUpdate = false;
+    } else {
+       // Mark as stale so we update immediately upon focusing
+       hasPendingUpdate = true;
     }
   }
+});
+
+// Listen for tab focus/visibility to apply pending updates (e.g., after Import from Options)
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && hasPendingUpdate) {
+        loadLinks();
+        hasPendingUpdate = false;
+    }
 });
 
 // --- CUSTOM MODAL HELPER ---
@@ -206,7 +222,7 @@ function updateWindowFilter(windowLabels) {
   const select = document.getElementById('windowFilter');
   select.innerHTML = '<option value="">All Windows</option>';
   
-  // FIX: SORT WINDOWS ALPHABETICALLY (Removed .reverse())
+  // FIX: SORT WINDOWS ALPHABETICALLY
   const uniqueLabels = Array.from(windowLabels).sort();
   
   uniqueLabels.forEach(label => {

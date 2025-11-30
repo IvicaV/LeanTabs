@@ -104,7 +104,6 @@ The "Saved Links" dashboard turns your browsing history into an organized asset.
 *   **Smart Categorization:** Automatically identifies the source of **any link** (e.g., 'YouTube', 'Notion', 'Jira') and applies a clean, readable tag.
 *   **Dark Mode:** A beautifully crafted UI that respects your system settings.
 ![Dark Mode](assets/LeanTabs_Light_Dark.png)
-![Dark Mode](assets/LeanTabs_Light_Dark.png)
 
 ### ➕ Research Assistant
 You can also add links with a Right-Click or manually to your sessions! Save a URL, and LeanTabs **automatically fetches the page title** for you (e.g., converting a YouTube link into the video title).

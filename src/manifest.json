@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "LeanTabs - Smart Tab Manager",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Automatically saves and closes old tabs to save resources",
   "permissions": [
     "tabs",

@@ -57,6 +57,30 @@ I built LeanTabs to break this cycle. It acts as a **Smart Converter**. Instead 
 
 ---
 
+## 🎛️ The Interface: Quick Guide
+
+In the **Saved Links** Dashboard, you have full control over your sessions. Here is exactly what the buttons do:
+
+### Session Controls (Top Right of each Card)
+| Icon | Tooltip Name | Function |
+| :--- | :--- | :--- |
+| ⚡ | **Replace** | **Context Switcher.** Closes all current tabs in your active window and instantly replaces them with this session. |
+| ↩️ | **Restore** | **Append.** Opens the tabs from this session *next* to your currently open tabs (adds them). |
+| ⬇️ | **Export** | Downloads this specific session as a JSON file (great for sharing with colleagues). |
+| ⬆️ | **Push to Top** | Moves an old session to the top of the list and updates its timestamp to "Now". |
+| 📌 | **Pin** | Pins the session to the top of your dashboard so it's always accessible. |
+| 🗑️ | **Delete** | Permanently deletes this session (don't worry, the global Auto-Backup still has a copy). |
+
+### Link Controls (Inside the List)
+| Icon | Tooltip Name | Function |
+| :--- | :--- | :--- |
+| 🛡️ | **Add to Whitelist** | Adds this domain to the Whitelist. Future cleans will keep this site open. |
+| 🏷️ | **Edit Category** | Rename the auto-generated tag (e.g., change "Docs" to "Project Alpha"). |
+| 🔗 | **Open Tab** | Opens just this single link in a new tab. |
+| 🗑️ | **Delete** | Removes this single link from the session. |
+
+---
+
 ## 🚀 Power Features: Why LeanTabs?
 
 ### 🧠 Context-Aware Intelligence
@@ -75,9 +99,11 @@ Found a site you never want to close (Spotify, CRM, WhatsApp)?
 The "Saved Links" dashboard turns your browsing history into an organized asset.
 *   **Granular Restoration:** Even after a global clean, every window and workspace is saved as a separate tile. You have the freedom to restore specific projects individually, exactly when you need them.
 *   **Live Search:** Stop digging through history. Find any link by title, URL, or category instantly.
+*   **Drag & Drop:** Reorder links within a session to prioritize your tasks or group related links together.
 *   **Smart Organization:** Manage hundreds of sessions easily with collapsible lists and the global "Collapse/Expand" controls.
 *   **Smart Categorization:** Automatically identifies the source of **any link** (e.g., 'YouTube', 'Notion', 'Jira') and applies a clean, readable tag.
 *   **Dark Mode:** A beautifully crafted UI that respects your system settings.
+![Dark Mode](assets/LeanTabs_Light_Dark.png)
 ![Dark Mode](assets/LeanTabs_Light_Dark.png)
 
 ### ➕ Research Assistant
@@ -153,6 +179,33 @@ You want to launch a heavy game (Cyberpunk) or render a 4K video. Chrome is runn
     You hate bloat. You want your browser to consume 200MB of RAM, not 8GB, so your gaming or rendering performance doesn't suffer.
 *   **The "Tab Hoarders" (ADHD friendly):**
     You keep tabs open because "out of sight, out of mind". LeanTabs solves the object permanence issue by giving you a visual, searchable dashboard instead of hidden bookmarks.
+
+
+---
+
+## ❓ FAQ & Troubleshooting
+
+**Q: Does LeanTabs upload my browsing history?**
+A: **Absolutely not.** LeanTabs operates 100% offline. All data is stored locally in your browser's internal storage (`chrome.storage.local`). Your data never leaves your machine.
+
+**Q: Will it save the text I typed in a form or my scroll position?**
+A: **No.** LeanTabs saves the **URL and Title** of the page. Because the tab is technically "closed" to free up RAM, temporary data like unsaved form inputs or scroll positions will be reset. **Always save your work** inside web apps before running a clean!
+
+**Q: Does LeanTabs sync across my different computers?**
+A: Currently, LeanTabs focuses on local privacy and speed, so there is no cloud sync. However, you can easily move your setup by clicking **"Export All"** in the dashboard and importing the JSON file on your other machine.
+
+**Q: How do I protect specific sites (like Spotify or Mail) from being closed?**
+A: Use the **Whitelist** feature. Simply right-click on any page and select **"Add to Whitelist"**, or click the **Shield Icon (🛡️)** next to a link in the dashboard. These domains will be ignored by the cleaner and stay open.
+
+**Q: What happens if I uninstall the extension?**
+A: ⚠️ **Important:** Since data is stored locally, uninstalling the extension will clear the storage usage for LeanTabs. **Please export your sessions** via the "Export All" button in the dashboard before uninstalling, so you don't lose your saved links.
+
+**Q: I use Opera Workspaces. Will cleaning one workspace affect the others?**
+A: No. LeanTabs is workspace-aware. If you choose "Current Window Scope", it will only clean the tabs visible in your currently active workspace. The others remain untouched (or saved separately if you use Global Clean).
+
+**Q: Can I recover tabs if I accidentally deleted a session?**
+A: **Yes.** LeanTabs has an automatic backup system running in the background. Go to **Settings > Data Management**, and you will find auto-backups of your last 50 cleaning operations.
+
 
 ---
 

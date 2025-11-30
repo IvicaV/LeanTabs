@@ -1,3 +1,10 @@
+/**
+ * LeanTabs - The Smart Tab & Workspace Manager
+ * @author Ivica Vrgoc
+ * @repository https://github.com/IvicaV/LeanTabs
+ * @description Script handling the Options page logic, backup management, and settings persistence.
+ */
+
 // --- START OF options.js (Final: Smart Import Redirect) ---
 
 let whitelist = [];
@@ -560,6 +567,21 @@ function initEventListeners() {
     }
     e.target.value = '';
   });
+
+  // Footer Links Handlers
+  const aboutLink = document.getElementById('aboutLink');
+  if (aboutLink) {
+    aboutLink.addEventListener('click', () => {
+      chrome.tabs.create({ url: 'https://github.com/IvicaV/LeanTabs' });
+    });
+  }
+
+  const kofiLink = document.getElementById('kofiLink');
+  if (kofiLink) {
+    kofiLink.addEventListener('click', () => {
+      chrome.tabs.create({ url: 'https://ko-fi.com/ivicav' });
+    });
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {

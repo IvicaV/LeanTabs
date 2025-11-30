@@ -1,4 +1,11 @@
-// --- START OF popup.js (Fix: Smart Workspace Detection) ---
+/**
+ * LeanTabs - The Smart Tab & Workspace Manager
+ * @author Ivica Vrgoc
+ * @repository https://github.com/IvicaV/LeanTabs
+ * @description Script handling the main popup UI, cleaning logic, and scope control.
+ */
+
+// --- START OF popup.js (Fix: Smart Workspace Detection & Reliable Footer Links) ---
 
 // --- 1. HELPER: CUSTOM MODAL ---
 function showCustomConfirm(message) {
@@ -140,6 +147,24 @@ async function getTabsBasedOnScope(isGlobal) {
 
 document.addEventListener('DOMContentLoaded', async () => {
     
+    // --- Footer Links Handlers (Initialize early) ---
+    const aboutLink = document.getElementById('aboutLink');
+    if (aboutLink) {
+        aboutLink.addEventListener('click', (e) => {
+            e.preventDefault(); // Prevent href="#" jump
+            chrome.tabs.create({ url: 'https://github.com/IvicaV/LeanTabs' });
+        });
+    }
+
+    const kofiLink = document.getElementById('kofiLink');
+    if (kofiLink) {
+        kofiLink.addEventListener('click', (e) => {
+            e.preventDefault(); // Prevent href="#" jump
+            chrome.tabs.create({ url: 'https://ko-fi.com/ivicav' });
+        });
+    }
+
+    // --- Init UI ---
     await initScopeDropdown();
     await updateStats();
 
@@ -406,7 +431,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     const optionsBtn = document.getElementById('optionsBtn');
     if (optionsBtn) optionsBtn.addEventListener('click', () => chrome.runtime.openOptionsPage());
-
-    const aboutLink = document.getElementById('aboutLink');
-    if (aboutLink) aboutLink.addEventListener('click', () => chrome.tabs.create({ url: 'https://github.com/IvicaV/LeanTabs' }));
 });

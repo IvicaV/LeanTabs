@@ -1,4 +1,4 @@
-/* --- START OF styles.css (Final with Fixed Button Hover) --- */
+/* --- START OF styles.css (Final with Footer Updates) --- */
 
 :root {
   --primary: #3b82f6;          
@@ -33,6 +33,9 @@
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --radius: 12px;
   --radius-sm: 8px;
+  
+  /* BRAND COLORS */
+  --kofi-color: #ff5e5b;
 }
 
 /* --- DARK MODE THEME --- */
@@ -178,7 +181,7 @@ h1, h2, h3 {
 
 /* --- PAGE CONTAINER --- */
 .page { background: var(--bg-color); min-height: 100vh; }
-.page-container { max-width: 1400px; margin: 0 auto; padding: 40px; }
+.page-container { max-width: 1400px; margin: 0 auto; padding: 40px; display: flex; flex-direction: column; min-height: 100vh; }
 
 /* --- HEADER --- */
 header { display: block; margin-bottom: 30px; }
@@ -352,10 +355,22 @@ header h1 {
 .btn-modal-danger:hover { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); }
 
 
-/* --- FOOTER --- */
-.footer-link { margin-top: auto; padding-top: 20px; text-align: center; border-top: 1px solid var(--border-color); }
+/* --- FOOTER (Enhanced for GitHub + Ko-fi) --- */
+.footer-link { 
+    margin-top: auto; 
+    padding-top: 24px; /* Mehr Luft nach oben */
+    text-align: center; 
+    border-top: none; /* Kein Strich mehr! */
+    display: flex; 
+    justify-content: center; 
+    gap: 16px; 
+    align-items: center; 
+}
 .footer-link a { color: var(--text-muted); text-decoration: none; font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; transition: color 0.2s; }
 .footer-link a:hover { color: var(--primary); }
+
+/* Ko-fi specific hover */
+.footer-link a.kofi-link:hover { color: var(--kofi-color); }
 
 .hidden { display: none !important; }
 

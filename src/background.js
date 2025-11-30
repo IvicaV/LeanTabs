@@ -1,3 +1,10 @@
+/**
+ * LeanTabs - The Smart Tab & Workspace Manager
+ * @author Ivica Vrgoc
+ * @repository https://github.com/IvicaV/LeanTabs
+ * @description Background service worker handling context menus, shortcuts, and storage hygiene.
+ */
+
 // --- START OF background.js (Final: Fixed Workspace Leak in Background Clean & Reset) ---
 
 // 1. INITIALIZATION & LISTENERS

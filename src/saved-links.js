@@ -1,3 +1,10 @@
+/**
+ * LeanTabs - The Smart Tab & Workspace Manager
+ * @author Ivica Vrgoc
+ * @repository https://github.com/IvicaV/LeanTabs
+ * @description Script handling the Dashboard UI, drag & drop, link management, and restoring sessions.
+ */
+
 // --- START OF saved-links.js (Final: Smart Import Refresh & UI State Sync) ---
 
 let allLinks = [];
@@ -750,6 +757,21 @@ document.getElementById('linksContainer').addEventListener('change', (e) => {
 document.getElementById('goToSettingsBtn').addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
 });
+
+// Footer Links Handlers
+const aboutLink = document.getElementById('aboutLink');
+if (aboutLink) {
+  aboutLink.addEventListener('click', () => {
+    chrome.tabs.create({ url: 'https://github.com/IvicaV/LeanTabs' });
+  });
+}
+
+const kofiLink = document.getElementById('kofiLink');
+if (kofiLink) {
+  kofiLink.addEventListener('click', () => {
+    chrome.tabs.create({ url: 'https://ko-fi.com/ivicav' });
+  });
+}
 
 document.getElementById('linksContainer').addEventListener('click', async (e) => {
   if (e.target.classList.contains('btn-add-link')) {

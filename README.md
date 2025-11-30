@@ -76,7 +76,7 @@ The "Saved Links" dashboard turns your browsing history into an organized asset.
 *   **Granular Restoration:** Even after a global clean, every window and workspace is saved as a separate tile. You have the freedom to restore specific projects individually, exactly when you need them.
 *   **Live Search:** Stop digging through history. Find any link by title, URL, or category instantly.
 *   **Smart Organization:** Manage hundreds of sessions easily with collapsible lists and the global "Collapse/Expand" controls.
-*   **Smart Categorization:** Automatically detects "YouTube", "GitHub", or "Docs" links and tags them.
+*   **Smart Categorization:** Automatically identifies the source of **any link** (e.g., 'YouTube', 'Notion', 'Jira') and applies a clean, readable tag.
 *   **Dark Mode:** A beautifully crafted UI that respects your system settings.
 ![Dark Mode](assets/LeanTabs_Light_Dark.png)
 

@@ -88,7 +88,7 @@ Chaos is the enemy. LeanTabs **automatically detects the source** of every link 
 
 ### 🔒 The "Triple Safety" Net
 I engineered LeanTabs to make data loss impossible.
-1.  **Session Archives:** Every clean action creates a visible, editable list of links in your dashboard.
+1.  **Session Archives:** Every cleanup creates a visible, editable list of links in your dashboard.
 2.  **Unified Auto-Backup:** A fail-safe background mechanism that creates a full backup file of *everything* you cleaned. Even if you delete a session by mistake, the global backup has you covered.
 3.  **Privacy First:** Your data belongs to you. LeanTabs stores all your sessions and links **locally on your device** (`chrome.storage`). I do not track you, have no analytics, and do not upload your data to any cloud servers.
 ![Settings Menu](assets/LeanTabs_Settings.png)

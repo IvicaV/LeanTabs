@@ -5,7 +5,7 @@
  * @description Background service worker handling context menus, shortcuts, and storage hygiene.
  */
 
-// --- START OF background.js (Final: Fixed Workspace Leak in Background Clean & Reset) ---
+// --- START OF background.js (Final: Fixed Workspace Leak & Smart Shortcut) ---
 
 // 1. INITIALIZATION & LISTENERS
 chrome.runtime.onInstalled.addListener(async () => {
@@ -50,7 +50,33 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 // 3. SHORTCUT COMMANDS HANDLER
 chrome.commands.onCommand.addListener(async (command) => {
   if (command === 'open-saved') {
-    chrome.tabs.create({ url: 'saved-links.html' });
+    // --- SMART DASHBOARD OPEN (Focus existing tab in same workspace) ---
+    const targetUrl = chrome.runtime.getURL('saved-links.html');
+    
+    // Get currently active tab to know the context (Window & Workspace)
+    const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    const currentActiveTab = activeTabs[0];
+
+    if (currentActiveTab) {
+        // Find existing saved-links tabs in the SAME WINDOW ID
+        const existingTabs = await chrome.tabs.query({ url: targetUrl, windowId: currentActiveTab.windowId });
+        
+        // SMART FILTER: Check if it's in the SAME Workspace
+        // Opera/Vivaldi share windowId across workspaces, but workspaceId differs.
+        const tabInSameWorkspace = existingTabs.find(t => t.workspaceId === currentActiveTab.workspaceId);
+        
+        if (tabInSameWorkspace) {
+            // Safe: Same visual context -> Focus it
+            await chrome.tabs.update(tabInSameWorkspace.id, { active: true });
+        } else {
+            // Not found in THIS workspace -> Create new
+            await chrome.tabs.create({ url: 'saved-links.html' });
+        }
+    } else {
+        // Fallback if no active tab context found
+        await chrome.tabs.create({ url: 'saved-links.html' });
+    }
+
   } else if (command === 'run-clean') {
     await performBackgroundClean();
   } else if (command === 'run-reset') {
@@ -521,4 +547,3 @@ async function createBackup(links, tabsClosed = 0) {
     await chrome.storage.local.set({ backups: backupList });
   } catch (error) { console.error('Backup error:', error); }
 }
-// --- END OF background.js ---

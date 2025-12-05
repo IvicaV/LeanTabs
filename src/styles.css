@@ -410,6 +410,7 @@ header h1 {
     flex: 1; 
     min-width: 0;
     margin-right: 12px;
+    max-width: 85%; /* FIX: Give title more space */
 }
 
 .session-meta-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
@@ -440,8 +441,15 @@ header h1 {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   padding: 2px 0; border: 1px solid transparent;
   display: block; 
+  width: 100%; /* FIX: Take available width */
 }
 .session-title:hover { border-color: var(--border-color); background: var(--card-bg); border-radius: 4px; }
+/* FIX: Allow full text visibility when editing/focused */
+.session-title:focus { 
+    text-overflow: clip; 
+    overflow: auto; 
+    cursor: text; 
+}
 
 .tab-count { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
 
@@ -620,9 +628,19 @@ header h1 {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 4px; /* Reduced for description spacing */
   font-size: 12px;
 }
+
+/* NEW: Style for shortcut descriptions */
+.shortcut-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  display: block;
+  line-height: 1.3;
+}
+.shortcut-desc:last-child { margin-bottom: 0; }
 
 .kbd-group {
   display: flex;

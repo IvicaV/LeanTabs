@@ -371,7 +371,7 @@ function renderLinks() {
     const labelWithoutEmoji = session.label.replace(/^📅\s*/, '').replace(/\s*\(\d+\s+Tabs\)$/, '');
     headerText.textContent = labelWithoutEmoji;
     headerText.dataset.sessionId = sessionId;
-    headerText.title = 'Click to edit title';
+    headerText.title = labelWithoutEmoji; // FIX: Show full title on hover
     
     headerText.addEventListener('click', (e) => {
       e.stopPropagation();

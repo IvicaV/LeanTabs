@@ -225,7 +225,7 @@ For Power Users who hate reaching for the mouse. Remember the keys easily:
 ### 🛒 From the Add-on Store
 *(Links will be added soon)*
 *   🔜 **Chrome Web Store:** *Coming Soon*
-*   🔜 **Opera Add-ons:** *Coming Soon*
+*   🔜 **Opera Add-ons:** https://addons.opera.com/de/extensions/details/leantabs-smart-tab-workspace-manager/
 
 ### 💻 For Developers (Build from Source)
 *If you want to inspect the code or test the latest features before the official release:*

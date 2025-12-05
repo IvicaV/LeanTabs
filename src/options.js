@@ -513,11 +513,26 @@ function initEventListeners() {
         const timeString = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
         if (preserveStructure) {
-            preparedLinks = finalImportList.map(link => ({
-                ...link,
-                uniqueId: `${link.url}-${timestamp}-${Math.random().toString(36).substr(2, 9)}`,
-                importedAt: timestamp
-            }));
+            // --- FIX: Prevent merging by re-mapping Session IDs ---
+            const importTimestampSuffix = Date.now();
+            const sessionIdMap = {}; // Maps old sessionID -> new unique sessionID
+
+            preparedLinks = finalImportList.map(link => {
+                const oldSessionId = link.sessionId || 'unknown';
+                
+                // If we haven't seen this session ID in this import batch yet, generate a new one
+                if (!sessionIdMap[oldSessionId]) {
+                    // Append import timestamp to make it unique, even if "manual-save-today" already exists locally
+                    sessionIdMap[oldSessionId] = `${oldSessionId}-imported-${importTimestampSuffix}`;
+                }
+
+                return {
+                    ...link,
+                    sessionId: sessionIdMap[oldSessionId], // Assign new unique ID
+                    uniqueId: `${link.url}-${timestamp}-${Math.random().toString(36).substr(2, 9)}`,
+                    importedAt: timestamp
+                };
+            });
             showSaveStatus(`✅ Restored ${preparedLinks.length} links & sessions!`, 'success');
 
         } else {

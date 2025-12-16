@@ -223,8 +223,8 @@ For Power Users who hate reaching for the mouse. Remember the keys easily:
 ## 📦 Installation
 
 ### 🛒 From the Add-on Store
-*(Links will be added soon)*
-*   🔜 **Chrome Web Store:** *Coming Soon*
+
+*   🔜 **Chrome Web Store:** https://chromewebstore.google.com/detail/leantabs-smart-tab-manage/pkihcnafoidoclfhhiaikgcnpanfddko
 *   🔜 **Opera Add-ons:** https://addons.opera.com/de/extensions/details/leantabs-smart-tab-workspace-manager/
 
 ### 💻 For Developers (Build from Source)

@@ -1,6 +1,18 @@
-    .DS_Store
-    Thumbs.db
-    *.log
-    node_modules/
-    .vscode/
-    .idea/
+# System Files
+.DS_Store
+Thumbs.db
+*.log
+
+# Dependencies
+node_modules/
+
+# IDEs and Editors
+.vscode/
+.idea/
+
+# Build Output
+dist/
+
+# Development / AI Scratch Files
+project_context.txt
+bundle_code.js

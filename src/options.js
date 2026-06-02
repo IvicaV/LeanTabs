@@ -6,6 +6,7 @@
  */
 
 // --- START OF options.js (Final: Smart Import Redirect) ---
+import { getLinks, saveLinks, getSettings, saveSettings, getWhitelist, saveWhitelist, getBackups, saveBackups } from './modules/storage.js';
 
 let whitelist = [];
 let settings = {};
@@ -125,9 +126,9 @@ function loadBackups(backups) {
 }
 
 async function loadData() {
-  const data = await chrome.storage.local.get(['whitelist', 'settings', 'backups']);
-  whitelist = data.whitelist || [];
-  settings = data.settings || { 
+  whitelist = await getWhitelist();
+  const rawSettings = await getSettings();
+  settings = Object.keys(rawSettings).length > 0 ? rawSettings : { 
     keepLastTabs: 3, 
     autoBackup: true, 
     confirmBeforeClose: true, 
@@ -137,9 +138,10 @@ async function loadData() {
     restoreWindowStructure: true,
     smartImport: true 
   };
+  const backups = await getBackups();
   renderWhitelist();
   loadSettings();
-  loadBackups(data.backups || []);
+  loadBackups(backups);
 }
 
 function initEventListeners() {
@@ -179,7 +181,7 @@ function initEventListeners() {
     if (btn) {
       const index = parseInt(btn.dataset.index);
       whitelist.splice(index, 1);
-      await chrome.storage.local.set({ whitelist });
+      await saveWhitelist(whitelist);
       renderWhitelist();
       showSaveStatus('Domain removed!');
     }
@@ -199,7 +201,7 @@ function initEventListeners() {
     }
     if (!whitelist.includes(cleanDomain)) {
       whitelist.push(cleanDomain);
-      await chrome.storage.local.set({ whitelist });
+      await saveWhitelist(whitelist);
       renderWhitelist();
       input.value = '';
       showSaveStatus('Domain added!');
@@ -232,7 +234,7 @@ function initEventListeners() {
       settings.restoreWindowStructure = document.getElementById('restoreWindowStructureCheck').checked;
       settings.smartImport = document.getElementById('smartImportCheck').checked;
 
-      await chrome.storage.local.set({ settings });
+      await saveSettings(settings);
       loadSettings();
       showSaveStatus('✅ Settings saved!', 'success');
     } catch (error) {
@@ -248,9 +250,9 @@ function initEventListeners() {
 
     if (restoreBtn) {
       const index = parseInt(restoreBtn.dataset.backupIndex);
-      const data = await chrome.storage.local.get(['backups', 'savedLinks']);
-      const backup = data.backups[index];
-      const currentLinks = data.savedLinks || [];
+      const backups = await getBackups();
+      const currentLinks = await getLinks();
+      const backup = backups[index];
       
       const choice = await showCustomModal(
           "Restore Backup?", 
@@ -274,7 +276,7 @@ function initEventListeners() {
           timestamp 
         }));
         const allLinks = [...restoredLinks, ...currentLinks];
-        await chrome.storage.local.set({ savedLinks: allLinks });
+        await saveLinks(allLinks);
         showSaveStatus('✅ Backup restored!', 'success');
         setTimeout(() => chrome.tabs.create({ url: 'saved-links.html' }), 1000);
       }
@@ -283,8 +285,8 @@ function initEventListeners() {
 
     if (downloadBtn) {
       const index = parseInt(downloadBtn.dataset.downloadBackupIndex);
-      const data = await chrome.storage.local.get(['backups']);
-      const backup = data.backups[index];
+      const backups = await getBackups();
+      const backup = backups[index];
       const timestamp = new Date(backup.timestamp).toISOString().slice(0, 10);
       const dataStr = JSON.stringify(backup.data, null, 2);
       const blob = new Blob([dataStr], { type: 'application/json' });
@@ -300,8 +302,7 @@ function initEventListeners() {
 
     if (deleteBtn) {
       const index = parseInt(deleteBtn.dataset.deleteBackupIndex);
-      const data = await chrome.storage.local.get(['backups']);
-      const backupList = data.backups || [];
+      const backupList = await getBackups();
       
       const choice = await showCustomModal(
           "Delete Backup?", 
@@ -314,7 +315,7 @@ function initEventListeners() {
 
       if (choice) {
         backupList.splice(index, 1);
-        await chrome.storage.local.set({ backups: backupList });
+        await saveBackups(backupList);
         loadBackups(backupList);
         showSaveStatus('Backup deleted!', 'success');
       }
@@ -371,11 +372,11 @@ function initEventListeners() {
           if (importConfig) {
               if (data.settings) {
                   settings = data.settings; // Update local var
-                  await chrome.storage.local.set({ settings: data.settings });
+                  await saveSettings(data.settings);
               }
               if (data.whitelist) {
                   whitelist = data.whitelist; // Update local var
-                  await chrome.storage.local.set({ whitelist: data.whitelist });
+                  await saveWhitelist(data.whitelist);
               }
               // Refresh UI immediately
               loadSettings();
@@ -404,8 +405,7 @@ function initEventListeners() {
         return;
       }
 
-      const currentData = await chrome.storage.local.get(['savedLinks']);
-      const currentLinks = currentData.savedLinks || [];
+      const currentLinks = await getLinks();
       
       const getSignature = (l) => l.url + (l.originalTimestamp || l.timestamp);
       
@@ -549,7 +549,7 @@ function initEventListeners() {
         }
 
         const allLinks = [...preparedLinks, ...currentLinks];
-        await chrome.storage.local.set({ savedLinks: allLinks });
+        await saveLinks(allLinks);
         
         // --- SMART REDIRECT AFTER IMPORT ---
         setTimeout(async () => {

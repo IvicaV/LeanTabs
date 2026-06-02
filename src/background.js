@@ -6,6 +6,8 @@
  */
 
 // --- START OF background.js (Final: Fixed Workspace Leak & Smart Shortcut) ---
+import { getLinks, saveLinks, getSettings, saveSettings, getWhitelist, saveWhitelist, getBackups, saveBackups } from './modules/storage.js';
+import { extractDomain } from './modules/categorizer.js';
 
 // 1. INITIALIZATION & LISTENERS
 chrome.runtime.onInstalled.addListener(async () => {
@@ -119,15 +121,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 async function initializeDefaults() {
   const data = await chrome.storage.local.get(['savedLinks', 'whitelist', 'settings']);
-  if (!data.savedLinks) await chrome.storage.local.set({ savedLinks: [] });
-  if (!data.whitelist) await chrome.storage.local.set({ whitelist: ['gmail.com', 'docs.google.com'] });
-  if (!data.settings) await chrome.storage.local.set({
-    settings: { 
-      keepLastTabs: 3, 
-      autoBackup: true, 
-      confirmBeforeClose: true, 
-      cleanAllWorkspaces: false
-    }
+  if (!data.savedLinks) await saveLinks([]);
+  if (!data.whitelist) await saveWhitelist(['gmail.com', 'docs.google.com']);
+  if (!data.settings) await saveSettings({
+    keepLastTabs: 3, 
+    autoBackup: true, 
+    confirmBeforeClose: true, 
+    cleanAllWorkspaces: false
   });
 }
 
@@ -137,12 +137,11 @@ async function addToWhitelist(url) {
         const urlObj = new URL(url);
         const domain = urlObj.hostname.replace(/^www\./, '');
         
-        const data = await chrome.storage.local.get(['whitelist']);
-        const list = data.whitelist || [];
+        const list = await getWhitelist();
         
         if (!list.includes(domain)) {
             list.push(domain);
-            await chrome.storage.local.set({ whitelist: list });
+            await saveWhitelist(list);
             
             // Visual Feedback on Icon
             chrome.action.setBadgeText({ text: "WL+" });
@@ -232,8 +231,7 @@ async function buildContextMenu() {
     });
     // ------------------------------------------
 
-    const data = await chrome.storage.local.get(['savedLinks']);
-    const allLinks = data.savedLinks || [];
+    const allLinks = await getLinks();
     
     const sessionsMap = new Map();
     allLinks.forEach(link => {
@@ -286,8 +284,7 @@ async function saveSingleLink(url, title, favicon, targetSessionId) {
     }
 
     // CRITICAL: Get fresh data AFTER the async fetch to prevent race conditions
-    const data = await chrome.storage.local.get(['savedLinks']);
-    const allLinks = data.savedLinks || [];
+    const allLinks = await getLinks();
     
     const timestamp = new Date().toISOString();
     const dateGroup = new Date().toLocaleDateString('en-US');
@@ -344,7 +341,7 @@ async function saveSingleLink(url, title, favicon, targetSessionId) {
       title: finalTitle, 
       timestamp: timestamp,
       dateGroup: dateGroup,
-      category: domain,
+      category: extractDomain(url),
       favicon: favicon || `https://www.google.com/s2/favicons?domain=${domain}&sz=32`,
       sessionId: sessionId,
       sessionLabel: sessionLabel,
@@ -353,7 +350,7 @@ async function saveSingleLink(url, title, favicon, targetSessionId) {
     };
 
     allLinks.unshift(newLink);
-    await chrome.storage.local.set({ savedLinks: allLinks });
+    await saveLinks(allLinks);
     
     chrome.action.setBadgeText({ text: "OK" });
     chrome.action.setBadgeBackgroundColor({ color: "#10b981" }); 
@@ -384,9 +381,9 @@ async function performBackgroundClean() {
     chrome.action.setBadgeBackgroundColor({ color: "#3b82f6" }); 
 
     // Initial read for settings
-    const data = await chrome.storage.local.get(['whitelist', 'settings']);
-    const settings = data.settings || { keepLastTabs: 3, cleanAllWorkspaces: false, autoBackup: true };
-    const whitelist = data.whitelist || [];
+    const rawSettings = await getSettings();
+    const settings = Object.keys(rawSettings).length > 0 ? rawSettings : { keepLastTabs: 3, cleanAllWorkspaces: false, autoBackup: true };
+    const whitelist = await getWhitelist();
     
     let tabsToProcess = [];
     if (settings.cleanAllWorkspaces) {
@@ -446,7 +443,7 @@ async function performBackgroundClean() {
                     title: tab.title,
                     timestamp,
                     dateGroup,
-                    category: new URL(tab.url).hostname.replace('www.',''),
+                    category: extractDomain(tab.url),
                     favicon: tab.favIconUrl || '',
                     sessionId,
                     sessionLabel: `${timeString} - Background Clean`
@@ -478,10 +475,9 @@ async function performBackgroundClean() {
     if (tabsToClose.length > 0 || linksToSave.length > 0) {
         if (linksToSave.length > 0) {
             // CRITICAL: Fetch fresh data just before saving to prevent race conditions
-            const freshData = await chrome.storage.local.get(['savedLinks']);
-            let currentSavedLinks = freshData.savedLinks || [];
-            currentSavedLinks = [...linksToSave, ...currentSavedLinks];
-            await chrome.storage.local.set({ savedLinks: currentSavedLinks });
+            const currentSavedLinks = await getLinks();
+            const updatedLinks = [...linksToSave, ...currentSavedLinks];
+            await saveLinks(updatedLinks);
             
             if (settings.autoBackup) createBackup(linksToSave, tabsToClose.length);
         }
@@ -530,8 +526,7 @@ async function createBackup(links, tabsClosed = 0) {
     if (links.length === 0) smartLabel = "Empty Clean";
 
     const backupData = { created: timestamp, version: '1.0.0', tabsClosed: tabsClosed, links: links };
-    const backups = await chrome.storage.local.get(['backups']);
-    const backupList = backups.backups || [];
+    const backupList = await getBackups();
     
     backupList.push({ 
         id: timestamp, 
@@ -544,6 +539,6 @@ async function createBackup(links, tabsClosed = 0) {
     });
 
     if (backupList.length > 50) backupList.shift();
-    await chrome.storage.local.set({ backups: backupList });
+    await saveBackups(backupList);
   } catch (error) { console.error('Backup error:', error); }
 }

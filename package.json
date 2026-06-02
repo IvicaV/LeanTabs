@@ -1,0 +1,14 @@
+{
+  "name": "leantabs-extension",
+  "version": "1.1.5",
+  "description": "Vite environment for LeanTabs extension",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "watch": "vite build --watch"
+  },
+  "devDependencies": {
+    "vite": "^5.2.11",
+    "vite-plugin-web-extension": "^4.1.3"
+  }
+}

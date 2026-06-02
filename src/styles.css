@@ -676,4 +676,82 @@ kbd {
   border-color: #1e293b;
   color: #e2e8f0;
 }
+
+/* --- SESSION CARD ACTION DROPDOWN --- */
+.session-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.session-dropdown-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  z-index: 1000;
+  min-width: 160px;
+  margin-top: 4px;
+  overflow: hidden;
+  flex-direction: column;
+}
+
+.session-dropdown-menu.show {
+  display: flex;
+}
+
+/* Ensure dropdown buttons style matches list items */
+.session-dropdown-menu .session-dropdown-item {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text-main);
+  text-align: left;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.2s;
+  min-height: 44px; /* Mobile touch target */
+  border-radius: 0;
+  padding: 10px 16px;
+}
+
+.session-dropdown-menu .session-dropdown-item:hover {
+  background-color: var(--surface-bg);
+  color: var(--text-strong);
+}
+
+/* Pin item active accent */
+.session-dropdown-menu .session-dropdown-item.btn-pin.active {
+  color: var(--pin-color);
+  background: var(--pin-bg);
+}
+
+/* Delete item danger accent */
+.session-dropdown-menu .session-dropdown-item.btn-delete {
+  color: var(--danger);
+  box-shadow: none;
+}
+
+.session-dropdown-menu .session-dropdown-item.btn-delete:hover {
+  background-color: var(--danger-bg);
+  color: var(--danger);
+  box-shadow: none;
+}
+
+/* Prevent double-glow or size issue of .btn-session if applied on dropdown items */
+.session-dropdown-menu .btn-session {
+  width: 100% !important;
+  height: auto !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  transition: none !important;
+}
+
 /* --- END OF styles.css --- */

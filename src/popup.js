@@ -6,6 +6,8 @@
  */
 
 // --- START OF popup.js (Fix: Smart Workspace Detection & Reliable Footer Links) ---
+import { getLinks, saveLinks, getSettings, saveSettings, getWhitelist } from './modules/storage.js';
+import { extractDomain } from './modules/categorizer.js';
 
 // --- 1. HELPER: CUSTOM MODAL ---
 function showCustomConfirm(message) {
@@ -42,9 +44,9 @@ function showCustomConfirm(message) {
 async function updateStats() {
   try {
       const tabs = await chrome.tabs.query({});
-      const data = await chrome.storage.local.get(['savedLinks', 'settings']);
-      const savedLinks = data.savedLinks || [];
-      const settings = data.settings || { keepLastTabs: 3 }; 
+      const savedLinks = await getLinks();
+      const rawSettings = await getSettings();
+      const settings = Object.keys(rawSettings).length > 0 ? rawSettings : { keepLastTabs: 3 }; 
       
       const tabCountEl = document.getElementById('tabCount');
       const savedCountEl = document.getElementById('savedCount');
@@ -71,8 +73,7 @@ function updateSubtext(keepCount) {
 }
 
 async function initScopeDropdown() {
-    const data = await chrome.storage.local.get(['settings']);
-    const settings = data.settings || {};
+    const settings = await getSettings();
     const scopeSelect = document.getElementById('cleanScope');
 
     if (!scopeSelect) return;
@@ -86,7 +87,7 @@ async function initScopeDropdown() {
     scopeSelect.addEventListener('change', async () => {
         updateSubtext(settings.keepLastTabs || 3);
         settings.cleanAllWorkspaces = (scopeSelect.value === 'global');
-        await chrome.storage.local.set({ settings });
+        await saveSettings(settings);
     });
 }
 
@@ -99,25 +100,7 @@ function showStatus(message, type = 'success') {
   setTimeout(() => statusEl.classList.add('hidden'), 3000);
 }
 
-function extractDomain(url) {
-  try {
-    const urlObj = new URL(url);
-    const hostname = urlObj.hostname;
-    const domainMap = {
-      'youtube.com': 'YouTube', 'github.com': 'GitHub', 'stackoverflow.com': 'Stack Overflow',
-      'reddit.com': 'Reddit', 'twitter.com': 'Twitter', 'linkedin.com': 'LinkedIn',
-      'facebook.com': 'Facebook', 'amazon.de': 'Amazon', 'amazon.com': 'Amazon',
-      'wikipedia.org': 'Wikipedia', 'google.com': 'Google', 'gmail.com': 'Gmail',
-      'docs.google.com': 'Google Docs', 'drive.google.com': 'Google Drive'
-    };
-    if (domainMap[hostname]) return domainMap[hostname];
-    const withoutWww = hostname.replace(/^www\./, '');
-    if (domainMap[withoutWww]) return domainMap[withoutWww];
-    const parts = withoutWww.split('.');
-    if (parts.length >= 2) return parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
-    return 'Other';
-  } catch { return 'Other'; }
-}
+
 
 function isSystemLink(url) {
     if (!url) return true;
@@ -230,13 +213,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
           try {
             // ONLY READ SETTINGS/WHITELIST HERE
-            const settingsData = await chrome.storage.local.get(['whitelist', 'settings']);
-            const settings = settingsData.settings || { 
+            const rawSettings = await getSettings();
+            const settings = Object.keys(rawSettings).length > 0 ? rawSettings : { 
               keepLastTabs: 3, 
               confirmBeforeClose: true, 
               autoBackup: true 
             };
-            const whitelist = settingsData.whitelist || [];
+            const whitelist = await getWhitelist();
             
             // Note: We do NOT read savedLinks yet!
             
@@ -361,13 +344,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // --- CRITICAL FIX: READ DATA NOW, JUST BEFORE SAVING ---
             // This prevents overwriting data if changes happened while modal was open
-            const freshData = await chrome.storage.local.get(['savedLinks']);
-            let currentSavedLinks = freshData.savedLinks || [];
+            const currentSavedLinks = await getLinks();
 
             const allNewLinksFlat = sessionsToCreate.flat();
             const updatedLinks = [...allNewLinksFlat, ...currentSavedLinks];
             
-            await chrome.storage.local.set({ savedLinks: updatedLinks });
+            await saveLinks(updatedLinks);
 
             if (settings.autoBackup && globalTabsToBackup.length > 0) {
                 await chrome.runtime.sendMessage({ 

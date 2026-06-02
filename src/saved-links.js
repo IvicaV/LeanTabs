@@ -6,6 +6,9 @@
  */
 
 // --- START OF saved-links.js (Final: Smart Import Refresh & UI State Sync) ---
+import { getLinks, saveLinks, getSettings, saveSettings, getWhitelist, saveWhitelist } from './modules/storage.js';
+import { deleteSession, renameSession, togglePinSession, bumpSession } from './modules/sessions.js';
+import { extractDomain } from './modules/categorizer.js';
 
 let allLinks = [];
 let filteredLinks = [];
@@ -163,19 +166,11 @@ async function fetchTitleFromUrl(url) {
   } catch (error) { return url; }
 }
 
-function extractDomain(url) {
-  try {
-    const urlObj = new URL(url);
-    const hostname = urlObj.hostname.replace(/^www\./, '');
-    const parts = hostname.split('.');
-    if (parts.length >= 2) return parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
-    return 'Other';
-  } catch { return 'Other'; }
-}
+
 
 async function loadLinks() {
-  const data = await chrome.storage.local.get(['savedLinks', 'settings']);
-  allLinks = data.savedLinks || [];
+  allLinks = await getLinks();
+  const settings = await getSettings();
   
   let needsSave = false;
   allLinks.forEach((link, index) => {
@@ -184,10 +179,9 @@ async function loadLinks() {
       needsSave = true;
     }
   });
-  if (needsSave) await chrome.storage.local.set({ savedLinks: allLinks });
+  if (needsSave) await saveLinks(allLinks);
   
   filteredLinks = [...allLinks];
-  const settings = data.settings || {};
   sessionsDefaultCollapsed = settings.sessionsDefaultCollapsed || false;
   
   const toggleBtn = document.getElementById('toggleAllBtn');
@@ -394,13 +388,8 @@ function renderLinks() {
       if (!newLabel) newLabel = headerText.dataset.originalText || labelWithoutEmoji;
       
       if (newLabel && newLabel !== labelWithoutEmoji) {
-        const freshData = await chrome.storage.local.get(['savedLinks']);
-        allLinks = freshData.savedLinks || [];
-        allLinks.forEach(link => {
-          const linkSessionId = link.sessionId || `${link.dateGroup}-${link.timestamp}`;
-          if (linkSessionId === sessionId) link.sessionLabel = newLabel;
-        });
-        await chrome.storage.local.set({ savedLinks: allLinks });
+        await renameSession(sessionId, newLabel);
+        await loadLinks();
       }
       headerText.textContent = newLabel;
     });
@@ -465,46 +454,72 @@ function renderLinks() {
     restoreSessionBtn.dataset.sessionId = sessionId;
     restoreSessionBtn.title = 'Restore Session (Append)';
 
+    // Dropdown container
+    const dropdownDiv = document.createElement('div');
+    dropdownDiv.className = 'session-dropdown';
+
+    // Dropdown toggle button (3-dots)
+    const dropdownToggleBtn = document.createElement('button');
+    dropdownToggleBtn.className = 'btn-session btn-dropdown-toggle';
+    dropdownToggleBtn.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0M19 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0M5 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    dropdownToggleBtn.title = 'More Actions';
+    dropdownToggleBtn.setAttribute('aria-haspopup', 'true');
+    dropdownToggleBtn.setAttribute('aria-expanded', 'false');
+
+    // Dropdown menu list
+    const dropdownMenu = document.createElement('div');
+    dropdownMenu.className = 'session-dropdown-menu';
+
+    // Replace action inside dropdown
     const replaceSessionBtn = document.createElement('button');
-    replaceSessionBtn.className = 'btn-session btn-replace';
-    replaceSessionBtn.innerHTML = ICONS.replace;
+    replaceSessionBtn.className = 'session-dropdown-item btn-replace';
+    replaceSessionBtn.innerHTML = `${ICONS.replace} Replace Tabs`;
     replaceSessionBtn.dataset.sessionId = sessionId;
     replaceSessionBtn.dataset.action = 'restoreReplace';
     replaceSessionBtn.title = 'Replace current tabs. WARNING: Tabs closed will not be saved!';
 
+    // Export action inside dropdown
     const downloadSessionBtn = document.createElement('button');
-    downloadSessionBtn.className = 'btn-session';
-    downloadSessionBtn.innerHTML = ICONS.download;
+    downloadSessionBtn.className = 'session-dropdown-item';
+    downloadSessionBtn.innerHTML = `${ICONS.download} Export Session`;
     downloadSessionBtn.dataset.sessionId = sessionId;
     downloadSessionBtn.dataset.action = 'downloadSession';
     downloadSessionBtn.title = 'Export Session (Safe to Share)';
 
+    // Push to Top action inside dropdown
     const bumpSessionBtn = document.createElement('button');
-    bumpSessionBtn.className = 'btn-session';
-    bumpSessionBtn.innerHTML = ICONS.arrowUp;
+    bumpSessionBtn.className = 'session-dropdown-item';
+    bumpSessionBtn.innerHTML = `${ICONS.arrowUp} Push to Top`;
     bumpSessionBtn.dataset.sessionId = sessionId;
     bumpSessionBtn.dataset.action = 'bumpSession';
     bumpSessionBtn.title = 'Push to Top';
 
+    // Pin action inside dropdown
     const pinSessionBtn = document.createElement('button');
-    pinSessionBtn.className = `btn-session btn-pin ${isPinned ? 'active' : ''}`;
-    pinSessionBtn.innerHTML = ICONS.pin;
+    pinSessionBtn.className = `session-dropdown-item btn-pin ${isPinned ? 'active' : ''}`;
+    pinSessionBtn.innerHTML = `${ICONS.pin} ${isPinned ? 'Unpin' : 'Pin'} Session`;
     pinSessionBtn.dataset.sessionId = sessionId;
     pinSessionBtn.dataset.action = 'togglePin';
     pinSessionBtn.title = isPinned ? 'Unpin Session' : 'Pin Session';
 
+    // Delete action inside dropdown
     const deleteSessionBtn = document.createElement('button');
-    deleteSessionBtn.className = 'btn-session btn-delete';
-    deleteSessionBtn.innerHTML = ICONS.trash;
+    deleteSessionBtn.className = 'session-dropdown-item btn-session btn-delete';
+    deleteSessionBtn.innerHTML = `${ICONS.trash} Delete Session`;
     deleteSessionBtn.dataset.sessionId = sessionId;
     deleteSessionBtn.title = 'Delete Session';
+
+    dropdownMenu.appendChild(replaceSessionBtn);
+    dropdownMenu.appendChild(downloadSessionBtn);
+    dropdownMenu.appendChild(bumpSessionBtn);
+    dropdownMenu.appendChild(pinSessionBtn);
+    dropdownMenu.appendChild(deleteSessionBtn);
+
+    dropdownDiv.appendChild(dropdownToggleBtn);
+    dropdownDiv.appendChild(dropdownMenu);
     
-    sessionActions.appendChild(replaceSessionBtn); 
     sessionActions.appendChild(restoreSessionBtn);
-    sessionActions.appendChild(downloadSessionBtn);
-    sessionActions.appendChild(bumpSessionBtn);
-    sessionActions.appendChild(pinSessionBtn); 
-    sessionActions.appendChild(deleteSessionBtn);
+    sessionActions.appendChild(dropdownDiv);
     
     sessionHeader.appendChild(sessionLeft);
     sessionHeader.appendChild(sessionActions);
@@ -793,8 +808,7 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
     input.disabled = true;
     const fetchedTitle = await fetchTitleFromUrl(validUrl);
 
-    const freshData = await chrome.storage.local.get(['savedLinks']);
-    allLinks = freshData.savedLinks || [];
+    allLinks = await getLinks();
 
     const sessionSample = allLinks.find(l => (l.sessionId || `${l.dateGroup}-${l.timestamp}`) === sessionId);
     const timestamp = new Date().toISOString();
@@ -812,7 +826,7 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
         isPinned: sessionSample ? sessionSample.isPinned : false 
     };
     allLinks.unshift(newLink); 
-    await chrome.storage.local.set({ savedLinks: allLinks });
+    await saveLinks(allLinks);
     input.value = ''; 
     btn.textContent = originalBtnText;
     btn.disabled = false;
@@ -847,19 +861,8 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
       e.stopImmediatePropagation();
       const btn = e.target.closest('[data-action="togglePin"]');
       const sessionId = btn.dataset.sessionId;
-      const freshData = await chrome.storage.local.get(['savedLinks']);
-      allLinks = freshData.savedLinks || [];
-      const sessionLinks = allLinks.filter(l => (l.sessionId || `${l.dateGroup}-${l.timestamp}`) === sessionId);
-      if (sessionLinks.length > 0) {
-          const currentStatus = sessionLinks[0].isPinned || false;
-          const newStatus = !currentStatus;
-          allLinks.forEach(link => {
-              const linkSessionId = link.sessionId || `${link.dateGroup}-${link.timestamp}`;
-              if (linkSessionId === sessionId) link.isPinned = newStatus;
-          });
-          await chrome.storage.local.set({ savedLinks: allLinks });
-          await loadLinks(); 
-      }
+      await togglePinSession(sessionId);
+      await loadLinks();
       return;
   }
   if (e.target.closest('.btn-link-whitelist')) {
@@ -869,13 +872,12 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
         const urlStr = btn.dataset.url;
         const url = new URL(urlStr);
         let domain = url.hostname.replace(/^www\./, '');
-        const data = await chrome.storage.local.get(['whitelist']);
-        let whitelist = data.whitelist || [];
+        let whitelist = await getWhitelist();
         if (whitelist.includes(domain)) {
             await showCustomModal("Already Whitelisted", `Domain "${domain}" is already in the Whitelist!`, [{ text: "OK", value: true, class: "btn-modal-confirm" }]);
         } else {
             whitelist.push(domain);
-            await chrome.storage.local.set({ whitelist });
+            await saveWhitelist(whitelist);
             await showCustomModal("Whitelisted", `✅ Domain "${domain}" added to Whitelist!`, [{ text: "OK", value: true, class: "btn-modal-confirm" }]);
         }
     } catch (error) { 
@@ -889,8 +891,7 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
     const btn = e.target.closest('.btn-link-delete');
     const url = btn.dataset.url;
     const timestamp = btn.dataset.timestamp;
-    const data = await chrome.storage.local.get(['settings']);
-    const settings = data.settings || {};
+    const settings = await getSettings();
     
     if (settings.confirmBeforeClose !== false) {
         const confirmed = await showCustomModal(
@@ -903,12 +904,11 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
         );
         if (!confirmed) return;
     }
-    const freshData = await chrome.storage.local.get(['savedLinks']);
-    allLinks = freshData.savedLinks || [];
+    allLinks = await getLinks();
     const indexToDelete = allLinks.findIndex(link => link.url === url && link.timestamp === timestamp);
     if (indexToDelete !== -1) {
       allLinks.splice(indexToDelete, 1);
-      await chrome.storage.local.set({ savedLinks: allLinks });
+      await saveLinks(allLinks);
       await loadLinks();
     }
     return;
@@ -923,8 +923,7 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
     e.stopImmediatePropagation();
     const btn = e.target.closest('.btn-link-category');
     const url = btn.dataset.url;
-    const freshData = await chrome.storage.local.get(['savedLinks']);
-    allLinks = freshData.savedLinks || [];
+    allLinks = await getLinks();
     const linkToUpdate = allLinks.find(link => link.url === url);
     if (linkToUpdate) {
       const newCategory = await showCustomModal(
@@ -940,7 +939,7 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
         allLinks.forEach(link => {
           if (link.url === url) link.category = newCategory.trim();
         });
-        await chrome.storage.local.set({ savedLinks: allLinks });
+        await saveLinks(allLinks);
         await loadLinks();
       }
     }
@@ -993,8 +992,7 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
     });
     const targetValue = await showCustomModal("Move Links", `Move ${selectedInSession.length} links to:`, [{ text: "Cancel", value: false, class: "btn-modal-cancel" }, { text: "Move", value: true, class: "btn-modal-confirm" }], { type: 'select', options: sessionOptions });
     if (targetValue) {
-        const freshData = await chrome.storage.local.get(['savedLinks']);
-        allLinks = freshData.savedLinks || [];
+        allLinks = await getLinks();
         let targetSessionId = targetValue;
         let targetLabel = "";
         let targetPinned = false;
@@ -1024,7 +1022,7 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
             }
         });
         selectedLinks.clear();
-        await chrome.storage.local.set({ savedLinks: allLinks });
+        await saveLinks(allLinks);
         await loadLinks();
     }
     return;
@@ -1034,24 +1032,8 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
       e.stopImmediatePropagation();
       const btn = e.target.closest('[data-action="bumpSession"]');
       const sessionId = btn.dataset.sessionId;
-      const freshData = await chrome.storage.local.get(['savedLinks']);
-      allLinks = freshData.savedLinks || [];
-      const now = new Date();
-      const newTimestamp = now.toISOString();
-      const newDateGroup = now.toLocaleDateString('en-US');
-      let changed = false;
-      allLinks.forEach(link => {
-          const linkSessionId = link.sessionId || `${link.dateGroup}-${link.timestamp}`;
-          if (linkSessionId === sessionId) {
-              link.timestamp = newTimestamp;
-              link.dateGroup = newDateGroup; 
-              changed = true;
-          }
-      });
-      if (changed) {
-          await chrome.storage.local.set({ savedLinks: allLinks });
-          await loadLinks(); 
-      }
+      await bumpSession(sessionId);
+      await loadLinks();
       return;
   }
   if (e.target.closest('[data-action="deleteSelected"]')) {
@@ -1060,20 +1042,18 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
     const sessionId = btn.dataset.sessionId;
     const selectedInSession = allLinks.filter(link => selectedLinks.has(getLinkKey(link)));
     if (selectedInSession.length === 0) return;
-    const data = await chrome.storage.local.get(['settings']);
-    const settings = data.settings || {};
+    const settings = await getSettings();
     if (settings.confirmBeforeClose !== false) {
         const confirmed = await showCustomModal("Delete Selected", `Really delete ${selectedInSession.length} selected link(s)?\nThis cannot be undone.`, [{ text: "Cancel", value: false, class: "btn-modal-cancel" }, { text: "Delete All", value: true, class: "btn-modal-danger" }]);
         if (!confirmed) return;
     }
-    const freshData = await chrome.storage.local.get(['savedLinks']);
-    allLinks = freshData.savedLinks || [];
+    allLinks = await getLinks();
     allLinks = allLinks.filter(link => {
       const linkKey = getLinkKey(link);
       return !selectedLinks.has(linkKey);
     });
     selectedInSession.forEach(link => selectedLinks.delete(getLinkKey(link)));
-    await chrome.storage.local.set({ savedLinks: allLinks });
+    await saveLinks(allLinks);
     await loadLinks(); 
     return;
   }
@@ -1090,8 +1070,7 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
     const warningText = isReplace ? '\n\n⚠️ Tabs in THIS workspace will be closed!' : '';
     const confirmed = await showCustomModal(isReplace ? "Replace Session" : "Restore Session", `${actionText} ${sessionLinks.length} link(s) from this session?${warningText}`, [{ text: "Cancel", value: false, class: "btn-modal-cancel" }, { text: isReplace ? "Replace" : "Restore", value: true, class: isReplace ? "btn-modal-danger" : "btn-modal-confirm" }]);
     if (confirmed) {
-      const data = await chrome.storage.local.get(['settings']);
-      const settings = data.settings || {};
+      const settings = await getSettings();
       const shouldRestoreStructure = (settings.restoreWindowStructure !== false) && !isReplace; 
       let oldTabsIds = [];
       if (isReplace) {
@@ -1116,8 +1095,8 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
              for (const url of urls) await chrome.tabs.create({ url, active: false });
           } else {
              for (const wId of windowIds) {
-                const urls = linksByWindow[wId];
-                if (urls.length > 0) await chrome.windows.create({ url: urls });
+                 const urls = linksByWindow[wId];
+                 if (urls.length > 0) await chrome.windows.create({ url: urls });
              }
           }
       } else {
@@ -1125,13 +1104,7 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
       }
       if (isReplace && oldTabsIds.length > 0) await chrome.tabs.remove(oldTabsIds);
       if (settings.deleteAfterRestore) {
-        const freshData = await chrome.storage.local.get(['savedLinks']);
-        allLinks = freshData.savedLinks || [];
-        allLinks = allLinks.filter(link => {
-          const linkSessionId = link.sessionId || `${link.dateGroup}-${link.timestamp}`;
-          return linkSessionId !== sessionId;
-        });
-        await chrome.storage.local.set({ savedLinks: allLinks });
+        await deleteSession(sessionId);
         await loadLinks();
       }
     }
@@ -1141,19 +1114,12 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
     e.stopImmediatePropagation();
     const btn = e.target.closest('.btn-session.btn-delete');
     const sessionId = btn.dataset.sessionId;
-    const data = await chrome.storage.local.get(['settings']);
-    const settings = data.settings || {};
+    const settings = await getSettings();
     if (settings.confirmBeforeClose !== false) {
         const confirmed = await showCustomModal("Delete Session", "Really delete all links from this session?\nThis action cannot be undone.", [{ text: "Cancel", value: false, class: "btn-modal-cancel" }, { text: "Delete Session", value: true, class: "btn-modal-danger" }]);
         if (!confirmed) return;
     }
-    const freshData = await chrome.storage.local.get(['savedLinks']);
-    allLinks = freshData.savedLinks || [];
-    allLinks = allLinks.filter(link => {
-      const linkSessionId = link.sessionId || `${link.dateGroup}-${link.timestamp}`;
-      return linkSessionId !== sessionId;
-    });
-    await chrome.storage.local.set({ savedLinks: allLinks });
+    await deleteSession(sessionId);
     await loadLinks();
     return;
   }
@@ -1182,7 +1148,7 @@ function applyFilters() {
 // --- SMART EXPORT LOGIC (Session Names & Sessions Only) ---
 document.getElementById('exportBtn').addEventListener('click', async () => {
   // GET ONLY SAVED LINKS (NO SETTINGS)
-  const data = await chrome.storage.local.get(['savedLinks']);
+  const data = { savedLinks: await getLinks() };
   const timestamp = new Date().toISOString().slice(0, 10);
   
   // Calculate Session Names for Filename
@@ -1223,7 +1189,7 @@ document.getElementById('clearAllBtn').addEventListener('click', async () => {
   if (confirm1) {
     const confirm2 = await showCustomModal("Final Confirmation", "Are you ABSOLUTELY sure?", [{ text: "Cancel", value: false, class: "btn-modal-cancel" }, { text: "Yes, Wipe Everything", value: true, class: "btn-modal-danger" }]);
     if (confirm2) {
-      await chrome.storage.local.set({ savedLinks: [] });
+      await saveLinks([]);
       await loadLinks();
     }
   }
@@ -1306,7 +1272,7 @@ async function handleDrop(e) {
       if (sourceIndex > -1 && targetIndex > -1) {
           const [movedItem] = allLinks.splice(sourceIndex, 1);
           allLinks.splice(targetIndex, 0, movedItem);
-          await chrome.storage.local.set({ savedLinks: allLinks });
+          await saveLinks(allLinks);
           renderLinks(); 
       }
   }
@@ -1345,14 +1311,14 @@ if (createSessionBtn) {
             isPinned: false
         };
         allLinks.unshift(newLink);
-        await chrome.storage.local.set({ savedLinks: allLinks });
+        await saveLinks(allLinks);
         await loadLinks();
         fetchTitleFromUrl(validUrl).then(title => {
             if (title && title !== validUrl) {
                 const linkIndex = allLinks.findIndex(l => l.uniqueId === newLink.uniqueId);
                 if (linkIndex > -1) {
                     allLinks[linkIndex].title = title;
-                    chrome.storage.local.set({ savedLinks: allLinks });
+                    saveLinks(allLinks);
                     renderLinks();
                 }
             }
@@ -1362,6 +1328,44 @@ if (createSessionBtn) {
     }
   });
 }
+
+// --- SESSION DROPDOWN EVENT HANDLERS ---
+document.addEventListener('click', (e) => {
+  const toggle = e.target.closest('.btn-dropdown-toggle');
+  if (!toggle) {
+    closeAllDropdowns();
+  }
+}, true); // Capture phase closes dropdown on outside / item clicks
+
+document.addEventListener('click', (e) => {
+  const toggle = e.target.closest('.btn-dropdown-toggle');
+  if (toggle) {
+    e.stopPropagation();
+    const dropdown = toggle.nextElementSibling;
+    const isShown = dropdown.classList.contains('show');
+    
+    closeAllDropdowns();
+    
+    if (!isShown) {
+      dropdown.classList.add('show');
+      toggle.setAttribute('aria-expanded', 'true');
+    }
+  }
+});
+
+function closeAllDropdowns() {
+  document.querySelectorAll('.session-dropdown-menu.show').forEach(menu => {
+    menu.classList.remove('show');
+    const toggle = menu.previousElementSibling;
+    if (toggle) toggle.setAttribute('aria-expanded', 'false');
+  });
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeAllDropdowns();
+  }
+});
 
 loadLinks();
 // --- END OF saved-links.js ---

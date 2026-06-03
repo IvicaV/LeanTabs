@@ -477,28 +477,7 @@ header h1 {
 }
 
 .tab-count { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-.collapse-bar-icon {
-  font-size: 8px;
-  line-height: 1;
-}
-.session-collapse-bar {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 18px;
-  background-color: rgba(0, 0, 0, 0.03);
-  border-bottom: 1px solid var(--border-color);
-  cursor: pointer;
-  color: var(--text-muted);
-  transition: all 0.2s ease;
-}
-[data-theme="dark"] .session-collapse-bar {
-  background-color: rgba(255, 255, 255, 0.03);
-}
-.session-collapse-bar:hover {
-  background-color: var(--primary-light);
-  color: var(--primary);
-}
+
 
 .btn-session {
   width: 28px; height: 28px; padding: 0; border-radius: 4px;

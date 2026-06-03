@@ -336,6 +336,24 @@ function renderLinks() {
     const isPinned = session.links[0].isPinned || false;
     sessionSection.className = `session-section ${isPinned ? 'pinned' : ''}`; 
     
+    // Require card click to enable scroll within the links list (prevents scroll trap)
+    sessionSection.addEventListener('click', () => {
+      const list = sessionSection.querySelector('.links-list');
+      if (list && !list.classList.contains('scroll-enabled')) {
+        list.classList.add('scroll-enabled');
+        sessionSection.classList.add('active');
+      }
+    });
+    
+    // Disable scroll capability on mouseleave to reset the scroll trap prevention state
+    sessionSection.addEventListener('mouseleave', () => {
+      const list = sessionSection.querySelector('.links-list');
+      if (list) {
+        list.classList.remove('scroll-enabled');
+        sessionSection.classList.remove('active');
+      }
+    });
+    
     const sessionHeader = document.createElement('div');
     sessionHeader.className = 'session-header';
     sessionHeader.dataset.sessionId = sessionId;
@@ -571,6 +589,14 @@ function renderLinks() {
     sessionHeader.appendChild(sessionLeft);
     sessionHeader.appendChild(sessionActions);
     sessionSection.appendChild(sessionHeader);
+    
+    // Dedicated collapse bar at the bottom of the header
+    const collapseBar = document.createElement('div');
+    collapseBar.className = 'session-collapse-bar';
+    collapseBar.dataset.sessionId = sessionId;
+    collapseBar.title = 'Collapse/Expand Session';
+    collapseBar.innerHTML = `<span class="collapse-bar-icon">${isCollapsed ? '▲' : '▼'}</span>`;
+    sessionSection.appendChild(collapseBar);
     
     const linksList = document.createElement('div');
     linksList.className = 'links-list';
@@ -860,6 +886,7 @@ function createLinkElement(link) {
 function toggleSessionCollapse(sessionId) {
   const linksList = document.querySelector(`.links-list[data-session-id="${sessionId}"]`);
   const indicator = document.querySelector(`.collapse-indicator[data-session-id="${sessionId}"]`);
+  const collapseBar = document.querySelector(`.session-collapse-bar[data-session-id="${sessionId}"]`);
   if (!linksList || !indicator) return;
   const isCurrentlyCollapsed = linksList.style.display === 'none';
   if (isCurrentlyCollapsed) {
@@ -867,23 +894,37 @@ function toggleSessionCollapse(sessionId) {
     collapsedSessions.add(`expanded-${sessionId}`);
     linksList.style.display = 'block';
     indicator.innerHTML = ICONS.chevronDown;
+    if (collapseBar) {
+      const arrowEl = collapseBar.querySelector('.collapse-bar-icon');
+      if (arrowEl) arrowEl.textContent = '▼';
+    }
   } else {
     collapsedSessions.add(`collapsed-${sessionId}`);
     collapsedSessions.delete(`expanded-${sessionId}`);
     linksList.style.display = 'none';
     indicator.innerHTML = ICONS.chevronRight;
+    if (collapseBar) {
+      const arrowEl = collapseBar.querySelector('.collapse-bar-icon');
+      if (arrowEl) arrowEl.textContent = '▲';
+    }
   }
 }
 
 document.getElementById('linksContainer').addEventListener('click', (e) => {
-  const sessionHeader = e.target.closest('.session-header');
-  if (sessionHeader && 
-      !e.target.closest('.session-title') && 
-      !e.target.closest('.btn-session') && 
-      !e.target.closest('.master-checkbox') &&
-      !e.target.closest('.session-actions')) {
-    const sessionId = sessionHeader.dataset.sessionId;
+  // 1. Clicked collapse bar at the bottom of the header
+  const collapseBar = e.target.closest('.session-collapse-bar');
+  if (collapseBar) {
+    const sessionId = collapseBar.dataset.sessionId;
     if (sessionId) toggleSessionCollapse(sessionId);
+    return;
+  }
+  
+  // 2. Clicked collapse chevron indicator inside the header
+  const indicator = e.target.closest('.collapse-indicator');
+  if (indicator) {
+    const sessionId = indicator.dataset.sessionId;
+    if (sessionId) toggleSessionCollapse(sessionId);
+    return;
   }
 });
 
@@ -1393,6 +1434,9 @@ document.getElementById('toggleAllBtn').addEventListener('click', () => {
   });
   document.querySelectorAll('.collapse-indicator').forEach(arrow => {
     arrow.innerHTML = isCollapsing ? ICONS.chevronRight : ICONS.chevronDown;
+  });
+  document.querySelectorAll('.session-collapse-bar .collapse-bar-icon').forEach(arrow => {
+    arrow.textContent = isCollapsing ? '▲' : '▼';
   });
   document.querySelectorAll('.session-header').forEach(header => {
     const sessionId = header.dataset.sessionId;

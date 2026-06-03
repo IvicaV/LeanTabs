@@ -38,8 +38,8 @@ export async function getRating(linkId) {
  * @returns {Promise<void>}
  */
 export async function setRating(linkId, rating) {
-  if (rating !== 1 && rating !== 2 && rating !== 3) {
-    throw new Error('Rating must be between 1 and 3 stars');
+  if (rating !== 0 && rating !== 1 && rating !== 2 && rating !== 3) {
+    throw new Error('Rating must be between 0 and 3 stars');
   }
   
   const allLinks = await getLinks();

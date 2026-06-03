@@ -9,6 +9,7 @@
 import { getLinks, saveLinks, getSettings, saveSettings, getWhitelist, saveWhitelist } from './modules/storage.js';
 import { deleteSession, renameSession, togglePinSession, bumpSession } from './modules/sessions.js';
 import { extractDomain } from './modules/categorizer.js';
+import { setRating } from './modules/ratings.js';
 
 let allLinks = [];
 let filteredLinks = [];
@@ -17,6 +18,9 @@ let collapsedSessions = new Set();
 let sessionsDefaultCollapsed = false; 
 let isUpdatingMasterCheckbox = false;
 let visibleLimit = 100; 
+
+// In-memory sort state: sessionId -> sortType ('date', 'rating', 'alphabetical', 'opens')
+let sessionSortStates = {}; 
 
 // Track background updates to refresh UI upon visibility
 let hasPendingUpdate = false;
@@ -240,6 +244,17 @@ function getLinkKey(link) {
   return `${link.url}-${uniqueTimestamp}`;
 }
 
+async function openLinkAndIncrement(linkKey, active = true) {
+  allLinks = await getLinks();
+  const targetLink = allLinks.find(l => getLinkKey(l) === linkKey);
+  if (targetLink) {
+    targetLink.openCount = (targetLink.openCount || 0) + 1;
+    await saveLinks(allLinks);
+    await chrome.tabs.create({ url: targetLink.url, active: active });
+    await loadLinks();
+  }
+}
+
 function updateSelectionBar() {
   const selectedInfo = document.getElementById('selectedInfo');
   const count = document.getElementById('selectionCount');
@@ -448,6 +463,37 @@ function renderLinks() {
     const sessionActions = document.createElement('div');
     sessionActions.className = 'session-actions';
     
+    // Sort Select Control
+    const sortSelect = document.createElement('select');
+    sortSelect.className = 'session-sort-select';
+    sortSelect.dataset.sessionId = sessionId;
+    sortSelect.title = 'Sort links';
+    
+    const sortOptions = [
+      { value: 'date', text: '📅 Date' },
+      { value: 'rating', text: '⭐ Rating' },
+      { value: 'alphabetical', text: '🔤 A-Z' },
+      { value: 'opens', text: '🔥 Most Opened' }
+    ];
+    
+    const currentSort = sessionSortStates[sessionId] || 'date';
+    sortOptions.forEach(opt => {
+      const option = document.createElement('option');
+      option.value = opt.value;
+      option.textContent = opt.text;
+      if (opt.value === currentSort) {
+        option.selected = true;
+      }
+      sortSelect.appendChild(option);
+    });
+    
+    sortSelect.addEventListener('click', (e) => e.stopPropagation());
+    sortSelect.addEventListener('change', (e) => {
+      e.stopPropagation();
+      sessionSortStates[sessionId] = e.target.value;
+      renderLinks();
+    });
+    
     const restoreSessionBtn = document.createElement('button');
     restoreSessionBtn.className = 'btn-session btn-restore';
     restoreSessionBtn.innerHTML = ICONS.restore;
@@ -518,6 +564,7 @@ function renderLinks() {
     dropdownDiv.appendChild(dropdownToggleBtn);
     dropdownDiv.appendChild(dropdownMenu);
     
+    sessionActions.appendChild(sortSelect);
     sessionActions.appendChild(restoreSessionBtn);
     sessionActions.appendChild(dropdownDiv);
     
@@ -541,7 +588,22 @@ function renderLinks() {
     `;
     linksList.appendChild(addLinkArea);
     
-    session.links.forEach((link) => {
+    // Sort logic prior to rendering links
+    const activeSort = sessionSortStates[sessionId] || 'date';
+    let displayedLinks = [...session.links];
+    if (activeSort === 'rating') {
+      displayedLinks.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    } else if (activeSort === 'alphabetical') {
+      displayedLinks.sort((a, b) => {
+        const titleA = (a.title || a.url || '').toLowerCase();
+        const titleB = (b.title || b.url || '').toLowerCase();
+        return titleA.localeCompare(titleB);
+      });
+    } else if (activeSort === 'opens') {
+      displayedLinks.sort((a, b) => (b.openCount || 0) - (a.openCount || 0));
+    }
+    
+    displayedLinks.forEach((link) => {
       try {
           const linkItem = createLinkElement(link);
           linksList.appendChild(linkItem);
@@ -634,7 +696,63 @@ function createLinkElement(link) {
   linkTitle.target = "_blank";
   linkTitle.className = 'link-title';
   linkTitle.textContent = link.title || link.url; 
+  
+  linkTitle.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const active = !e.ctrlKey && !e.metaKey;
+    await openLinkAndIncrement(linkKey, active);
+  });
+  
   linkHeader.appendChild(linkTitle);
+
+  // Rating Rendering
+  const rating = link.rating || 0;
+  const ratingContainer = document.createElement('div');
+  ratingContainer.className = `link-rating-container ${rating > 0 ? 'rated' : 'unrated'}`;
+  
+  for (let i = 1; i <= 3; i++) {
+    const star = document.createElement('span');
+    star.className = 'star';
+    star.dataset.value = i;
+    star.textContent = i <= rating ? '★' : '☆';
+    ratingContainer.appendChild(star);
+  }
+  
+  ratingContainer.addEventListener('mouseover', (e) => {
+    const star = e.target.closest('.star');
+    if (!star) return;
+    const value = parseInt(star.dataset.value, 10);
+    ratingContainer.querySelectorAll('.star').forEach(s => {
+      const val = parseInt(s.dataset.value, 10);
+      s.textContent = val <= value ? '★' : '☆';
+      s.classList.add('hovered');
+    });
+  });
+  
+  ratingContainer.addEventListener('mouseleave', () => {
+    ratingContainer.querySelectorAll('.star').forEach(s => {
+      const val = parseInt(s.dataset.value, 10);
+      s.textContent = val <= rating ? '★' : '☆';
+      s.classList.remove('hovered');
+    });
+  });
+  
+  ratingContainer.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const star = e.target.closest('.star');
+    if (!star) return;
+    const clickedValue = parseInt(star.dataset.value, 10);
+    const newRating = rating === clickedValue ? 0 : clickedValue;
+    try {
+      await setRating(linkKey, newRating);
+      await loadLinks();
+    } catch (err) {
+      console.error("Failed to set rating:", err);
+    }
+  });
+  
+  linkHeader.appendChild(ratingContainer);
 
   const date = new Date(link.timestamp);
   const time = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -648,6 +766,14 @@ function createLinkElement(link) {
   categorySpan.innerHTML = ICONS.tag + ' '; 
   categorySpan.appendChild(document.createTextNode(link.category)); 
   
+  let openCountSpan = null;
+  if (link.openCount && link.openCount > 0) {
+      openCountSpan = document.createElement('span');
+      openCountSpan.className = 'link-open-count';
+      openCountSpan.title = `Opened ${link.openCount} times`;
+      openCountSpan.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-svg" style="width: 10px; height: 10px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg> ${link.openCount}`;
+  }
+
   const timeSpan = document.createElement('span');
   timeSpan.className = 'link-time';
   timeSpan.textContent = time;
@@ -658,6 +784,9 @@ function createLinkElement(link) {
 
   linkMeta.appendChild(timeSpan);
   linkMeta.appendChild(categorySpan);
+  if (openCountSpan) {
+      linkMeta.appendChild(openCountSpan);
+  }
   linkMeta.appendChild(urlSpan);
 
   linkInfo.appendChild(linkHeader);
@@ -916,9 +1045,13 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
   if (e.target.closest('.btn-link-open')) {
     e.stopImmediatePropagation();
     const btn = e.target.closest('.btn-link-open');
-    window.open(btn.dataset.url, '_blank');
+    const linkItem = btn.closest('.link-item');
+    const checkbox = linkItem.querySelector('.link-checkbox');
+    const linkKey = checkbox.dataset.linkKey;
+    await openLinkAndIncrement(linkKey, true);
     return;
   }
+
   if (e.target.closest('.btn-link-category')) {
     e.stopImmediatePropagation();
     const btn = e.target.closest('.btn-link-category');
@@ -963,7 +1096,19 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
             { text: "Open Tabs", value: true, class: "btn-modal-confirm" }
         ]
     );
-    if (confirmed) selectedInSession.forEach(link => window.open(link.url, '_blank'));
+    if (confirmed) {
+      allLinks = await getLinks();
+      for (const sLink of selectedInSession) {
+        const sKey = getLinkKey(sLink);
+        const targetLink = allLinks.find(l => getLinkKey(l) === sKey);
+        if (targetLink) {
+          targetLink.openCount = (targetLink.openCount || 0) + 1;
+        }
+        await chrome.tabs.create({ url: sLink.url, active: false });
+      }
+      await saveLinks(allLinks);
+      await loadLinks();
+    }
     return;
   }
   // MOVE LOGIC (Complete)
@@ -1070,6 +1215,16 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
     const warningText = isReplace ? '\n\n⚠️ Tabs in THIS workspace will be closed!' : '';
     const confirmed = await showCustomModal(isReplace ? "Replace Session" : "Restore Session", `${actionText} ${sessionLinks.length} link(s) from this session?${warningText}`, [{ text: "Cancel", value: false, class: "btn-modal-cancel" }, { text: isReplace ? "Replace" : "Restore", value: true, class: isReplace ? "btn-modal-danger" : "btn-modal-confirm" }]);
     if (confirmed) {
+      allLinks = await getLinks();
+      sessionLinks.forEach(sLink => {
+        const sKey = getLinkKey(sLink);
+        const targetLink = allLinks.find(l => getLinkKey(l) === sKey);
+        if (targetLink) {
+          targetLink.openCount = (targetLink.openCount || 0) + 1;
+        }
+      });
+      await saveLinks(allLinks);
+
       const settings = await getSettings();
       const shouldRestoreStructure = (settings.restoreWindowStructure !== false) && !isReplace; 
       let oldTabsIds = [];
@@ -1272,6 +1427,7 @@ async function handleDrop(e) {
       if (sourceIndex > -1 && targetIndex > -1) {
           const [movedItem] = allLinks.splice(sourceIndex, 1);
           allLinks.splice(targetIndex, 0, movedItem);
+          sessionSortStates[targetSession] = 'date';
           await saveLinks(allLinks);
           renderLinks(); 
       }

@@ -507,7 +507,7 @@ function renderLinks() {
     // Dropdown toggle button (3-dots)
     const dropdownToggleBtn = document.createElement('button');
     dropdownToggleBtn.className = 'btn-session btn-dropdown-toggle';
-    dropdownToggleBtn.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0M19 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0M5 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    dropdownToggleBtn.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0M12 5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0M12 19m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     dropdownToggleBtn.title = 'More Actions';
     dropdownToggleBtn.setAttribute('aria-haspopup', 'true');
     dropdownToggleBtn.setAttribute('aria-expanded', 'false');
@@ -696,6 +696,7 @@ function createLinkElement(link) {
   linkTitle.target = "_blank";
   linkTitle.className = 'link-title';
   linkTitle.textContent = link.title || link.url; 
+  linkTitle.title = link.title || link.url;
   
   linkTitle.addEventListener('click', async (e) => {
     e.preventDefault();
@@ -806,10 +807,41 @@ function createLinkElement(link) {
       return btn;
   };
 
-  linkActions.appendChild(createBtn(ICONS.shield, 'btn-link-whitelist', 'Add to Whitelist', { url: link.url }));
-  linkActions.appendChild(createBtn(ICONS.tag, 'btn-link-category', 'Edit Category', { action: 'category', url: link.url }));
+  // Create link dropdown container
+  const dropdownDiv = document.createElement('div');
+  dropdownDiv.className = 'link-dropdown';
+
+  // Toggle button (3-dots)
+  const dropdownToggleBtn = document.createElement('button');
+  dropdownToggleBtn.className = 'btn-icon btn-link-dropdown-toggle';
+  dropdownToggleBtn.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0M12 5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0M12 19m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  dropdownToggleBtn.title = 'Link Actions';
+  dropdownToggleBtn.setAttribute('aria-haspopup', 'true');
+  dropdownToggleBtn.setAttribute('aria-expanded', 'false');
+
+  // Dropdown menu
+  const dropdownMenu = document.createElement('div');
+  dropdownMenu.className = 'link-dropdown-menu';
+
+  // Whitelist item inside dropdown
+  const whitelistItemBtn = createBtn(ICONS.shield, 'btn-link-whitelist', 'Add to Whitelist', { url: link.url });
+  whitelistItemBtn.innerHTML = `${ICONS.shield} <span>Whitelist</span>`;
+  whitelistItemBtn.className = 'link-dropdown-item btn-link-whitelist';
+
+  // Edit Category item inside dropdown
+  const categoryItemBtn = createBtn(ICONS.tag, 'btn-link-category', 'Edit Category', { action: 'category', url: link.url });
+  categoryItemBtn.innerHTML = `${ICONS.tag} <span>Edit Category</span>`;
+  categoryItemBtn.className = 'link-dropdown-item btn-link-category';
+
+  dropdownMenu.appendChild(whitelistItemBtn);
+  dropdownMenu.appendChild(categoryItemBtn);
+
+  dropdownDiv.appendChild(dropdownToggleBtn);
+  dropdownDiv.appendChild(dropdownMenu);
+
   linkActions.appendChild(createBtn(ICONS.link, 'btn-link-open', 'Open Tab', { action: 'open', url: link.url }));
   linkActions.appendChild(createBtn(ICONS.trash, 'btn-link-delete', 'Delete', { action: 'delete', url: link.url, timestamp: link.timestamp }));
+  linkActions.appendChild(dropdownDiv);
 
   div.appendChild(checkbox);
   div.appendChild(linkInfo);
@@ -1487,14 +1519,14 @@ if (createSessionBtn) {
 
 // --- SESSION DROPDOWN EVENT HANDLERS ---
 document.addEventListener('click', (e) => {
-  const toggle = e.target.closest('.btn-dropdown-toggle');
+  const toggle = e.target.closest('.btn-dropdown-toggle, .btn-link-dropdown-toggle');
   if (!toggle) {
     closeAllDropdowns();
   }
 }, true); // Capture phase closes dropdown on outside / item clicks
 
 document.addEventListener('click', (e) => {
-  const toggle = e.target.closest('.btn-dropdown-toggle');
+  const toggle = e.target.closest('.btn-dropdown-toggle, .btn-link-dropdown-toggle');
   if (toggle) {
     e.stopPropagation();
     const dropdown = toggle.nextElementSibling;
@@ -1510,7 +1542,7 @@ document.addEventListener('click', (e) => {
 });
 
 function closeAllDropdowns() {
-  document.querySelectorAll('.session-dropdown-menu.show').forEach(menu => {
+  document.querySelectorAll('.session-dropdown-menu.show, .link-dropdown-menu.show').forEach(menu => {
     menu.classList.remove('show');
     const toggle = menu.previousElementSibling;
     if (toggle) toggle.setAttribute('aria-expanded', 'false');

@@ -1223,7 +1223,10 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
     const newLink = {
         url: validUrl,
         title: fetchedTitle,
-        timestamp: timestamp,
+        // --- KACHEL-STABILITÄT-SYNCHRONISATION START ---
+        // Erbt den Erstellungszeitstempel der Kachel, um ein Springen der Karte zu verhindern!
+        timestamp: sessionSample ? sessionSample.timestamp : timestamp, 
+        // --- KACHEL-STABILITÄT-SYNCHRONISATION END ---
         dateGroup: sessionSample ? sessionSample.dateGroup : dateGroup,
         category: extractDomain(validUrl),
         favicon: `https://www.google.com/s2/favicons?domain=${new URL(validUrl).hostname}&sz=32`,
@@ -2767,6 +2770,21 @@ function initFeedbackModal() {
         };
 
         cancelBtn?.addEventListener('click', cleanup);
+
+        // --- BROWSER-ADAPTIVE WEBSTORE BEWERTUNG ---
+        const rateBtn = document.getElementById('feedbackRateBtn');
+        if (rateBtn) {
+            rateBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const ua = window.navigator.userAgent;
+                const isOpera = ua.includes("Opera") || ua.includes("OPR/");
+                
+                const CHROME_URL = 'https://chromewebstore.google.com/detail/leantabs-smart-tab-manage/pkihcnafoidoclfhhiaikgcnpanfddko';
+                const OPERA_URL = 'https://addons.opera.com/de/extensions/details/leantabs-smart-tab-workspace-manager/';
+                
+                chrome.tabs.create({ url: isOpera ? OPERA_URL : CHROME_URL });
+            });
+        }
         
         // Close modal when clicking outside content
         feedbackModal.addEventListener('click', (e) => {

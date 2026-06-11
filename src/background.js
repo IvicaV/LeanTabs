@@ -9,6 +9,9 @@
 import { getLinks, saveLinks, getSettings, saveSettings, getWhitelist, saveWhitelist, getBackups, saveBackups } from './modules/storage.js';
 import { extractDomain } from './modules/categorizer.js';
 
+// --- GLOBAL STATE FOR CONTEXT MENU ---
+let isRebuildingMenu = false;
+
 // --- GLOBAL COLD-START INITIATION (Manifest V3 Lifecycle Guard) ---
 // Runs every time the service worker starts or wakes up from hibernation
 buildContextMenu();
@@ -184,8 +187,6 @@ async function fetchPageTitle(url) {
 }
 
 // --- DYNAMIC MENU BUILDER ---
-let isRebuildingMenu = false;
-
 async function buildContextMenu() {
   if (isRebuildingMenu) return; 
   isRebuildingMenu = true;

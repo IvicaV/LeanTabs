@@ -9,11 +9,14 @@
 import { getLinks, saveLinks, getSettings, saveSettings, getWhitelist, saveWhitelist, getBackups, saveBackups } from './modules/storage.js';
 import { extractDomain } from './modules/categorizer.js';
 
+// --- GLOBAL COLD-START INITIATION (Manifest V3 Lifecycle Guard) ---
+// Runs every time the service worker starts or wakes up from hibernation
+buildContextMenu();
+
 // 1. INITIALIZATION & LISTENERS
 chrome.runtime.onInstalled.addListener(async () => {
   console.log('LeanTabs Extension installed/updated!');
   await initializeDefaults();
-  await buildContextMenu(); 
 });
 
 // Re-build menu when storage changes

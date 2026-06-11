@@ -246,13 +246,13 @@ function getLinkKey(link) {
 
 // --- HELPER: ELITE-GRADE CRASH-PROOF URL NORMALIZATION ---
 function normalizeUrlForComparison(urlStr) {
-  // Defensiver Typ-Schutz: Wenn kein valider String übergeben wird, sofort abbrechen
   if (!urlStr || typeof urlStr !== 'string') {
     return '';
   }
   
   try {
-    let tempUrl = urlStr.trim();
+    // UNICODE NORMALISIERUNG (NFC): Bereinigt unsichtbare Zeichencodierungen
+    let tempUrl = urlStr.normalize('NFC').trim();
     if (!/^https?:\/\//i.test(tempUrl)) tempUrl = 'https://' + tempUrl;
     
     const url = new URL(tempUrl);
@@ -270,9 +270,8 @@ function normalizeUrlForComparison(urlStr) {
     const cleanSearch = searchParams.toString();
     return host + path + (cleanSearch ? '?' + cleanSearch : '');
   } catch (e) {
-    // Absolut sicherer innerer Fallback
     try {
-      let clean = urlStr.trim().toLowerCase();
+      let clean = urlStr.normalize('NFC').trim().toLowerCase();
       clean = clean.split('#')[0]; 
       clean = clean.split('?')[0]; 
       clean = clean.replace(/^https?:\/\//i, '');
@@ -280,7 +279,7 @@ function normalizeUrlForComparison(urlStr) {
       clean = clean.replace(/\/$/, '');
       return clean;
     } catch (innerError) {
-      return ''; // Verhindert unter allen Umständen einen Thread-Absturz
+      return '';
     }
   }
 }
@@ -1016,18 +1015,25 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
         allLinks = await getLinks();
         const normalizedIncomingUrl = normalizeUrlForComparison(validUrl);
         
+        // DEEP-CONSOLE DIAGNOSTIK: Zeigt uns genau, was in allLinks geladen wurde
         console.log("[LeanTabs] Checking manual input:", {
             rawInput: validUrl,
-            normalizedInput: normalizedIncomingUrl
+            normalizedInput: normalizedIncomingUrl,
+            totalDbEntries: allLinks.length,
+            allDbUrlsNormalized: allLinks.map(l => ({
+                raw: l.url,
+                normalized: normalizeUrlForComparison(l.url)
+            }))
         });
 
         const duplicateMatch = allLinks.find(link => {
-            if (!link || !link.url) return false; // Schutz vor korrupten DB-Einträgen
+            if (!link || !link.url) return false;
             const normalizedDbUrl = normalizeUrlForComparison(link.url);
             return normalizedDbUrl === normalizedIncomingUrl;
         });
 
         if (duplicateMatch) {
+            console.log("[LeanTabs] ✓ MATCH FOUND! Showing custom modal now.");
             const existingSessionName = duplicateMatch.sessionLabel || "another session";
             
             const userConfirmed = await showCustomModal(
@@ -1043,9 +1049,10 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
                 input.value = ''; // Feld leeren
                 return; // Vorgang abbrechen ohne Mutation
             }
+        } else {
+            console.log("[LeanTabs] ✗ No duplicate match found in database for:", normalizedIncomingUrl);
         }
     } catch (criticalCheckError) {
-        // Gekapseltes Fallback: Fehler loggen, aber den Hauptprozess NICHT blockieren
         console.error("[LeanTabs] Non-blocking duplicate check error:", criticalCheckError);
     }
     // --- DEFENSIRE DUPLIKAT-WARNUNG END ---

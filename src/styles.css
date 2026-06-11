@@ -1141,4 +1141,24 @@ kbd {
   to { opacity: 1; }
 }
 
+/* --- VISUAL ALIGNMENT FIXES (ZERO-REGRESSION) --- */
+
+/* 1. Sperrt die Bewertungssterne starr an die rechte Kante der Link-Zeile */
+.link-title {
+  flex: 1 !important;
+  min-width: 0 !important; /* Verhindert das Aufblähen der Flexbox bei Riesen-Titeln */
+}
+
+.link-rating-container {
+  margin-left: auto !important; /* Erzwingt Rechtsbündigkeit */
+  flex-shrink: 0 !important;    /* Verhindert das Stauchen der Sterne */
+}
+
+/* 2. Vereinheitlicht die visuelle Gewichtung der Theme-Symbole (Statisch & Stabil) */
+.btn-theme-toggle svg {
+  width: 18px !important;
+  height: 18px !important;
+  display: block !important;
+}
+
 /* --- END OF styles.css --- */

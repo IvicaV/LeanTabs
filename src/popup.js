@@ -385,32 +385,53 @@ document.addEventListener('DOMContentLoaded', async () => {
         viewLinksBtn.addEventListener('click', async () => {
              const targetUrl = chrome.runtime.getURL('saved-links.html');
              
-             // 1. Get the current active tab to identify the CURRENT Workspace context
+             // Get currently active tab to know the context (Window & Workspace)
              const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
              const currentActiveTab = activeTabs[0];
 
              if (currentActiveTab) {
-                 // 2. Find existing saved-links tabs in the SAME WINDOW ID
-                 const existingTabs = await chrome.tabs.query({ url: targetUrl, windowId: currentActiveTab.windowId });
+                 // --- WILDCARD FIX START (Erkennt geöffnete Dashboards mit Hashtags) ---
+                 const existingTabs = await chrome.tabs.query({ url: targetUrl + '*', windowId: currentActiveTab.windowId });
+                 // --- WILDCARD FIX END ---
                  
-                 // 3. SMART FILTER: Check if it's in the SAME Workspace
-                 // Opera/Vivaldi share windowId across workspaces, but workspaceId differs.
+                 // SMART FILTER: Check if it's in the SAME Workspace
                  const tabInSameWorkspace = existingTabs.find(t => t.workspaceId === currentActiveTab.workspaceId);
                  
                  if (tabInSameWorkspace) {
-                     // Safe: Same visual context
+                     // Safe: Same visual context -> Focus it
                      await chrome.tabs.update(tabInSameWorkspace.id, { active: true });
                  } else {
-                     // Not found in THIS workspace -> Create new (prevents crash by not switching workspaces)
+                     // Not found in THIS workspace -> Create new
                      await chrome.tabs.create({ url: 'saved-links.html' });
                  }
              } else {
-                 // Fallback
+                 // Fallback if no active tab context found
                  await chrome.tabs.create({ url: 'saved-links.html' });
              }
         });
     }
     
     const optionsBtn = document.getElementById('optionsBtn');
-    if (optionsBtn) optionsBtn.addEventListener('click', () => chrome.runtime.openOptionsPage());
+    if (optionsBtn) {
+        optionsBtn.addEventListener('click', async () => {
+             const targetUrl = chrome.runtime.getURL('saved-links.html');
+             const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
+             const currentActiveTab = activeTabs[0];
+
+             if (currentActiveTab) {
+                 const existingTabs = await chrome.tabs.query({ url: targetUrl + '*', windowId: currentActiveTab.windowId });
+                 const tabInSameWorkspace = existingTabs.find(t => t.workspaceId === currentActiveTab.workspaceId);
+                 
+                 if (tabInSameWorkspace) {
+                     // Tab existiert bereits -> Fokus & Wechsle auf Settings-Hash!
+                     await chrome.tabs.update(tabInSameWorkspace.id, { url: targetUrl + '#settings', active: true });
+                 } else {
+                     // Tab existiert nicht -> Neu erstellen mit Hash
+                     await chrome.tabs.create({ url: 'saved-links.html#settings' });
+                 }
+             } else {
+                 await chrome.tabs.create({ url: 'saved-links.html#settings' });
+             }
+        });
+    }
 });

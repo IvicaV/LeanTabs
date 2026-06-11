@@ -305,8 +305,25 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const sessionLinks = [];
                 const sessionId = `clean-${contextKey}-${timestamp}`;
 
-                groupTabs.forEach(tab => {
+                // --- GRUPPEN-CACHE INITIALISIEREN (Mit defensivem API-Handshake-Check) ---
+                const groupsCache = {};
+                if (chrome.tabGroups) {
+                    for (const tab of groupTabs) {
+                        if (tab.groupId !== chrome.tabs.TAB_ID_NONE) {
+                            try {
+                                if (!groupsCache[tab.groupId]) {
+                                    groupsCache[tab.groupId] = await chrome.tabGroups.get(tab.groupId);
+                                }
+                            } catch (e) { /* Tab-Gruppe nicht mehr da oder blockiert */ }
+                        }
+                    }
+                }
+
+                for (const tab of groupTabs) {
                     if (!isSystemLink(tab.url)) {
+                        // Auslesen der Gruppen-Metadaten aus dem Cache (falls vorhanden)
+                        const hasGroup = chrome.tabGroups && tab.groupId !== chrome.tabs.TAB_ID_NONE && groupsCache[tab.groupId];
+                        
                         const link = {
                             url: tab.url, 
                             title: tab.title, 
@@ -317,12 +334,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                             windowId: tab.windowId,
                             workspaceId: tab.workspaceId,
                             sessionId,
-                            sessionLabel: `${timeString} - ${contextData.label}`
+                            sessionLabel: `${timeString} - ${contextData.label}`,
+                            // --- METADATEN-SERIALISIERUNG ---
+                            groupTitle: hasGroup ? groupsCache[tab.groupId].title : null,
+                            groupColor: hasGroup ? groupsCache[tab.groupId].color : null,
+                            groupOriginalId: tab.groupId !== chrome.tabs.TAB_ID_NONE ? tab.groupId : null
                         };
                         sessionLinks.push(link);
                         globalTabsToBackup.push(link);
                     }
-                });
+                }
 
                 if (sessionLinks.length > 0) {
                     sessionsToCreate.push(sessionLinks);

@@ -1599,7 +1599,50 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
              }
           }
       } else {
-          for (const link of sessionLinks) await chrome.tabs.create({ url: link.url, active: false });
+          // --- UNFALLFREIE GRUPPEN-REKONSTRUKTION START ---
+          const createdTabsByGroup = {}; // groupOriginalId -> [tabId, tabId]
+          const groupMetadata = {};      // groupOriginalId -> { title, color }
+
+          for (const link of sessionLinks) {
+              try {
+                  const createdTab = await chrome.tabs.create({ url: link.url, active: false });
+                  
+                  // Hat der Link eine gespeicherte Gruppen-Zugehörigkeit?
+                  if (link.groupOriginalId !== undefined && link.groupOriginalId !== null && link.groupTitle) {
+                      const gId = link.groupOriginalId;
+                      if (!createdTabsByGroup[gId]) {
+                          createdTabsByGroup[gId] = [];
+                          groupMetadata[gId] = { title: link.groupTitle, color: link.groupColor };
+                      }
+                      createdTabsByGroup[gId].push(createdTab.id);
+                  }
+              } catch (tabCreateError) {
+                  console.error("Failed to restore single tab:", tabCreateError);
+              }
+          }
+
+          // Nach dem Öffnen alle Tabs gruppieren
+          for (const [gId, tabIds] of Object.entries(createdTabsByGroup)) {
+              if (tabIds.length > 0) {
+                  try {
+                      // Bündele die Tabs im aktuellen Fenster zu einer neuen Gruppe
+                      const newGroupId = await chrome.tabs.group({ tabIds });
+                      const meta = groupMetadata[gId];
+                      
+                      // Titel und Farbe der Gruppe rekonstruieren
+                      if (meta && chrome.tabGroups) {
+                          await chrome.tabGroups.update(newGroupId, {
+                              title: meta.title,
+                              color: meta.color
+                          });
+                      }
+                  } catch (groupError) {
+                      // Silent Fallback: Schützt Vivaldi/Opera vor Abstürzen, falls die Group-API blockiert
+                      console.log("Tab grouping not supported or failed on this window:", groupError.message);
+                  }
+              }
+          }
+          // --- UNFALLFREIE GRUPPEN-REKONSTRUKTION ENDE ---
       }
       if (isReplace && oldTabsIds.length > 0) await chrome.tabs.remove(oldTabsIds);
       if (settings.deleteAfterRestore) {

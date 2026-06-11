@@ -453,10 +453,25 @@ async function performBackgroundClean() {
 
         const sessionId = `clean-shortcut-${winId}-${timestamp}`;
 
-        candidates.forEach(tab => {
+        // --- GRUPPEN-CACHE IM BACKGROUND (Mit API-Handshake-Check) ---
+        const groupsCache = {};
+        if (chrome.tabGroups) {
+            for (const tab of candidates) {
+                if (tab.groupId !== chrome.tabs.TAB_ID_NONE) {
+                    try {
+                        if (!groupsCache[tab.groupId]) {
+                            groupsCache[tab.groupId] = await chrome.tabGroups.get(tab.groupId);
+                        }
+                    } catch (e) { /* ignore */ }
+                }
+            }
+        }
+
+        for (const tab of candidates) {
             // STEP 1: Save logic - Happens BEFORE whitelist logic
-            // This guarantees whitelisted items are saved if they are about to be processed
             if (!isSystemLink(tab.url)) {
+                 const hasGroup = chrome.tabGroups && tab.groupId !== chrome.tabs.TAB_ID_NONE && groupsCache[tab.groupId];
+                 
                  linksToSave.push({
                     url: tab.url,
                     title: tab.title,
@@ -465,7 +480,11 @@ async function performBackgroundClean() {
                     category: extractDomain(tab.url),
                     favicon: tab.favIconUrl || '',
                     sessionId,
-                    sessionLabel: `${timeString} - Background Clean`
+                    sessionLabel: `${timeString} - Background Clean`,
+                    // --- METADATEN-SERIALISIERUNG ---
+                    groupTitle: hasGroup ? groupsCache[tab.groupId].title : null,
+                    groupColor: hasGroup ? groupsCache[tab.groupId].color : null,
+                    groupOriginalId: tab.groupId !== chrome.tabs.TAB_ID_NONE ? tab.groupId : null
                  });
             }
 
@@ -488,7 +507,7 @@ async function performBackgroundClean() {
             if (shouldClose) {
                 tabsToClose.push(tab.id);
             }
-        });
+        }
     }
 
     if (tabsToClose.length > 0 || linksToSave.length > 0) {

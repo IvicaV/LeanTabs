@@ -995,6 +995,17 @@ function createLinkElement(link) {
       noteItemBtn.title = "Session is locked";
   }
 
+  // NEUER BUTTON: Rename Title
+  const renameItemBtn = createBtn('', 'btn-link-rename', 'Rename Title', { url: link.url, timestamp: link.timestamp });
+  renameItemBtn.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24" style="width: 13px; height: 13px; color: var(--primary);"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke-linecap="round" stroke-linejoin="round"></path></svg> <span>Rename Title</span>';
+  renameItemBtn.className = 'link-dropdown-item btn-link-rename';
+  if (isSessionLocked) {
+      renameItemBtn.disabled = true;
+      renameItemBtn.style.opacity = '0.4';
+      renameItemBtn.style.cursor = 'not-allowed';
+      renameItemBtn.title = "Session is locked";
+  }
+
   // Whitelist item inside dropdown
   const whitelistItemBtn = createBtn(ICONS.shield, 'btn-link-whitelist', 'Add to Whitelist', { url: link.url });
   whitelistItemBtn.innerHTML = `${ICONS.shield} <span>Whitelist</span>`;
@@ -1005,6 +1016,7 @@ function createLinkElement(link) {
   categoryItemBtn.innerHTML = `${ICONS.tag} <span>Edit Category</span>`;
   categoryItemBtn.className = 'link-dropdown-item btn-link-category';
 
+  dropdownMenu.appendChild(renameItemBtn);
   dropdownMenu.appendChild(noteItemBtn);
   dropdownMenu.appendChild(whitelistItemBtn);
   dropdownMenu.appendChild(categoryItemBtn);
@@ -1281,14 +1293,51 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
     }
     return;
   }
+  if (e.target.closest('.btn-link-rename')) {
+    e.stopImmediatePropagation();
+    const btn = e.target.closest('.btn-link-rename');
+    const url = btn.dataset.url;
+    const timestamp = btn.dataset.timestamp;
+    
+    const initialLinks = await getLinks();
+    const linkToUpdate = initialLinks.find(l => l.url === url && l.timestamp === timestamp);
+    
+    if (linkToUpdate) {
+      const newTitle = await showCustomModal(
+          "Rename Link Title", 
+          "Enter a custom title for this saved link:", 
+          [
+              { text: "Cancel", value: null, class: "btn-modal-cancel" },
+              { text: "Rename", value: true, class: "btn-modal-confirm" }
+          ],
+          { defaultValue: linkToUpdate.title || linkToUpdate.url, placeholder: "e.g., LeanTabs Setup Guide..." }
+      );
+      
+      if (newTitle !== null && newTitle.trim()) {
+        const freshLinks = await getLinks();
+        let updated = false;
+        freshLinks.forEach(l => {
+          if (l.url === url && l.timestamp === timestamp) {
+              l.title = newTitle.trim();
+              updated = true;
+          }
+        });
+        if (updated) {
+          await saveLinks(freshLinks);
+          await loadLinks(); // UI-Update
+        }
+      }
+    }
+    return;
+  }
   if (e.target.closest('.btn-link-note')) {
     e.stopImmediatePropagation();
     const btn = e.target.closest('.btn-link-note');
     const url = btn.dataset.url;
     const timestamp = btn.dataset.timestamp;
     
-    allLinks = await getLinks();
-    const linkToUpdate = allLinks.find(l => l.url === url && l.timestamp === timestamp);
+    const initialLinks = await getLinks();
+    const linkToUpdate = initialLinks.find(l => l.url === url && l.timestamp === timestamp);
     
     if (linkToUpdate) {
       if (linkToUpdate.isLocked) {
@@ -1308,13 +1357,18 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
       );
       
       if (newNote !== null) {
-        allLinks.forEach(l => {
+        const freshLinks = await getLinks();
+        let updated = false;
+        freshLinks.forEach(l => {
           if (l.url === url && l.timestamp === timestamp) {
               l.note = newNote.trim();
+              updated = true;
           }
         });
-        await saveLinks(allLinks);
-        await loadLinks(); // UI Refresh
+        if (updated) {
+          await saveLinks(freshLinks);
+          await loadLinks(); // UI Refresh
+        }
       }
     }
     return;
@@ -2645,8 +2699,138 @@ function checkShortcuts() {
   }
 }
 
+// --- SIDEBAR THEME TOGGLE & FEEDBACK LOGIC ---
+function initSidebarThemeToggle() {
+    const themeBtn = document.getElementById('sidebarThemeToggleBtn');
+    const themeText = document.getElementById('sidebarThemeText');
+    const dmCheck = document.getElementById('darkModeCheck');
+    
+    if (themeBtn && themeText) {
+        const updateThemeLabel = (isDark) => {
+            themeText.textContent = isDark ? "Light Mode" : "Dark Mode";
+            themeBtn.title = isDark ? "Switch to Light Mode" : "Switch to Dark Mode";
+        };
+        
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        updateThemeLabel(currentTheme === 'dark');
+
+        themeBtn.addEventListener('click', () => {
+            const current = document.documentElement.getAttribute('data-theme') || 'light';
+            const newTheme = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeLabel(newTheme === 'dark');
+            
+            if (dmCheck) {
+                dmCheck.checked = (newTheme === 'dark');
+            }
+            
+            const saveStatus = document.getElementById('saveStatus');
+            if (saveStatus) {
+                saveStatus.textContent = "Theme updated!";
+                saveStatus.style.color = "var(--success)";
+                setTimeout(() => { saveStatus.textContent = ""; }, 1500);
+            }
+        });
+
+        // Sync check changes to sidebar button text
+        if (dmCheck) {
+            dmCheck.addEventListener('change', (e) => {
+                updateThemeLabel(e.target.checked);
+            });
+        }
+    }
+}
+
+function initFeedbackModal() {
+    const feedbackBtn = document.getElementById('feedbackLink');
+    const feedbackModal = document.getElementById('feedbackModal');
+    const cancelBtn = document.getElementById('feedbackCancelBtn');
+    const sendBtn = document.getElementById('feedbackSendBtn');
+    const messageInput = document.getElementById('feedbackMessage');
+    const emailInput = document.getElementById('feedbackEmail');
+    const statusEl = document.getElementById('feedbackStatus');
+
+    if (feedbackBtn && feedbackModal) {
+        feedbackBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            feedbackModal.classList.remove('hidden');
+            messageInput?.focus();
+        });
+
+        const cleanup = () => {
+            feedbackModal.classList.add('hidden');
+            if (messageInput) messageInput.value = '';
+            if (emailInput) emailInput.value = '';
+            if (statusEl) statusEl.style.display = 'none';
+        };
+
+        cancelBtn?.addEventListener('click', cleanup);
+        
+        // Close modal when clicking outside content
+        feedbackModal.addEventListener('click', (e) => {
+            if (e.target === feedbackModal) {
+                cleanup();
+            }
+        });
+
+        sendBtn?.addEventListener('click', async () => {
+            const message = messageInput?.value.trim();
+            const email = emailInput?.value.trim() || "Anonymous";
+            if (!message) {
+                if (statusEl) {
+                    statusEl.textContent = "Please enter a message.";
+                    statusEl.style.color = "var(--danger)";
+                    statusEl.style.display = "block";
+                }
+                return;
+            }
+
+            if (statusEl) {
+                statusEl.textContent = "Sending message...";
+                statusEl.style.color = "var(--primary)";
+                statusEl.style.display = "block";
+            }
+
+            const ENDPOINT = "https://script.google.com/macros/s/AKfycbykF1Z-6vfnY9FRhfqnYzwQVZQcXwVMXDl9eVfCeQCe2ptP43w4BU_uHTrMBe8hQvt_/...";
+            const cleanEndpoint = "https://script.google.com/macros/s/AKfycbykF1Z-6vfnY9FRhfqnYzwQVZQcXwVMXDl9eVfCeQCe2ptP43w4BU_uHTrMBe8hQvt_/exec";
+            const payload = {
+                type: "Question",
+                message: `[LeanTabs] ${message}`,
+                email: email,
+                version: "1.1.5",
+                os: window.navigator.platform,
+                browser: "Chromium"
+            };
+
+            try {
+                await fetch(cleanEndpoint, {
+                    method: "POST",
+                    redirect: "follow",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify(payload)
+                });
+
+                if (statusEl) {
+                    statusEl.textContent = "Thank you! Message sent.";
+                    statusEl.style.color = "var(--success)";
+                }
+                setTimeout(cleanup, 2000);
+            } catch (err) {
+                if (statusEl) {
+                    statusEl.textContent = "Server busy. Please try again later.";
+                    statusEl.style.color = "var(--danger)";
+                }
+            }
+        });
+    }
+}
+
 // 3. INITIALIZE BOTH VIEW ROUTER & SETTINGS LOGIC
 initViewNavigation();
 initSettingsLogic();
+initSidebarThemeToggle();
+initFeedbackModal();
 
 // --- END OF saved-links.js ---

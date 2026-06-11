@@ -960,7 +960,7 @@ kbd {
 .lp-undo-toast {
   position: fixed !important;
   bottom: 32px !important; /* Etwas angehoben für bessere vertikale Balance */
-  left: 50% !important;
+  left: calc(50% + 120px) !important; /* Gleicht den 240px-Überhang der Sidebar pixelgenau aus! */
   transform: translateX(-50%) !important;
   
   /* OBSIDIAN KONTRAST: Sattes, tiefes Schwarz-Zink trennt den Toast visuell von den grauen Karten ab */
@@ -1249,6 +1249,44 @@ kbd {
 /* Verhindert, dass verschachtelte Kind-Elemente Drag-Events abfangen und Flimmern verursachen */
 .dragging-active .link-item * {
   pointer-events: none !important;
+}
+
+/* --- UNIFIED FEEDBACK MODAL (VANILLA GLASS) --- */
+.feedback-textarea {
+  width: 100% !important;
+  height: 120px !important;
+  background: var(--input-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 8px !important;
+  padding: 10px !important;
+  color: var(--text-main) !important;
+  font-family: inherit !important;
+  font-size: 13px !important;
+  resize: none !important;
+  outline: none !important;
+  box-sizing: border-box !important;
+  margin-bottom: 12px !important;
+  transition: border-color 0.2s !important;
+}
+.feedback-textarea:focus {
+  border-color: var(--primary) !important;
+}
+.feedback-input {
+  width: 100% !important;
+  background: var(--input-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 8px !important;
+  padding: 10px !important;
+  color: var(--text-main) !important;
+  font-family: inherit !important;
+  font-size: 13px !important;
+  outline: none !important;
+  box-sizing: border-box !important;
+  margin-bottom: 16px !important;
+  transition: border-color 0.2s !important;
+}
+.feedback-input:focus {
+  border-color: var(--primary) !important;
 }
 
 /* --- END OF styles.css --- */

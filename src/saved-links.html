@@ -33,6 +33,12 @@
           <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
           <span>Settings & Whitelist</span>
         </button>
+
+        <!-- NEU: Theme-Toggle in der Seitenleiste -->
+        <button id="sidebarThemeToggleBtn" class="nav-btn">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span id="sidebarThemeText">Dark Mode</span>
+        </button>
       </nav>
 
       <!-- Sidebar Footer (Abwärtskompatible Links) -->
@@ -40,6 +46,10 @@
         <a id="aboutLink" href="#" class="sidebar-link">
           <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
           About
+        </a>
+        <a id="feedbackLink" href="#" class="sidebar-link">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          Feedback & Support
         </a>
         <a id="kofiLink" href="#" class="sidebar-link kofi-link">
           <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path><line x1="6" y1="1" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line></svg>
@@ -285,6 +295,24 @@
   <div id="lp-undo-toast" class="lp-undo-toast hidden">
     <span id="lp-undo-text" style="font-size: 13px; font-weight: 500;">Link deleted</span>
     <button id="lp-undo-btn" style="all: unset !important; cursor: pointer !important; font-weight: 700 !important; color: var(--primary) !important; font-size: 13px !important; text-transform: uppercase !important; letter-spacing: 0.5px !important;">Undo</button>
+  </div>
+
+  <!-- DIRECT FEEDBACK MODAL OVERLAY -->
+  <div id="feedbackModal" class="modal-overlay hidden">
+    <div class="modal-content" style="max-width: 380px !important;">
+      <h3 class="modal-title">Feedback & Support</h3>
+      <p class="modal-text" style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">I'd love to hear from you! Bug report, feature request, or just a quick question.</p>
+      
+      <textarea id="feedbackMessage" class="feedback-textarea" placeholder="Your message here..."></textarea>
+      <input type="email" id="feedbackEmail" class="feedback-input" placeholder="Your Email (Optional)" />
+      
+      <div id="feedbackStatus" style="font-size: 11px; font-weight: bold; margin-bottom: 12px; display: none;"></div>
+
+      <div class="modal-actions">
+        <button id="feedbackCancelBtn" class="btn-modal btn-modal-cancel">Cancel</button>
+        <button id="feedbackSendBtn" class="btn-modal btn-modal-confirm">Send Message</button>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="saved-links.js"></script>

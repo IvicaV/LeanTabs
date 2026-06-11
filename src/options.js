@@ -614,7 +614,7 @@ function checkShortcuts() {
       if (missingShortcuts.length > 0) {
         const tipDesc = document.querySelector('.tip-desc');
         if (tipDesc) {
-          tipDesc.innerHTML = `⚠️ Some shortcuts could not be applied automatically by your browser. You can manually assign them in your browser's <a href="#" id="shortcutsLink" style="color:var(--primary); text-decoration:underline; font-weight:bold; cursor:pointer;">extension settings</a>.`;
+          tipDesc.innerHTML = `💡 Note: If these shortcuts aren't working, your browser might not have assigned them automatically. You can check and configure them in your browser's <a href="#" id="shortcutsLink" style="color:var(--primary); text-decoration:underline; font-weight:bold; cursor:pointer;">extension settings</a>.`;
           const shortcutsLink = document.getElementById('shortcutsLink');
           if (shortcutsLink) {
             shortcutsLink.addEventListener('click', (e) => {

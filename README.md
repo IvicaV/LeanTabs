@@ -246,4 +246,9 @@ LeanTabs is an open-source project developed in my free time. If it helps you sa
 
 ---
 
+**Enjoying LeanTabs? Check out [LeanPrompts](https://github.com/IvicaV/LeanPrompts).**  
+If you use AI tools daily and are tired of constant copy-pasting, managing template variables in notes, or manually re-uploading files, LeanPrompts is the perfect companion. It is a local-first prompt engineering IDE that turns templates into dynamic forms, manages global snippets, and injects prompts and files directly into Claude, ChatGPT, Gemini, and more.
+
+<br>
+
 ### Take back control now and experience a clean, fast, and organized browser. Install LeanTabs! 🚀

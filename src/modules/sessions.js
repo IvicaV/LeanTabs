@@ -12,6 +12,14 @@ import { getLinks, saveLinks } from './storage.js';
  */
 export async function deleteSession(sessionId) {
   const allLinks = await getLinks();
+  const sessionLinks = allLinks.filter(link => {
+    const linkSessionId = link.sessionId || `${link.dateGroup}-${link.timestamp}`;
+    return linkSessionId === sessionId;
+  });
+  const isLocked = sessionLinks.some(link => link.isLocked);
+  if (isLocked) {
+    return; // Do not delete locked sessions
+  }
   const updatedLinks = allLinks.filter(link => {
     const linkSessionId = link.sessionId || `${link.dateGroup}-${link.timestamp}`;
     return linkSessionId !== sessionId;
@@ -80,4 +88,25 @@ export async function bumpSession(sessionId) {
   if (changed) {
     await saveLinks(allLinks);
   }
+}
+
+
+/**
+ * Toggles the locked status for a session. Returns the new status.
+ */
+export async function toggleLockSession(sessionId) {
+  const allLinks = await getLinks();
+  const sessionLinks = allLinks.filter(l => (l.sessionId || `${l.dateGroup}-${l.timestamp}`) === sessionId);
+  if (sessionLinks.length > 0) {
+    const newStatus = !(sessionLinks[0].isLocked || false);
+    allLinks.forEach(link => {
+      const linkSessionId = link.sessionId || `${link.dateGroup}-${link.timestamp}`;
+      if (linkSessionId === sessionId) {
+        link.isLocked = newStatus;
+      }
+    });
+    await saveLinks(allLinks);
+    return newStatus;
+  }
+  return false;
 }

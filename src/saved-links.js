@@ -7,7 +7,7 @@
 
 // --- START OF saved-links.js (Final: Smart Import Refresh & UI State Sync) ---
 import { getLinks, saveLinks, getSettings, saveSettings, getWhitelist, saveWhitelist, getBackups, saveBackups } from './modules/storage.js';
-import { deleteSession, renameSession, togglePinSession, bumpSession } from './modules/sessions.js';
+import { deleteSession, renameSession, togglePinSession, bumpSession, toggleLockSession } from './modules/sessions.js';
 import { extractDomain } from './modules/categorizer.js';
 import { setRating } from './modules/ratings.js';
 
@@ -43,7 +43,9 @@ const ICONS = {
   pin: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.4 14.6L17 10.2V4h2V2H5v2h2v6.2l-4.4 4.4v2h8v6l1 2 1-2v-6h8v-2z"/></svg>',
   box: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>',
   move: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M5 9l7-7 7 7"/><path d="M12 2v14"/><path d="M19 15v6H5v-6"/></svg>',
-  arrowUp: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  arrowUp: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  note: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-linecap="round" stroke-linejoin="round"></path><polyline points="14 2 14 8 20 8" stroke-linecap="round" stroke-linejoin="round"></polyline><line x1="16" y1="13" x2="8" y2="13" stroke-linecap="round" stroke-linejoin="round"></line><line x1="16" y1="17" x2="8" y2="17" stroke-linecap="round" stroke-linejoin="round"></line><polyline points="10 9 9 9 8 9" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>',
+  fallbackFavicon: '<svg class="icon-svg favicon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-linecap="round" stroke-linejoin="round"></path><polyline points="14 2 14 8 20 8" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>'
 };
 
 // Listener for live theme changes
@@ -84,6 +86,8 @@ function showCustomModal(title, message, buttons, inputConfig = null) {
     const actionsEl = document.getElementById('modalActions');
     const inputEl = document.getElementById('modalInput');
     const selectEl = document.getElementById('modalSelect');
+    const textareaEl = document.getElementById('modalTextarea');
+    const eraserBtn = document.getElementById('modalEraserBtn'); // NEU
 
     titleEl.textContent = title;
     msgEl.textContent = message;
@@ -94,10 +98,39 @@ function showCustomModal(title, message, buttons, inputConfig = null) {
     selectEl.style.display = 'none';
     inputEl.value = '';
     selectEl.innerHTML = '';
+    if (eraserBtn) eraserBtn.style.display = 'none'; // Standardmäßig ausblenden
+    if (textareaEl) {
+        textareaEl.style.display = 'none';
+        textareaEl.value = '';
+    }
 
-    // Handle Input/Select Logic
+    // Handle Input/Select/Textarea Logic
     if (inputConfig) {
-        if (inputConfig.type === 'select') {
+        if (inputConfig.type === 'textarea') {
+            // POST-IT MODUS AKTIVIEREN
+            if (textareaEl) {
+                textareaEl.style.display = 'block';
+                textareaEl.value = inputConfig.defaultValue || '';
+                textareaEl.placeholder = inputConfig.placeholder || '';
+                
+                // Schwebendes Post-It-Farbschema (Bernstein-Glow)
+                textareaEl.style.backgroundColor = 'rgba(251, 191, 36, 0.05)';
+                textareaEl.style.borderColor = 'rgba(251, 191, 36, 0.3)';
+                textareaEl.style.color = 'var(--text-main)';
+                
+                // Einblenden und Klick-Event für den Radiergummi registrieren
+                if (eraserBtn) {
+                    eraserBtn.style.display = 'block';
+                    eraserBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        textareaEl.value = ''; // Inhalt leeren
+                        textareaEl.focus();    // Fokus zurücksetzen
+                    };
+                }
+                
+                setTimeout(() => textareaEl.focus(), 100);
+            }
+        } else if (inputConfig.type === 'select') {
             // SELECT MODE
             selectEl.style.display = 'block';
             
@@ -129,7 +162,9 @@ function showCustomModal(title, message, buttons, inputConfig = null) {
         let valueToReturn = btnConfig.value;
         
         if (btnConfig.value === true && inputConfig) {
-            if (inputConfig.type === 'select') {
+            if (inputConfig.type === 'textarea') {
+                valueToReturn = textareaEl ? textareaEl.value : ''; // Wert aus der Textarea lesen
+            } else if (inputConfig.type === 'select') {
                 valueToReturn = selectEl.value;
             } else {
                 valueToReturn = inputEl.value;
@@ -142,8 +177,8 @@ function showCustomModal(title, message, buttons, inputConfig = null) {
       actionsEl.appendChild(btn);
     });
 
-    // Handle Enter key for Input
-    if (inputConfig && inputConfig.type !== 'select') {
+    // Handle Enter key for Input (excluding textarea to allow line breaks)
+    if (inputConfig && inputConfig.type !== 'select' && inputConfig.type !== 'textarea') {
         inputEl.onkeydown = (e) => {
             if (e.key === 'Enter') {
                  const confirmBtn = buttons.find(b => b.value === true);
@@ -402,7 +437,8 @@ function renderLinks() {
   sessionsToRender.forEach(([sessionId, session]) => {
     const sessionSection = document.createElement('div');
     const isPinned = session.links[0].isPinned || false;
-    sessionSection.className = `session-section ${isPinned ? 'pinned' : ''}`; 
+    const isLocked = session.links[0].isLocked || false;
+    sessionSection.className = `session-section ${isPinned ? 'pinned' : ''} ${isLocked ? 'is-locked-panel' : ''}`; 
     
     sessionSection.addEventListener('click', () => {
       sessionSection.classList.add('active');
@@ -441,7 +477,10 @@ function renderLinks() {
     masterCheckbox.className = 'master-checkbox';
     masterCheckbox.name = `session-select-${sessionId}`; 
     masterCheckbox.dataset.sessionId = sessionId;
-    masterCheckbox.title = 'Select all';
+    masterCheckbox.title = isLocked ? 'Session is locked' : 'Select all';
+    if (isLocked) {
+        masterCheckbox.disabled = true; // Sperre die Master-Checkbox
+    }
     
     const dateBadge = document.createElement('span');
     dateBadge.className = 'session-date-badge';
@@ -460,6 +499,7 @@ function renderLinks() {
     
     headerText.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (isLocked) return; // Gesperrte Titel können nicht editiert werden
       if (document.activeElement !== headerText) {
         headerText.dataset.originalText = headerText.textContent; 
         headerText.contentEditable = 'true';
@@ -546,10 +586,10 @@ function renderLinks() {
     sortSelect.title = 'Sort links';
     
     const sortOptions = [
-      { value: 'date', text: '📅 Date' },
-      { value: 'rating', text: '⭐ Rating' },
-      { value: 'alphabetical', text: '🔤 A-Z' },
-      { value: 'opens', text: '🔥 Most Opened' }
+      { value: 'date', text: 'Date' },
+      { value: 'rating', text: 'Rating' },
+      { value: 'alphabetical', text: 'A-Z' },
+      { value: 'opens', text: 'Most Opened' }
     ];
     
     const currentSort = sessionSortStates[sessionId] || 'date';
@@ -630,6 +670,12 @@ function renderLinks() {
     deleteSessionBtn.innerHTML = `${ICONS.trash} Delete Session`;
     deleteSessionBtn.dataset.sessionId = sessionId;
     deleteSessionBtn.title = 'Delete Session';
+    if (isLocked) {
+        deleteSessionBtn.disabled = true;
+        deleteSessionBtn.style.opacity = '0.4';
+        deleteSessionBtn.style.cursor = 'not-allowed';
+        deleteSessionBtn.title = "Session is locked";
+    }
 
     dropdownMenu.appendChild(replaceSessionBtn);
     dropdownMenu.appendChild(downloadSessionBtn);
@@ -640,6 +686,14 @@ function renderLinks() {
     dropdownDiv.appendChild(dropdownToggleBtn);
     dropdownDiv.appendChild(dropdownMenu);
     
+    const lockSessionBtn = document.createElement('button');
+    lockSessionBtn.className = `btn-session btn-lock ${isLocked ? 'active' : ''}`;
+    lockSessionBtn.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
+    lockSessionBtn.dataset.sessionId = sessionId;
+    lockSessionBtn.dataset.action = 'toggleLock';
+    lockSessionBtn.title = isLocked ? 'Unlock Session' : 'Lock/Freeze Session';
+
+    sessionActions.appendChild(lockSessionBtn);
     sessionActions.appendChild(sortSelect);
     sessionActions.appendChild(restoreSessionBtn);
     sessionActions.appendChild(dropdownDiv);
@@ -659,8 +713,8 @@ function renderLinks() {
     const addLinkArea = document.createElement('div');
     addLinkArea.className = 'add-link-area';
     addLinkArea.innerHTML = `
-        <input type="text" class="add-link-input" placeholder="Paste URL to add..." data-session-id="${sessionId}">
-        <button class="btn btn-primary btn-sm btn-add-link" data-session-id="${sessionId}">Add Link</button>
+        <input type="text" class="add-link-input" placeholder="${isLocked ? 'Session is locked...' : 'Paste URL to add...'}" data-session-id="${sessionId}" ${isLocked ? 'disabled' : ''}>
+        <button class="btn btn-primary btn-sm btn-add-link" data-session-id="${sessionId}" ${isLocked ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>Add Link</button>
     `;
     linksList.appendChild(addLinkArea);
     
@@ -736,7 +790,6 @@ function createLinkElement(link) {
 
   const div = document.createElement('div');
   div.className = 'link-item';
-  div.setAttribute('draggable', 'true');
 
   const linkKey = getLinkKey(link);
   const isSelected = selectedLinks.has(linkKey);
@@ -747,6 +800,15 @@ function createLinkElement(link) {
   checkbox.className = 'link-checkbox';
   checkbox.dataset.linkKey = linkKey; 
   if (isSelected) checkbox.checked = true;
+
+  const isSessionLocked = link.isLocked || false;
+  if (isSessionLocked) {
+      checkbox.disabled = true;
+      div.setAttribute('draggable', 'false');
+      div.style.cursor = 'default';
+  } else {
+      div.setAttribute('draggable', 'true');
+  }
 
   const linkInfo = document.createElement('div');
   linkInfo.className = 'link-info';
@@ -761,10 +823,10 @@ function createLinkElement(link) {
       img.onerror = () => { img.style.display = 'none'; }; 
       linkHeader.appendChild(img);
   } else {
-      const fallback = document.createElement('span');
-      fallback.style.fontSize = '14px';
-      fallback.textContent = '📄';
-      linkHeader.appendChild(fallback);
+      const fallbackContainer = document.createElement('div');
+      fallbackContainer.style.cssText = 'display: flex !important; align-items: center !important; justify-content: center !important; flex-shrink: 0 !important; width: 14px !important; height: 14px !important;';
+      fallbackContainer.innerHTML = ICONS.fallbackFavicon;
+      linkHeader.appendChild(fallbackContainer);
   }
 
   const linkTitle = document.createElement('a');
@@ -781,6 +843,16 @@ function createLinkElement(link) {
   });
   
   linkHeader.appendChild(linkTitle);
+
+  // --- DYNAMISCHER SIGNAL-INDICATOR START ---
+  if (link.note && link.note.trim() !== "") {
+      const noteIndicator = document.createElement('span');
+      noteIndicator.className = 'link-note-indicator';
+      noteIndicator.innerHTML = ICONS.note; // Ersetzt das Emoij '📝' durch unseren sauberen SVG-Pfad!
+      noteIndicator.title = link.note; // Hover-Vorschau bleibt erhalten
+      linkHeader.appendChild(noteIndicator);
+  }
+  // --- DYNAMISCHER SIGNAL-INDICATOR END ---
 
   // Rating Rendering
   const rating = link.rating || 0;
@@ -899,6 +971,17 @@ function createLinkElement(link) {
   const dropdownMenu = document.createElement('div');
   dropdownMenu.className = 'link-dropdown-menu';
 
+  // Edit Note button inside dropdown
+  const noteItemBtn = createBtn(ICONS.tag, 'btn-link-note', 'Add/Edit Note', { url: link.url, timestamp: link.timestamp });
+  noteItemBtn.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24" style="width: 13px; height: 13px; color: var(--primary);"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> <span>Edit Note</span>';
+  noteItemBtn.className = 'link-dropdown-item btn-link-note';
+  if (isSessionLocked) {
+      noteItemBtn.disabled = true;
+      noteItemBtn.style.opacity = '0.4';
+      noteItemBtn.style.cursor = 'not-allowed';
+      noteItemBtn.title = "Session is locked";
+  }
+
   // Whitelist item inside dropdown
   const whitelistItemBtn = createBtn(ICONS.shield, 'btn-link-whitelist', 'Add to Whitelist', { url: link.url });
   whitelistItemBtn.innerHTML = `${ICONS.shield} <span>Whitelist</span>`;
@@ -909,6 +992,7 @@ function createLinkElement(link) {
   categoryItemBtn.innerHTML = `${ICONS.tag} <span>Edit Category</span>`;
   categoryItemBtn.className = 'link-dropdown-item btn-link-category';
 
+  dropdownMenu.appendChild(noteItemBtn);
   dropdownMenu.appendChild(whitelistItemBtn);
   dropdownMenu.appendChild(categoryItemBtn);
 
@@ -916,7 +1000,14 @@ function createLinkElement(link) {
   dropdownDiv.appendChild(dropdownMenu);
 
   linkActions.appendChild(createBtn(ICONS.link, 'btn-link-open', 'Open Tab', { action: 'open', url: link.url }));
-  linkActions.appendChild(createBtn(ICONS.trash, 'btn-link-delete', 'Delete', { action: 'delete', url: link.url, timestamp: link.timestamp }));
+  
+  const trashBtn = createBtn(ICONS.trash, 'btn-link-delete', isSessionLocked ? 'Session is locked' : 'Delete', { action: 'delete', url: link.url, timestamp: link.timestamp });
+  if (isSessionLocked) {
+      trashBtn.disabled = true;
+      trashBtn.style.opacity = '0.3';
+      trashBtn.style.cursor = 'not-allowed';
+  }
+  linkActions.appendChild(trashBtn);
   linkActions.appendChild(dropdownDiv);
 
   div.appendChild(checkbox);
@@ -1024,6 +1115,14 @@ if (kofiLink) {
 }
 
 document.getElementById('linksContainer').addEventListener('click', async (e) => {
+  if (e.target.closest('[data-action="toggleLock"]')) {
+    e.stopPropagation();
+    const btn = e.target.closest('[data-action="toggleLock"]');
+    const sessionId = btn.dataset.sessionId;
+    await toggleLockSession(sessionId);
+    await loadLinks();
+    return;
+  }
   if (e.target.closest('.btn-add-link')) {
     e.stopImmediatePropagation();
     const btn = e.target.closest('.btn-add-link');
@@ -1169,11 +1268,57 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
     }
     return;
   }
+  if (e.target.closest('.btn-link-note')) {
+    e.stopImmediatePropagation();
+    const btn = e.target.closest('.btn-link-note');
+    const url = btn.dataset.url;
+    const timestamp = btn.dataset.timestamp;
+    
+    allLinks = await getLinks();
+    const linkToUpdate = allLinks.find(l => l.url === url && l.timestamp === timestamp);
+    
+    if (linkToUpdate) {
+      if (linkToUpdate.isLocked) {
+          return; // Safety guard: do not edit notes of locked links
+      }
+      const currentNote = linkToUpdate.note || "";
+      
+      // Wir nutzen das erweiterte showCustomModal im 'textarea' Post-It-Modus!
+      const newNote = await showCustomModal(
+          "Link Notes", 
+          "Add, edit, or delete notes for this link:", 
+          [
+              { text: "Cancel", value: null, class: "btn-modal-cancel" },
+              { text: "Save Note", value: true, class: "btn-modal-confirm" }
+          ],
+          { type: 'textarea', defaultValue: currentNote, placeholder: "Type your notes here... (Supports multiple lines)" }
+      );
+      
+      if (newNote !== null) {
+        allLinks.forEach(l => {
+          if (l.url === url && l.timestamp === timestamp) {
+              l.note = newNote.trim();
+          }
+        });
+        await saveLinks(allLinks);
+        await loadLinks(); // UI Refresh
+      }
+    }
+    return;
+  }
   if (e.target.closest('.btn-link-delete')) {
     e.stopImmediatePropagation();
     const btn = e.target.closest('.btn-link-delete');
     const url = btn.dataset.url;
     const timestamp = btn.dataset.timestamp;
+
+    // Safety check: is parent session locked?
+    allLinks = await getLinks();
+    const targetLink = allLinks.find(link => link.url === url && link.timestamp === timestamp);
+    if (targetLink && targetLink.isLocked) {
+        return; // Do not delete locked links
+    }
+
     const settings = await getSettings();
     
     if (settings.confirmBeforeClose !== false) {
@@ -1286,7 +1431,7 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
     const selectedInSession = sessionLinks.filter(link => selectedLinks.has(getLinkKey(link)));
     if (selectedInSession.length === 0) return;
     const sessionOptions = [];
-    sessionOptions.push({ value: 'NEW_SESSION_AUTO', text: '✨ Create New Session' });
+    sessionOptions.push({ value: 'NEW_SESSION_AUTO', text: 'Create New Session' });
     const processedSessionIds = new Set();
     allLinks.forEach(link => {
         const sId = link.sessionId || `${link.dateGroup}-${link.timestamp}`;
@@ -1350,6 +1495,12 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
     const sessionId = btn.dataset.sessionId;
     const selectedInSession = allLinks.filter(link => selectedLinks.has(getLinkKey(link)));
     if (selectedInSession.length === 0) return;
+
+    // Safety check: is parent session locked?
+    const isLocked = selectedInSession.some(link => link.isLocked);
+    if (isLocked) {
+        return; // Do not delete locked links
+    }
     const settings = await getSettings();
     if (settings.confirmBeforeClose !== false) {
         const confirmed = await showCustomModal("Delete Selected", `Really delete ${selectedInSession.length} selected link(s)?\nThis cannot be undone.`, [{ text: "Cancel", value: false, class: "btn-modal-cancel" }, { text: "Delete All", value: true, class: "btn-modal-danger" }]);
@@ -1450,6 +1601,18 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
     e.stopImmediatePropagation();
     const btn = e.target.closest('.btn-session.btn-delete');
     const sessionId = btn.dataset.sessionId;
+
+    // Safety check: is session locked?
+    allLinks = await getLinks();
+    const sessionLinks = allLinks.filter(link => {
+      const linkSessionId = link.sessionId || `${link.dateGroup}-${link.timestamp}`;
+      return linkSessionId === sessionId;
+    });
+    const isLocked = sessionLinks.some(link => link.isLocked);
+    if (isLocked) {
+        return; // Do not delete locked session
+    }
+
     const settings = await getSettings();
     if (settings.confirmBeforeClose !== false) {
         const confirmed = await showCustomModal("Delete Session", "Really delete all links from this session?\nThis action cannot be undone.", [{ text: "Cancel", value: false, class: "btn-modal-cancel" }, { text: "Delete Session", value: true, class: "btn-modal-danger" }]);
@@ -1548,7 +1711,10 @@ document.getElementById('clearAllBtn').addEventListener('click', async () => {
   if (confirm1) {
     const confirm2 = await showCustomModal("Final Confirmation", "Are you ABSOLUTELY sure?", [{ text: "Cancel", value: false, class: "btn-modal-cancel" }, { text: "Yes, Wipe Everything", value: true, class: "btn-modal-danger" }]);
     if (confirm2) {
-      await saveLinks([]);
+      // Keep locked sessions intact
+      allLinks = await getLinks();
+      const lockedLinks = allLinks.filter(link => link.isLocked);
+      await saveLinks(lockedLinks);
       await loadLinks();
     }
   }

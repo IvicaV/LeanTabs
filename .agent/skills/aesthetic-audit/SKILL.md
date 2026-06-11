@@ -9,6 +9,8 @@ Use this skill whenever modifying or creating user interfaces in LeanTabs (`save
 
 ## Core Design Principles
 
+- 📋 [2026-06-11] **Zero-Emoji-Sovereignty**: Die Verwendung von farbigen System-Emojis (wie 📝, ➕, 📌, 🛡️ etc.) im UI-Code, in Modals, Toasts oder Kontextmenü-Einträgen ist STRENGSTENS untersagt. Sie beschädigen das visuelle Profil des Produkts. Alle grafischen Indikatoren müssen ausnahmslos als farblose, filigrane Vektor-Icons (SVG-Pfad-Elemente in der vordefinierten `ICONS` Pipeline) realisiert werden.
+
 ### 1. Vibrancy Over Flatness
 - Avoid flat colors. Utilize modern, tailored HSL color tokens and gradients configured in `styles.css`.
 - Ensure elements change state smoothly when hovered or activated using CSS variables (e.g., modifying background opacity or borders dynamically).

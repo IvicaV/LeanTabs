@@ -208,14 +208,14 @@ async function buildContextMenu() {
     chrome.contextMenus.create({
       id: "action-new-session",
       parentId: "leantabs-root",
-      title: "➕ Start New Session",
+      title: "+ Start New Session",
       contexts: ["page", "link"]
     });
 
     chrome.contextMenus.create({
       id: "action-quick-save",
       parentId: "leantabs-root",
-      title: "📥 Quick Save (Today's List)",
+      title: "Quick Save (Today's List)",
       contexts: ["page", "link"]
     });
     
@@ -230,7 +230,7 @@ async function buildContextMenu() {
     chrome.contextMenus.create({
         id: "action-add-whitelist",
         parentId: "leantabs-root",
-        title: "🛡️ Add to Whitelist",
+        title: "Add to Whitelist",
         contexts: ["page", "link"]
     });
     // ------------------------------------------
@@ -261,7 +261,7 @@ async function buildContextMenu() {
             try {
                 chrome.contextMenus.create({
                     id: `session-${id}`,
-                    title: `📌 Add to: ${shortLabel}`,
+                    title: `Add to: ${shortLabel}`,
                     parentId: "leantabs-root",
                     contexts: ["page", "link"]
                 });

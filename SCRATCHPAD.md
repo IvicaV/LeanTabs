@@ -14,3 +14,5 @@ Preserving critical insights and decisions for the LeanTabs workspace.
 
 - 📋 [2026-06-11] **Double-Read Pattern on Async Storage Writes**:
   Any function that performs an async fetch before calling `saveLinks` MUST follow the double-read pattern. Read the storage once if needed for initial validation, but query the fresh state again immediately prior to the write command.
+
+- 📋 [2026-06-11] **Zero-Emoji-Sovereignty**: Die Verwendung von farbigen System-Emojis (wie 📝, ➕, 📌, 🛡️ etc.) im UI-Code, in Modals, Toasts oder Kontextmenü-Einträgen ist STRENGSTENS untersagt. Sie beschädigen das visuelle Profil des Produkts. Alle grafischen Indikatoren müssen ausnahmslos als farblose, filigrane Vektor-Icons (SVG-Pfad-Elemente in der vordefinierten `ICONS` Pipeline) realisiert werden.

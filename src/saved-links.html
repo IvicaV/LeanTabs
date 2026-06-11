@@ -207,7 +207,7 @@
           
           <div class="tips-grid">
             <div class="tip-card">
-              <span class="tip-title">⌨️ Keyboard Shortcuts</span>
+              <span class="tip-title">Keyboard Shortcuts</span>
               
               <div class="shortcut-row">
                 <span>Clean & <b>S</b>ave:</span>
@@ -225,18 +225,18 @@
                 <span>Reset (<b>K</b>ill All):</span>
                 <span class="kbd-group"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>K</kbd></span>
               </div>
-              <span class="shortcut-desc" style="color:var(--danger);">⚠️ Kills tabs in the Active Window only (ignores Scope settings). No saving.</span>
+              <span class="shortcut-desc" style="color:var(--danger);">Kills tabs in the Active Window only (ignores Scope settings). No saving.</span>
 
               <p class="tip-desc" style="margin-top:16px;">Shortcuts can be customized in your browser's <a href="#" id="shortcutsLink" style="color:var(--primary); text-decoration:none; cursor:pointer;">extension settings</a>.</p>
             </div>
 
             <div class="tip-card">
-              <span class="tip-title">🖱️ Context Menu</span>
+              <span class="tip-title">Context Menu</span>
               <p class="tip-desc">
                 Right-click on any page or link to verify options:
                 <br>• <strong>Quick Save:</strong> Adds directly to today's list.
                 <br>• <strong>New Session:</strong> Creates a fresh session.
-                <br>• <strong>📌 Pinned:</strong> Save directly to your pinned sessions.
+                <br>• <strong>Pinned:</strong> Save directly to your pinned sessions.
               </p>
             </div>
           </div>
@@ -253,11 +253,20 @@
   </div>
 
   <div id="customModal" class="modal-overlay hidden">
-    <div class="modal-content">
+    <div class="modal-content" style="position: relative;">
       <h3 id="modalTitle" class="modal-title">Confirm Action</h3>
+      
+      <!-- NEU: Radiergummi-Schaltfläche (Nur im Notiz-Modus sichtbar, absolute Position oben rechts) -->
+      <button id="modalEraserBtn" class="btn-icon" style="display: none; position: absolute !important; top: 16px !important; right: 16px !important;" title="Clear Note">
+        <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><path d="m20 20-5-5M16 20l-5-5M12 20H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h12l5 5-9 9Z"></path><path d="m18 12-8-8a2.119 2.119 0 1 0-3 3l8 8"></path></svg>
+      </button>
+
       <div id="modalMessage" class="modal-text"></div>
       
       <input type="text" id="modalInput" class="modal-input" placeholder="Enter text...">
+      
+      <!-- NEU: Mehrzeilige Textarea für die Post-It Notizen (Zustandshaltend) -->
+      <textarea id="modalTextarea" class="modal-input" placeholder="Enter notes..." style="display:none; resize:none; height: 120px; font-family: inherit; font-size: 13px; box-sizing: border-box; padding: 10px; border-radius: 8px;"></textarea>
       
       <select id="modalSelect" class="modal-input" style="display:none; cursor:pointer;">
       </select>

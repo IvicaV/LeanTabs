@@ -1161,4 +1161,25 @@ kbd {
   display: block !important;
 }
 
+/* --- LINK-LEVEL NOTE INDICATOR --- */
+.link-note-indicator {
+  color: #f59e0b !important; /* Amber 500 */
+  font-size: 11px !important;
+  margin-left: 6px !important;
+  cursor: help !important; /* Signalisiert dem Nutzer die Hover-Vorschau */
+  flex-shrink: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  line-height: 1 !important;
+}
+
+/* Gesperrter Kachel-Zustand */
+.session-section.is-locked-panel {
+  border-color: rgba(239, 68, 68, 0.2) !important; /* Roter Hauch zur Warnung */
+}
+
+.btn-session.btn-lock.active {
+  color: #ef4444 !important; /* Schloss leuchtet rot bei Sperrung */
+}
+
 /* --- END OF styles.css --- */

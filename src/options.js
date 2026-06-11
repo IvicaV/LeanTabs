@@ -583,6 +583,14 @@ function initEventListeners() {
     e.target.value = '';
   });
 
+  const shortcutsLink = document.getElementById('shortcutsLink');
+  if (shortcutsLink) {
+    shortcutsLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+    });
+  }
+
   // Footer Links Handlers
   const aboutLink = document.getElementById('aboutLink');
   if (aboutLink) {
@@ -599,7 +607,29 @@ function initEventListeners() {
   }
 }
 
+function checkShortcuts() {
+  if (chrome.commands && chrome.commands.getAll) {
+    chrome.commands.getAll((commands) => {
+      const missingShortcuts = commands.filter(cmd => !cmd.shortcut);
+      if (missingShortcuts.length > 0) {
+        const tipDesc = document.querySelector('.tip-desc');
+        if (tipDesc) {
+          tipDesc.innerHTML = `⚠️ Shortcuts are not configured by default. You can assign them in your browser's <a href="#" id="shortcutsLink" style="color:var(--primary); text-decoration:underline; font-weight:bold; cursor:pointer;">extension settings</a>.`;
+          const shortcutsLink = document.getElementById('shortcutsLink');
+          if (shortcutsLink) {
+            shortcutsLink.addEventListener('click', (e) => {
+              e.preventDefault();
+              chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+            });
+          }
+        }
+      }
+    });
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initEventListeners();
   loadData();
+  checkShortcuts();
 });

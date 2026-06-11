@@ -6,7 +6,7 @@
  */
 
 // --- START OF saved-links.js (Final: Smart Import Refresh & UI State Sync) ---
-import { getLinks, saveLinks, getSettings, saveSettings, getWhitelist, saveWhitelist } from './modules/storage.js';
+import { getLinks, saveLinks, getSettings, saveSettings, getWhitelist, saveWhitelist, getBackups, saveBackups } from './modules/storage.js';
 import { deleteSession, renameSession, togglePinSession, bumpSession } from './modules/sessions.js';
 import { extractDomain } from './modules/categorizer.js';
 import { setRating } from './modules/ratings.js';
@@ -1004,7 +1004,7 @@ document.getElementById('linksContainer').addEventListener('change', (e) => {
   }
 });
 
-document.getElementById('goToSettingsBtn').addEventListener('click', () => {
+document.getElementById('goToSettingsBtn')?.addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
 });
 
@@ -1799,5 +1799,586 @@ function showLpUndoToast(message) {
     lpActiveUndoData = null;
   }, 6000); // 6 Sekunden Einblendzeit
 }
+
+// =============================================================================
+// --- VIEW SWITCHER & SETTINGS UNIFICATION LOGIC (ZERO-REGRESSION) ---
+// =============================================================================
+
+// 1. NAVIGATION CONTROL (With Hash-Aware Initiation)
+function initViewNavigation() {
+    const btnLinks = document.getElementById('nav-links-btn');
+    const btnSettings = document.getElementById('nav-settings-btn');
+    const viewLinks = document.getElementById('linksViewContainer');
+    const viewSettings = document.getElementById('settingsViewContainer');
+
+    if (!btnLinks || !btnSettings || !viewLinks || !viewSettings) return;
+
+    const switchView = (targetView) => {
+        if (targetView === 'settings') {
+            viewLinks.classList.add('hidden');
+            viewSettings.classList.remove('hidden');
+            btnLinks.classList.remove('active');
+            btnSettings.classList.add('active');
+            loadSettingsViewData();
+        } else {
+            viewSettings.classList.add('hidden');
+            viewLinks.classList.remove('hidden');
+            btnSettings.classList.remove('active');
+            btnLinks.classList.add('active');
+            loadLinks(); 
+        }
+    };
+
+    btnLinks.addEventListener('click', () => { window.location.hash = 'links'; switchView('links'); });
+    btnSettings.addEventListener('click', () => { window.location.hash = 'settings'; switchView('settings'); });
+
+    // --- DEFENSIRE INITIALISIERUNG ANHAND DES HASHES ---
+    const handleHash = () => {
+        const currentHash = window.location.hash;
+        if (currentHash === '#settings') {
+            switchView('settings');
+        } else {
+            switchView('links');
+        }
+    };
+    handleHash();
+    window.addEventListener('hashchange', handleHash);
+}
+
+// 2. UNIFIED SETTINGS CONTROLLER (Adapted from options.js)
+let settingsWhitelist = [];
+let localSettingsObj = {};
+
+function updateSettingsSaveStatus(message, type = 'success') {
+    const status = document.getElementById('saveStatus');
+    if (!status) return;
+    status.textContent = message;
+    status.style.color = type === 'success' ? 'var(--success)' : 'var(--danger)';
+    setTimeout(() => { status.textContent = ''; }, 3000);
+}
+
+async function loadSettingsViewData() {
+    try {
+        settingsWhitelist = await getWhitelist();
+        const rawSettings = await getSettings();
+        localSettingsObj = Object.keys(rawSettings).length > 0 ? rawSettings : { 
+            keepLastTabs: 3, 
+            autoBackup: true, 
+            confirmBeforeClose: true, 
+            deleteAfterRestore: false,
+            cleanAllWorkspaces: false,
+            sessionsDefaultCollapsed: false,
+            restoreWindowStructure: true,
+            smartImport: true 
+        };
+        const backups = await getBackups();
+        
+        renderWhitelistUI();
+        syncSettingsToForm();
+        renderBackupsUI(backups);
+    } catch (e) {
+        console.error("Failed to load settings data:", e);
+    }
+}
+
+function renderWhitelistUI() {
+    const container = document.getElementById('whitelistContainer');
+    if (!container) return;
+    if (settingsWhitelist.length === 0) {
+        container.innerHTML = '<p class="empty-state" style="padding:15px; font-size:12px;">No protected domains. Add some!</p>';
+        return;
+    }
+    const ICONS_SHIELD = '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const ICONS_TRASH = '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+    container.innerHTML = settingsWhitelist.map((domain, index) => `
+        <div class="whitelist-item">
+          <span style="display:flex; align-items:center; gap:8px;">${ICONS_SHIELD} ${domain}</span>
+          <button class="btn-icon-danger btn-delete-whitelist" data-index="${index}" title="Delete Domain">
+            ${ICONS_TRASH}
+          </button>
+        </div>
+    `).join('');
+}
+
+function syncSettingsToForm() {
+    const keepInput = document.getElementById('keepTabsInput');
+    if (keepInput) keepInput.value = localSettingsObj.keepLastTabs;
+
+    const mappings = [
+        { id: 'autoBackupCheck', key: 'autoBackup' },
+        { id: 'confirmCheck', key: 'confirmBeforeClose' },
+        { id: 'deleteAfterRestoreCheck', key: 'deleteAfterRestore' },
+        { id: 'cleanAllWorkspacesCheck', key: 'cleanAllWorkspaces' },
+        { id: 'sessionsDefaultCollapsedCheck', key: 'sessionsDefaultCollapsed' },
+        { id: 'restoreWindowStructureCheck', key: 'restoreWindowStructure' },
+        { id: 'smartImportCheck', key: 'smartImport' }
+    ];
+
+    mappings.forEach(m => {
+        const el = document.getElementById(m.id);
+        if (el) el.checked = localSettingsObj[m.key] || false;
+    });
+
+    // Dark Mode Specific
+    const dmCheck = document.getElementById('darkModeCheck');
+    if (dmCheck) {
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        dmCheck.checked = (currentTheme === 'dark');
+    }
+}
+
+function renderBackupsUI(backups) {
+    const container = document.getElementById('backupContainer');
+    if (!container) return;
+    if (backups.length === 0) {
+        container.innerHTML = '<p class="empty-state" style="padding:15px; font-size:12px;">No automatic backups available yet.</p>';
+        return;
+    }
+    const sortedBackups = [...backups].reverse();
+    const ICONS_BOX = '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>';
+    const ICONS_RESTORE = '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const ICONS_DOWNLOAD = '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const ICONS_TRASH = '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+    container.innerHTML = sortedBackups.map((backup, displayIndex) => {
+        const originalIndex = backups.length - 1 - displayIndex;
+        const displayTitle = backup.label ? `Auto-Backup: ${backup.label}` : `Backup #${backups.length - displayIndex}`;
+
+        return `
+          <div class="backup-item">
+            <div style="display:flex; flex-direction:column; overflow:hidden; text-align: left;">
+              <strong style="color:var(--primary); display:flex; align-items:center; gap:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${displayTitle}">
+                ${ICONS_BOX} ${displayTitle}
+              </strong>
+              <span style="font-size:11px; color:var(--text-muted); margin-left: 22px;">${backup.readableTime}</span>
+              <span style="font-size:11px; color:var(--text-muted); margin-left: 22px;">${backup.count} links saved, ${backup.tabsClosed || 0} closed</span>
+            </div>
+            <div style="display:flex; gap:6px; flex-shrink:0;">
+              <button class="btn btn-secondary btn-sm" data-backup-index="${originalIndex}" title="Restore">${ICONS_RESTORE}</button>
+              <button class="btn btn-secondary btn-sm" data-download-backup-index="${originalIndex}" title="Download JSON">${ICONS_DOWNLOAD}</button>
+              <button class="btn btn-danger btn-sm" data-delete-backup-index="${originalIndex}" title="Delete">${ICONS_TRASH}</button>
+            </div>
+          </div>
+        `;
+    }).join('');
+}
+
+function initSettingsLogic() {
+    const viewContainer = document.getElementById('settingsViewContainer');
+    if (!viewContainer) return;
+
+    // A. ADD WHITELIST DOMAIN
+    const addWhitelistDomain = async () => {
+        const input = document.getElementById('whitelistInput');
+        if (!input) return;
+        const domain = input.value.trim();
+        if (!domain) {
+            updateSettingsSaveStatus('Please enter a domain!', 'error');
+            return;
+        }
+        let cleanDomain = domain.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+        if (!cleanDomain.includes('.')) {
+            updateSettingsSaveStatus('Invalid domain! Example: gmail.com', 'error');
+            return;
+        }
+
+        if (!settingsWhitelist.includes(cleanDomain)) {
+            settingsWhitelist.push(cleanDomain);
+            await saveWhitelist(settingsWhitelist);
+            renderWhitelistUI();
+            input.value = '';
+            updateSettingsSaveStatus('Domain added!');
+        } else {
+            updateSettingsSaveStatus('Domain already exists!', 'error');
+        }
+    };
+
+    document.getElementById('addWhitelistBtn')?.addEventListener('click', addWhitelistDomain);
+    document.getElementById('whitelistInput')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') addWhitelistDomain();
+    });
+
+    // B. DELETE WHITELIST DOMAIN
+    document.getElementById('whitelistContainer')?.addEventListener('click', async (e) => {
+        const btn = e.target.closest('.btn-delete-whitelist');
+        if (btn) {
+            const index = parseInt(btn.dataset.index);
+            settingsWhitelist.splice(index, 1);
+            await saveWhitelist(settingsWhitelist);
+            renderWhitelistUI();
+            updateSettingsSaveStatus('Domain removed!');
+        }
+    });
+
+    // C. THEME TOGGLE SYNC
+    document.getElementById('darkModeCheck')?.addEventListener('change', (e) => {
+        const newTheme = e.target.checked ? 'dark' : 'light';
+        localStorage.setItem('theme', newTheme);
+        document.documentElement.setAttribute('data-theme', newTheme);
+    });
+
+    // D. SAVE BUTTON
+    document.getElementById('saveBtn')?.addEventListener('click', async () => {
+        try {
+            let keepTabs = parseInt(document.getElementById('keepTabsInput').value);
+            if (isNaN(keepTabs) || keepTabs < 1) keepTabs = 1;
+            if (keepTabs > 20) keepTabs = 20;
+
+            localSettingsObj.keepLastTabs = keepTabs;
+            localSettingsObj.autoBackup = document.getElementById('autoBackupCheck').checked;
+            localSettingsObj.confirmBeforeClose = document.getElementById('confirmCheck').checked;
+            localSettingsObj.deleteAfterRestore = document.getElementById('deleteAfterRestoreCheck').checked;
+            localSettingsObj.cleanAllWorkspaces = document.getElementById('cleanAllWorkspacesCheck').checked;
+            localSettingsObj.sessionsDefaultCollapsed = document.getElementById('sessionsDefaultCollapsedCheck').checked;
+            localSettingsObj.restoreWindowStructure = document.getElementById('restoreWindowStructureCheck').checked;
+            localSettingsObj.smartImport = document.getElementById('smartImportCheck').checked;
+
+            await saveSettings(localSettingsObj);
+            updateSettingsSaveStatus("✅ Settings saved!", "success");
+        } catch (err) {
+            updateSettingsSaveStatus("❌ Error saving!", "error");
+        }
+    });
+
+    // E. BACKUP ACCORDION CLICK ACTIONS
+    document.getElementById('backupContainer')?.addEventListener('click', async (e) => {
+        const restoreBtn = e.target.closest('[data-backup-index]');
+        const downloadBtn = e.target.closest('[data-download-backup-index]');
+        const deleteBtn = e.target.closest('[data-delete-backup-index]');
+
+        if (restoreBtn) {
+            const index = parseInt(restoreBtn.dataset.backupIndex);
+            const backups = await getBackups();
+            const currentLinks = await getLinks();
+            const backup = backups[index];
+
+            const choice = await showCustomModal(
+                "Restore Backup?",
+                `Restore ${backup.count} links from ${backup.readableTime}?\nThis will append them to your dashboard list.`,
+                [
+                    { text: "Cancel", value: false, class: "btn-modal-cancel" },
+                    { text: "Restore Backup", value: true, class: "btn-modal-confirm" }
+                ]
+            );
+
+            if (choice) {
+                const timestamp = new Date().toISOString();
+                const timeString = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                const sessionId = `restored-${timestamp}`;
+                const restoredLinks = backup.data.links.map(link => ({
+                    ...link,
+                    originalTimestamp: link.timestamp,
+                    sessionId,
+                    sessionLabel: `${timeString} - Restored Backup`,
+                    restoredAt: timestamp,
+                    timestamp
+                }));
+                const allLinks = [...restoredLinks, ...currentLinks];
+                await saveLinks(allLinks);
+                updateSettingsSaveStatus('✅ Backup restored!', 'success');
+                loadSettingsViewData();
+            }
+        }
+
+        if (downloadBtn) {
+            const index = parseInt(downloadBtn.dataset.downloadBackupIndex);
+            const backups = await getBackups();
+            const backup = backups[index];
+            const timestamp = new Date(backup.timestamp).toISOString().slice(0, 10);
+            const dataStr = JSON.stringify(backup.data, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `leantabs-backup-${timestamp}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            updateSettingsSaveStatus('✅ Downloaded!', 'success');
+        }
+
+        if (deleteBtn) {
+            const index = parseInt(deleteBtn.dataset.deleteBackupIndex);
+            const backupList = await getBackups();
+
+            const choice = await showCustomModal(
+                "Delete Backup?",
+                "Are you sure you want to permanently delete this backup file?",
+                [
+                    { text: "Cancel", value: false, class: "btn-modal-cancel" },
+                    { text: "Delete Permanently", value: true, class: "btn-modal-danger" }
+                ]
+            );
+
+            if (choice) {
+                backupList.splice(index, 1);
+                await saveBackups(backupList);
+                loadSettingsViewData();
+                updateSettingsSaveStatus('Backup deleted!', 'success');
+            }
+        }
+    });
+
+    // F. DATA SYSTEM ACTIONS (FULL BACKUP / SMART IMPORT)
+    document.getElementById('exportDataBtn')?.addEventListener('click', async () => {
+        const data = await chrome.storage.local.get(null);
+        const timestamp = new Date().toISOString().slice(0, 10);
+        const dataStr = JSON.stringify(data, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `leantabs-full-backup-${timestamp}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        updateSettingsSaveStatus('✅ Export complete!', 'success');
+    });
+
+    const fileInput = document.getElementById('importFileInput');
+    document.getElementById('importDataBtn')?.addEventListener('click', () => {
+        fileInput?.click();
+    });
+
+    fileInput?.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+            const text = await file.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (err) {
+                throw new Error('Invalid JSON format');
+            }
+
+            if (typeof data !== 'object' || data === null) {
+                throw new Error('Imported file is not a valid JSON object.');
+            }
+
+            // A. CONFIG IMPORT LOGIC (Settings & Whitelist)
+            if (data.settings || data.whitelist) {
+                const importConfig = await showCustomModal(
+                    "System Configuration Found",
+                    "This backup includes Settings and Whitelist data.\nDo you want to restore them? (Overwrites current settings)",
+                    [
+                        { text: "No, Links Only", value: false, class: "btn-modal-cancel" },
+                        { text: "Yes, Restore Config", value: true, class: "btn-modal-confirm" }
+                    ]
+                );
+
+                if (importConfig) {
+                    if (data.settings) {
+                        localSettingsObj = data.settings;
+                        await saveSettings(data.settings);
+                    }
+                    if (data.whitelist) {
+                        settingsWhitelist = data.whitelist;
+                        await saveWhitelist(data.whitelist);
+                    }
+                    updateSettingsSaveStatus("✅ Settings & Whitelist restored!");
+                }
+            }
+
+            // B. LINKS IMPORT LOGIC (Duplicate checking + re-indexing)
+            let rawLinks = [];
+            if (data.links && Array.isArray(data.links)) {
+                rawLinks = data.links;
+            } else if (data.savedLinks && Array.isArray(data.savedLinks)) {
+                rawLinks = data.savedLinks;
+            } else if (Array.isArray(data)) {
+                rawLinks = data;
+            }
+
+            const linksToImport = rawLinks.filter(l => l && typeof l === 'object' && l.url);
+
+            if (linksToImport.length === 0) {
+                if (data.settings || data.whitelist) {
+                    loadSettingsViewData();
+                    return;
+                }
+                updateSettingsSaveStatus('❌ No valid links found!', 'error');
+                return;
+            }
+
+            const currentLinks = await getLinks();
+            const getSignature = (l) => l.url + (l.originalTimestamp || l.timestamp);
+            const existingSignatures = new Set(currentLinks.map(l => getSignature(l)));
+
+            const cleanLinks = [];
+            const duplicateLinks = [];
+
+            linksToImport.forEach(link => {
+                if (existingSignatures.has(getSignature(link))) {
+                    duplicateLinks.push(link);
+                } else {
+                    cleanLinks.push(link);
+                }
+            });
+
+            let finalImportList = [];
+            let shouldImport = false;
+            let preserveStructure = false;
+
+            const hasSessionStructure = linksToImport.some(l => l.sessionId && l.sessionLabel);
+
+            if (hasSessionStructure) {
+                const restoreMode = await showCustomModal(
+                    "Backup Detected",
+                    `This file contains ${linksToImport.length} links with Session structure.\n\nHow do you want to restore them?`,
+                    [
+                        { text: "Cancel", value: "cancel", class: "btn-modal-cancel" },
+                        { text: "Merge into 1 List", value: "merge", class: "btn-modal-secondary" },
+                        { text: "Restore Sessions", value: "restore", class: "btn-modal-confirm" }
+                    ]
+                );
+
+                if (restoreMode === "cancel") return;
+
+                if (restoreMode === "restore") {
+                    preserveStructure = true;
+                    if (duplicateLinks.length > 0) {
+                        const dupChoice = await showCustomModal(
+                            "Duplicates Found",
+                            `Warning: ${duplicateLinks.length} links already exist.\nRestore duplicates anyway?`,
+                            [
+                                { text: "Skip Duplicates", value: "skip", class: "btn-modal-secondary" },
+                                { text: "Restore All", value: "all", class: "btn-modal-confirm" }
+                            ]
+                        );
+                        finalImportList = (dupChoice === 'all') ? linksToImport : cleanLinks;
+                    } else {
+                        finalImportList = linksToImport;
+                    }
+                    shouldImport = true;
+                } else {
+                    preserveStructure = false;
+                }
+            }
+
+            if (!preserveStructure && !shouldImport) {
+                const useSmartImport = (localSettingsObj.smartImport !== false);
+                if (!useSmartImport) {
+                    const confirmAll = await showCustomModal(
+                        "Confirm Import",
+                        `Import ${linksToImport.length} links into a new session?`,
+                        [
+                            { text: "Cancel", value: "cancel", class: "btn-modal-cancel" },
+                            { text: "Import All", value: "all", class: "btn-modal-confirm" }
+                        ]
+                    );
+                    if (confirmAll === 'all') {
+                        finalImportList = linksToImport;
+                        shouldImport = true;
+                    }
+                } else {
+                    if (duplicateLinks.length > 0) {
+                        const choice = await showCustomModal(
+                            "Duplicates Found",
+                            `Found ${linksToImport.length} links.\n⚠️ ${duplicateLinks.length} duplicates.\n✅ ${cleanLinks.length} unique.\n\nProceed?`,
+                            [
+                                { text: "Cancel", value: "cancel", class: "btn-modal-cancel" },
+                                { text: "Import All", value: "all", class: "btn-modal-secondary" },
+                                { text: `Import ${cleanLinks.length} Unique`, value: "filter", class: "btn-modal-confirm" }
+                            ]
+                        );
+                        if (choice === 'filter') finalImportList = cleanLinks;
+                        else if (choice === 'all') finalImportList = linksToImport;
+                        if (choice !== 'cancel') shouldImport = true;
+                    } else {
+                        const confirmUnique = await showCustomModal(
+                            "Confirm Import",
+                            `Import ${linksToImport.length} links?`,
+                            [
+                                { text: "Cancel", value: "cancel", class: "btn-modal-cancel" },
+                                { text: "Import", value: "all", class: "btn-modal-confirm" }
+                            ]
+                        );
+                        if (confirmUnique === 'all') {
+                            finalImportList = linksToImport;
+                            shouldImport = true;
+                        }
+                    }
+                }
+            }
+
+            if (shouldImport && finalImportList.length > 0) {
+                let preparedLinks;
+                const timestamp = new Date().toISOString();
+                const timeString = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+                if (preserveStructure) {
+                    const importTimestampSuffix = Date.now();
+                    const sessionIdMap = {};
+                    preparedLinks = finalImportList.map(link => {
+                        const oldSessionId = link.sessionId || 'unknown';
+                        if (!sessionIdMap[oldSessionId]) {
+                            sessionIdMap[oldSessionId] = `${oldSessionId}-imported-${importTimestampSuffix}`;
+                        }
+                        return {
+                            ...link,
+                            sessionId: sessionIdMap[oldSessionId],
+                            uniqueId: `${link.url}-${timestamp}-${Math.random().toString(36).substr(2, 9)}`,
+                            importedAt: timestamp
+                        };
+                    });
+                    updateSettingsSaveStatus(`✅ Restored ${preparedLinks.length} links & sessions!`, 'success');
+                } else {
+                    const sessionId = `imported-${timestamp}`;
+                    preparedLinks = finalImportList.map(link => ({
+                        ...link,
+                        originalTimestamp: link.timestamp,
+                        sessionId,
+                        sessionLabel: `${timeString} - Imported Backup`,
+                        importedAt: timestamp,
+                        timestamp
+                    }));
+                    updateSettingsSaveStatus(`✅ Imported ${preparedLinks.length} links!`, 'success');
+                }
+
+                const allLinks = [...preparedLinks, ...currentLinks];
+                await saveLinks(allLinks);
+            } else if (shouldImport && finalImportList.length === 0) {
+                updateSettingsSaveStatus('⚠️ No links selected to import.', 'error');
+            }
+
+            loadSettingsViewData();
+        } catch (err) {
+            updateSettingsSaveStatus('❌ Import error!', 'error');
+            console.error("Import error:", err);
+        }
+        e.target.value = '';
+    });
+
+    // --- NEUE EVENT-LISTENER FÜR SHORTCUTS ---
+    document.getElementById('shortcutsLink')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+    });
+
+    checkShortcuts(); // Führe Diagnose beim Laden der Settings aus
+}
+
+// --- HELPER: CHECK BROWSER SHORTCUTS DIAGNOSTIC ---
+function checkShortcuts() {
+  if (chrome.commands && chrome.commands.getAll) {
+    chrome.commands.getAll((commands) => {
+      const missingShortcuts = commands.filter(cmd => !cmd.shortcut);
+      if (missingShortcuts.length > 0) {
+        const tipDesc = document.querySelector('.tip-desc');
+        if (tipDesc) {
+          tipDesc.innerHTML = `💡 Note: If these shortcuts aren't working, your browser might not have assigned them automatically. You can check and configure them in your browser's <a href="#" id="shortcutsLink" style="color:var(--primary); text-decoration:underline; font-weight:bold; cursor:pointer;">extension settings</a>.`;
+          document.getElementById('shortcutsLink')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+          });
+        }
+      }
+    });
+  }
+}
+
+// 3. INITIALIZE BOTH VIEW ROUTER & SETTINGS LOGIC
+initViewNavigation();
+initSettingsLogic();
 
 // --- END OF saved-links.js ---

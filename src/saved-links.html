@@ -14,73 +14,241 @@
   <script src="theme.js"></script>
 </head>
 <body class="page">
-  <div class="page-container">
-    <header>
-      <h1>
+  <div class="app-layout">
+    
+    <!-- SPALTE 1: DIE LINKE SEITENLEISTE (Premium Obsidian Zinc) -->
+    <aside class="sidebar-panel select-none">
+      <div class="sidebar-header">
         <img src="icon128.png" alt="LeanTabs Logo" class="logo-icon">
-        LeanTabs - Saved Links
-      </h1>
-      
-      <div class="header-controls">
-        <input type="text" id="searchInput" placeholder="Search saved tabs..." class="search-input">
-        <select id="categoryFilter" class="filter-select">
-          <option value="">All Categories</option>
-        </select>
-        <select id="windowFilter" class="filter-select">
-          <option value="">All Windows</option>
-        </select>
-        
-        <button id="goToSettingsBtn" class="btn btn-header-action" title="Open Settings" style="padding: 0 12px; margin-left: 8px;">
-            <svg class="icon-svg" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="sidebar-title">LeanTabs</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button id="nav-links-btn" class="nav-btn active">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+          <span>Saved Sessions</span>
         </button>
 
-        <div style="margin-left:auto; display: flex; gap: 8px;">
-          <button id="exportBtn" class="btn btn-header-action" title="Export ALL Sessions">Export All</button>
-          <button id="clearAllBtn" class="btn btn-header-action" title="Delete ALL Sessions">Delete All</button>
+        <button id="nav-settings-btn" class="nav-btn">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          <span>Settings & Whitelist</span>
+        </button>
+      </nav>
+
+      <!-- Sidebar Footer (Abwärtskompatible Links) -->
+      <div class="sidebar-footer">
+        <a id="aboutLink" href="#" class="sidebar-link">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+          About
+        </a>
+        <a id="kofiLink" href="#" class="sidebar-link kofi-link">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path><line x1="6" y1="1" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line></svg>
+          Support me
+        </a>
+      </div>
+    </aside>
+
+    <!-- WORKSPACE PANEL (Rechte Hauptfläche) -->
+    <main class="workspace-container">
+      
+      <!-- ANSICHT 1: SAVED SESSIONS (Das originale Dashboard) -->
+      <div id="linksViewContainer" class="view-panel">
+        <header>
+          <h1>LeanTabs - Saved Links</h1>
+          <div class="header-controls">
+            <input type="text" id="searchInput" placeholder="Search saved tabs..." class="search-input">
+            <select id="categoryFilter" class="filter-select">
+              <option value="">All Categories</option>
+            </select>
+            <select id="windowFilter" class="filter-select">
+              <option value="">All Windows</option>
+            </select>
+            
+            <div style="margin-left:auto; display: flex; gap: 8px;">
+              <button id="exportBtn" class="btn btn-header-action" title="Export ALL Sessions">Export All</button>
+              <button id="clearAllBtn" class="btn btn-header-action" title="Delete ALL Sessions">Delete All</button>
+            </div>
+          </div>
+        </header>
+
+        <div class="stats-bar">
+          <div class="stats-left">
+            <span>Total: <strong id="totalCount" class="stat-highlight">0</strong></span>
+            <span class="stat-divider">|</span>
+            <span>Filtered: <strong id="filteredCount" class="stat-highlight">0</strong></span>
+            <span class="stat-divider">|</span>
+            <span>Sessions: <strong id="sessionCount" class="stat-highlight">0</strong></span>
+            <span id="selectedInfo" class="selection-info-inline hidden" style="margin-left: 15px;">
+              <strong id="selectionCount">0</strong> selected
+            </span>
+          </div>
+          <div class="stats-right">
+            <button id="createSessionBtn" class="btn-toggle-pill" title="Create a new empty session">
+              <span class="icon" style="font-weight:800; font-size:14px; color:var(--primary);">+</span> New Session
+            </button>
+            <button id="toggleAllBtn" class="btn-toggle-pill">
+              <span class="icon">▼</span> Collapse All
+            </button>
+          </div>
+        </div>
+
+        <div id="linksContainer" class="links-container">
+          <p class="empty-state">No links saved yet. Use the "Run Tab Clean" function!</p>
         </div>
       </div>
-    </header>
 
-    <div class="stats-bar">
-      <div class="stats-left">
-        <span>Total: <strong id="totalCount" class="stat-highlight">0</strong></span>
-        <span class="stat-divider">|</span>
-        <span>Filtered: <strong id="filteredCount" class="stat-highlight">0</strong></span>
-        <span class="stat-divider">|</span>
-        <span>Sessions: <strong id="sessionCount" class="stat-highlight">0</strong></span>
-        
-        <span id="selectedInfo" class="selection-info-inline hidden" style="margin-left: 15px;">
-          <strong id="selectionCount">0</strong> selected
-        </span>
+      <!-- ANSICHT 2: SETTINGS (Die vollständig unifizierte Einstellungsseite) -->
+      <div id="settingsViewContainer" class="view-panel hidden">
+        <header style="margin-bottom: 24px;">
+          <h1 style="font-size: 24px;">Settings & Whitelist</h1>
+          <p class="description" style="margin-top: 4px;">Configure cleaning rules, whitelist domains, and manage automatic backups.</p>
+        </header>
+
+        <!-- Whitelist Section -->
+        <section class="settings-section">
+          <h2>
+            <svg class="icon-lg" style="color:var(--primary);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Whitelist (Protected Tabs)
+          </h2>
+          <p class="description">Tabs from these domains are protected during 'Run Tab Clean'.</p>
+          <div style="display:flex; gap:10px; margin-bottom:15px;">
+            <input type="text" id="whitelistInput" placeholder="e.g. gmail.com" class="search-input" style="flex:1;">
+            <button id="addWhitelistBtn" class="btn btn-primary" style="padding: 0 20px;">Add Domain</button>
+          </div>
+          <div id="whitelistContainer" class="whitelist-container"></div>
+        </section>
+
+        <!-- Behavior Section -->
+        <section class="settings-section">
+          <h2>
+            <svg class="icon-lg" style="color:var(--primary);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
+            Behavior
+          </h2>
+          <span class="settings-group-title">Cleaning Logic</span>
+          <div style="margin-bottom: 12px;">
+            <label style="display:flex; align-items:center; gap:12px; margin-bottom:4px;">
+              <span style="font-weight:600; font-size:12px;">Keep last tabs:</span>
+              <input type="number" id="keepTabsInput" min="1" max="20" class="search-input" style="width:60px; padding:4px;">
+            </label>
+            <span class="checkbox-note" style="margin-left:0;">Number of tabs to leave open in active window.</span>
+          </div>
+          <label class="checkbox-label">
+            <input type="checkbox" id="cleanAllWorkspacesCheck" class="master-checkbox">
+            <span>Set "Global Clean" as default option</span>
+          </label>
+          <span class="checkbox-note">Pre-selects 'Global' in popup menu.</span>
+
+          <span class="settings-group-title">Interface & Experience</span>
+          <label class="checkbox-label">
+            <input type="checkbox" id="darkModeCheck" class="master-checkbox">
+            <span>Enable Dark Mode</span>
+          </label>
+          <span class="checkbox-note">Switch between Light and Dark theme.</span>
+          <label class="checkbox-label">
+            <input type="checkbox" id="sessionsDefaultCollapsedCheck" class="master-checkbox">
+            <span>Show sessions collapsed by default</span>
+          </label>
+          <span class="checkbox-note">Keeps your dashboard compact.</span>
+          <label class="checkbox-label">
+            <input type="checkbox" id="confirmCheck" class="master-checkbox">
+            <span>Confirmation before closing</span>
+          </label>
+          <span class="checkbox-note">Shows a summary before deleting tabs.</span>
+
+          <span class="settings-group-title">Safety & Restoration</span>
+          <label class="checkbox-label">
+            <input type="checkbox" id="autoBackupCheck" class="master-checkbox">
+            <span>Create automatic backups</span>
+          </label>
+          <span class="checkbox-note">Saves a JSON snapshot of every clean.</span>
+          <label class="checkbox-label">
+            <input type="checkbox" id="restoreWindowStructureCheck" class="master-checkbox">
+            <span>Restore window structure</span>
+          </label>
+          <span class="checkbox-note">Opens tabs in separate windows as originally saved.</span>
+          <label class="checkbox-label">
+            <input type="checkbox" id="deleteAfterRestoreCheck" class="master-checkbox">
+            <span>Auto-delete sessions after restore</span>
+          </label>
+          <span class="checkbox-note">Removes the tile from dashboard after you restore it.</span>
+        </section>
+
+        <!-- Data & Backup Section -->
+        <section class="settings-section">
+          <h2>
+            <svg class="icon-lg" style="color:var(--primary);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
+            Data Management & Backups
+          </h2>
+          <label class="checkbox-label" style="margin-bottom: 20px;">
+            <input type="checkbox" id="smartImportCheck" class="master-checkbox">
+            <span>Enable Smart Import Filtering</span>
+          </label>
+          <span class="checkbox-note" style="margin-top: -16px; margin-bottom: 20px;">Analyzes imported files for duplicates.</span>
+
+          <div style="display:flex; gap:12px; margin-bottom:8px;">
+            <button id="exportDataBtn" class="btn btn-secondary">Full System Backup</button>
+            <button id="importDataBtn" class="btn btn-primary">Import Data</button>
+            <input type="file" id="importFileInput" accept=".json" style="display: none;">
+          </div>
+          <p class="description" style="margin-bottom: 20px;">Creates a complete archive (.json) including sessions, whitelist, and history.</p>
+
+          <div id="backupList">
+            <h3 style="font-size:12px; margin-bottom:12px; color:var(--text-muted);">Auto-Backups (Last 50 cleans)</h3>
+            <div id="backupContainer"></div>
+          </div>
+        </section>
+
+        <!-- Pro Tips & Shortcuts Section -->
+        <section class="settings-section">
+          <h2>
+            <svg class="icon-lg" style="color:var(--primary);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 14a1 1 0 1 1 1-1 1 1 0 0 1-1 1zm1-4a1 1 0 0 0-2 0v-4a1 1 0 0 1 2 0z"/></svg>
+            Pro Tips & Shortcuts
+          </h2>
+          
+          <div class="tips-grid">
+            <div class="tip-card">
+              <span class="tip-title">⌨️ Keyboard Shortcuts</span>
+              
+              <div class="shortcut-row">
+                <span>Clean & <b>S</b>ave:</span>
+                <span class="kbd-group"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd></span>
+              </div>
+              <span class="shortcut-desc">Standard clean. Saves tabs and frees memory.</span>
+              
+              <div class="shortcut-row">
+                <span>Dashboard (<b>L</b>inks):</span>
+                <span class="kbd-group"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>L</kbd></span>
+              </div>
+              <span class="shortcut-desc">Opens your saved sessions library.</span>
+
+              <div class="shortcut-row">
+                <span>Reset (<b>K</b>ill All):</span>
+                <span class="kbd-group"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>K</kbd></span>
+              </div>
+              <span class="shortcut-desc" style="color:var(--danger);">⚠️ Kills tabs in the Active Window only (ignores Scope settings). No saving.</span>
+
+              <p class="tip-desc" style="margin-top:16px;">Shortcuts can be customized in your browser's <a href="#" id="shortcutsLink" style="color:var(--primary); text-decoration:none; cursor:pointer;">extension settings</a>.</p>
+            </div>
+
+            <div class="tip-card">
+              <span class="tip-title">🖱️ Context Menu</span>
+              <p class="tip-desc">
+                Right-click on any page or link to verify options:
+                <br>• <strong>Quick Save:</strong> Adds directly to today's list.
+                <br>• <strong>New Session:</strong> Creates a fresh session.
+                <br>• <strong>📌 Pinned:</strong> Save directly to your pinned sessions.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Save Sticky Bar -->
+        <div class="save-bar" style="position: relative; bottom: 0; margin-top: 24px;">
+          <span id="saveStatus" class="save-status"></span>
+          <button id="saveBtn" class="btn btn-success">Save Settings</button>
+        </div>
       </div>
-      
-      <div class="stats-right">
-        <button id="createSessionBtn" class="btn-toggle-pill" title="Create a new empty session">
-          <span class="icon" style="font-weight:800; font-size:14px; color:var(--primary);">+</span> New Session
-        </button>
-        
-        <button id="toggleAllBtn" class="btn-toggle-pill">
-          <span class="icon">▼</span> Collapse All
-        </button>
-      </div>
-    </div>
-
-    <div id="linksContainer" class="links-container">
-      <p class="empty-state">No links saved yet. Use the "Run Tab Clean" function!</p>
-    </div>
-
-    <!-- UPDATED FOOTER -->
-    <div class="footer-link">
-      <a id="aboutLink" href="#" style="cursor: pointer;">
-        <svg style="width:16px; height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
-        About LeanTabs
-      </a>
-      <span style="color:var(--border-color);">|</span>
-      <a id="kofiLink" href="#" class="kofi-link" style="cursor: pointer;">
-        <svg style="width:16px; height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path><line x1="6" y1="1" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line></svg>
-        Support
-      </a>
-    </div>
+    </main>
 
   </div>
 
@@ -94,16 +262,16 @@
       <select id="modalSelect" class="modal-input" style="display:none; cursor:pointer;">
       </select>
 
-      <div id="modalActions" class="modal-actions">
-      </div>
+      <div id="modalActions" class="modal-actions"></div>
     </div>
   </div>
 
-  <script type="module" src="saved-links.js"></script>
   <!-- LP UNDO TOAST -->
   <div id="lp-undo-toast" class="lp-undo-toast hidden">
     <span id="lp-undo-text" style="font-size: 13px; font-weight: 500;">Link deleted</span>
     <button id="lp-undo-btn" style="all: unset !important; cursor: pointer !important; font-weight: 700 !important; color: var(--primary) !important; font-size: 13px !important; text-transform: uppercase !important; letter-spacing: 0.5px !important;">Undo</button>
   </div>
+
+  <script type="module" src="saved-links.js"></script>
 </body>
 </html>

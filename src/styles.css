@@ -1004,4 +1004,141 @@ kbd {
   to { transform: translate(-50%, 0); opacity: 1; }
 }
 
+/* --- UNIFIED APP WORKSPACE LAYOUT (ZERO-REGRESSION) --- */
+.app-layout {
+  display: flex !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  overflow: hidden !important;
+}
+
+/* SPALTE 1: DIE SIDEBAR */
+.sidebar-panel {
+  width: 240px !important;
+  background-color: #0d0c14 !important; /* Obsidian Zinc */
+  border-right: 1px solid var(--border-color) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 24px 16px !important;
+  flex-shrink: 0 !important;
+  z-index: 10 !important;
+}
+
+[data-theme="light"] .sidebar-panel {
+  background-color: #ffffff !important;
+}
+
+.sidebar-header {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  margin-bottom: 32px !important;
+  padding-left: 8px !important;
+}
+
+.sidebar-title {
+  font-size: 16px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em !important;
+  color: var(--text-strong) !important;
+}
+
+.sidebar-nav {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  flex: 1 1 auto !important;
+}
+
+/* Sidebar Nav Buttons */
+.nav-btn {
+  all: unset !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 10px 16px !important;
+  border-radius: 8px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--text-muted) !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease-in-out !important;
+  box-sizing: border-box !important;
+}
+
+.nav-btn:hover {
+  background-color: var(--surface-bg) !important;
+  color: var(--text-strong) !important;
+}
+
+.nav-btn.active {
+  background-color: var(--primary-light) !important;
+  color: var(--primary) !important;
+}
+
+[data-theme="dark"] .nav-btn.active {
+  background-color: rgba(96, 165, 250, 0.15) !important;
+}
+
+.sidebar-footer {
+  margin-top: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  border-top: 1px solid var(--border-color) !important;
+  padding-top: 16px !important;
+}
+
+.sidebar-link {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: var(--text-muted) !important;
+  text-decoration: none !important;
+  padding: 6px 12px !important;
+  border-radius: 6px !important;
+  transition: all 0.2s !important;
+}
+
+.sidebar-link:hover {
+  color: var(--primary) !important;
+  background-color: var(--surface-bg) !important;
+}
+
+.sidebar-link.kofi-link:hover {
+  color: var(--kofi-color) !important;
+}
+
+/* SPALTE 2 & 3: MAIN WORKSPACE CONTAINER */
+.workspace-container {
+  flex: 1 !important;
+  height: 100vh !important;
+  overflow-y: auto !important;
+  background-color: var(--bg-color) !important;
+  position: relative !important;
+}
+
+.view-panel {
+  max-width: 1200px !important;
+  margin: 0 auto !important;
+  padding: 40px !important;
+  animation: fadeIn 0.2s ease-out !important;
+}
+
+/* Zielgerichtete Breitenbegrenzung: Schützt das Einstellungs-Layout vor Dehnung */
+#settingsViewContainer.view-panel {
+  max-width: 800px !important;
+}
+
+.view-panel.hidden {
+  display: none !important;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 /* --- END OF styles.css --- */

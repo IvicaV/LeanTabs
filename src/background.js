@@ -290,6 +290,14 @@ async function saveSingleLink(url, title, favicon, targetSessionId) {
     // CRITICAL: Get fresh data AFTER the async fetch to prevent race conditions
     const allLinks = await getLinks();
     
+    // --- DEFENSIRE DUPLIKAT-PRÜFUNG IM BACKGROUND START ---
+    const normalizedIncomingUrl = normalizeUrlForComparison(url);
+    const isDuplicate = allLinks.some(link => {
+        if (!link || !link.url) return false;
+        return normalizeUrlForComparison(link.url) === normalizedIncomingUrl;
+    });
+    // --- DEFENSIRE DUPLIKAT-PRÜFUNG IM BACKGROUND END ---
+    
     const timestamp = new Date().toISOString();
     const dateGroup = new Date().toLocaleDateString('en-US');
     const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -356,8 +364,14 @@ async function saveSingleLink(url, title, favicon, targetSessionId) {
     allLinks.unshift(newLink);
     await saveLinks(allLinks);
     
-    chrome.action.setBadgeText({ text: "OK" });
-    chrome.action.setBadgeBackgroundColor({ color: "#10b981" }); 
+    // --- CONDITIONALES OPTISCHES FEEDBACK ---
+    if (isDuplicate) {
+        chrome.action.setBadgeText({ text: "DUP" });
+        chrome.action.setBadgeBackgroundColor({ color: "#f59e0b" }); // Gelb/Orange für Duplikat
+    } else {
+        chrome.action.setBadgeText({ text: "OK" });
+        chrome.action.setBadgeBackgroundColor({ color: "#10b981" }); // Grün für neuen Link
+    }
     setTimeout(() => chrome.action.setBadgeText({ text: "" }), 1500);
 
   } catch (err) {
@@ -545,4 +559,58 @@ async function createBackup(links, tabsClosed = 0) {
     if (backupList.length > 50) backupList.shift();
     await saveBackups(backupList);
   } catch (error) { console.error('Backup error:', error); }
+}
+
+// --- HELPER: ELITE-GRADE SMART-FOCUS URL NORMALIZATION ---
+function normalizeUrlForComparison(urlStr) {
+  if (!urlStr || typeof urlStr !== 'string') {
+    return '';
+  }
+  
+  try {
+    let decoded = urlStr;
+    try { decoded = decodeURIComponent(urlStr); } catch (e) {}
+
+    let tempUrl = decoded.normalize('NFC').trim();
+    if (!/^https?:\/\//i.test(tempUrl)) tempUrl = 'https://' + tempUrl;
+    
+    const url = new URL(tempUrl);
+    let host = url.hostname.toLowerCase().replace(/^www\./i, '');
+    let path = url.pathname.toLowerCase();
+
+    path = path.replace(/^\/([a-z]{2}(?:-[a-z]{2})?)(\/|$)/i, '$2');
+    path = path.replace(/\/$/, '');
+    
+    const preserveParamsHosts = ['youtube.com', 'google.com', 'google.de', 'stackoverflow.com', 'bing.com'];
+    const shouldPreserveParams = preserveParamsHosts.some(h => host === h || host.endsWith('.' + h));
+
+    if (shouldPreserveParams) {
+        let searchParams = new URLSearchParams(url.search.toLowerCase());
+        const paramsToStrip = [
+          'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+          'ref', 'fbclid', 'gclid', 'yclid', 'spm', 't'
+        ];
+        paramsToStrip.forEach(p => searchParams.delete(p));
+        searchParams.sort();
+        const cleanSearch = searchParams.toString();
+        return host + path + (cleanSearch ? '?' + cleanSearch : '');
+    } else {
+        return host + path;
+    }
+  } catch (e) {
+    try {
+      let decoded = urlStr;
+      try { decoded = decodeURIComponent(urlStr); } catch (err) {}
+      let clean = decoded.normalize('NFC').trim().toLowerCase();
+      clean = clean.split('#')[0]; 
+      clean = clean.split('?')[0]; 
+      clean = clean.replace(/^https?:\/\//i, '');
+      clean = clean.replace(/^www\./i, '');
+      clean = clean.replace(/\/([a-z]{2}(?:-[a-z]{2})?)(\/|$)/i, '$2');
+      clean = clean.replace(/\/$/, '');
+      return clean;
+    } catch (innerError) {
+      return '';
+    }
+  }
 }

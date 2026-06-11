@@ -421,11 +421,33 @@ header h1 {
 }
 .links-list { 
   max-height: 320px; 
-  overflow-y: hidden; 
+  overflow-y: auto; /* Ermöglicht direktes, blockierungsfreies Scrollen */
+  overflow-x: hidden;
   background: var(--card-bg); 
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: transparent transparent; /* Versteckt Scrollbar standardmäßig */
+  transition: scrollbar-color 0.2s ease;
 }
-.links-list.scroll-enabled {
-  overflow-y: auto;
+
+/* Zeigt die Scrollbar diskret nur beim Hovern über die Karte */
+.links-list:hover {
+  scrollbar-color: var(--border-color) transparent;
+}
+
+/* Webkit-Browser (Chrome, Edge, Opera, Brave) */
+.links-list::-webkit-scrollbar {
+  width: 6px;
+}
+.links-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.links-list::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 99px;
+  transition: background-color 0.2s;
+}
+.links-list:hover::-webkit-scrollbar-thumb {
+  background: var(--border-color);
 }
 .add-link-area { padding: 8px 12px; background: var(--bg-color); display: flex; gap: 8px; border-bottom: 1px solid var(--border-color); }
 .add-link-input { flex: 1; padding: 6px 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 12px; background: var(--input-bg); color: var(--text-main); }

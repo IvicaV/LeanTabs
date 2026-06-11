@@ -336,22 +336,12 @@ function renderLinks() {
     const isPinned = session.links[0].isPinned || false;
     sessionSection.className = `session-section ${isPinned ? 'pinned' : ''}`; 
     
-    // Require card click to enable scroll within the links list (prevents scroll trap)
     sessionSection.addEventListener('click', () => {
-      const list = sessionSection.querySelector('.links-list');
-      if (list && !list.classList.contains('scroll-enabled')) {
-        list.classList.add('scroll-enabled');
-        sessionSection.classList.add('active');
-      }
+      sessionSection.classList.add('active');
     });
     
-    // Disable scroll capability on mouseleave to reset the scroll trap prevention state
     sessionSection.addEventListener('mouseleave', () => {
-      const list = sessionSection.querySelector('.links-list');
-      if (list) {
-        list.classList.remove('scroll-enabled');
-        sessionSection.classList.remove('active');
-      }
+      sessionSection.classList.remove('active');
     });
     
     const sessionHeader = document.createElement('div');
@@ -1259,9 +1249,27 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
       const linkSessionId = link.sessionId || `${link.dateGroup}-${link.timestamp}`;
       return linkSessionId === sessionId;
     });
+    
+    // --- DEFENSIRE HOCHLEISTUNGS-WARNUNG START ---
+    const MAX_SAFE_TABS = 15;
+    const isMassiveRestore = sessionLinks.length > MAX_SAFE_TABS;
+    
     const actionText = isReplace ? 'REPLACE current tabs with' : 'Open';
-    const warningText = isReplace ? '\n\n⚠️ Tabs in THIS workspace will be closed!' : '';
-    const confirmed = await showCustomModal(isReplace ? "Replace Session" : "Restore Session", `${actionText} ${sessionLinks.length} link(s) from this session?${warningText}`, [{ text: "Cancel", value: false, class: "btn-modal-cancel" }, { text: isReplace ? "Replace" : "Restore", value: true, class: isReplace ? "btn-modal-danger" : "btn-modal-confirm" }]);
+    
+    let warningText = isReplace ? '\n\n⚠️ Tabs in THIS workspace will be closed!' : '';
+    if (isMassiveRestore) {
+        warningText += `\n\n⚠️ WARNING: You are about to open ${sessionLinks.length} tabs simultaneously. This might temporarily slow down your browser!`;
+    }
+    // --- DEFENSIRE HOCHLEISTUNGS-WARNUNG END ---
+
+    const confirmed = await showCustomModal(
+        isReplace ? "Replace Session" : "Restore Session", 
+        `${actionText} ${sessionLinks.length} link(s) from this session?${warningText}`, 
+        [
+            { text: "Cancel", value: false, class: "btn-modal-cancel" },
+            { text: isReplace ? "Replace" : "Restore", value: true, class: isReplace ? "btn-modal-danger" : "btn-modal-confirm" }
+        ]
+    );
     if (confirmed) {
       allLinks = await getLinks();
       sessionLinks.forEach(sLink => {

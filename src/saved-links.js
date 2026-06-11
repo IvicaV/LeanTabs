@@ -244,41 +244,44 @@ function getLinkKey(link) {
   return `${link.url}-${uniqueTimestamp}`;
 }
 
-// --- HELPER: ELITE-GRADE URL NORMALIZATION FOR DUPLICATE CHECK ---
+// --- HELPER: ELITE-GRADE CRASH-PROOF URL NORMALIZATION ---
 function normalizeUrlForComparison(urlStr) {
+  // Defensiver Typ-Schutz: Wenn kein valider String übergeben wird, sofort abbrechen
+  if (!urlStr || typeof urlStr !== 'string') {
+    return '';
+  }
+  
   try {
     let tempUrl = urlStr.trim();
-    // Sicherstellen, dass das Protokoll für den URL-Constructor vorhanden ist
     if (!/^https?:\/\//i.test(tempUrl)) tempUrl = 'https://' + tempUrl;
     
     const url = new URL(tempUrl);
     let host = url.hostname.toLowerCase().replace(/^www\./i, '');
     let path = url.pathname.toLowerCase().replace(/\/$/, '');
     
-    // Query-Parameter analysieren und säubern
     let searchParams = new URLSearchParams(url.search.toLowerCase());
-    
-    // Entferne bekannte Tracking- und Navigations-Parameter
     const paramsToStrip = [
       'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
       'ref', 'fbclid', 'gclid', 'yclid', 'spm', 't'
     ];
     paramsToStrip.forEach(p => searchParams.delete(p));
-    
-    // Parameter alphabetisch sortieren, um Reihenfolgen-Diskrepanzen zu eliminieren
     searchParams.sort();
     
     const cleanSearch = searchParams.toString();
     return host + path + (cleanSearch ? '?' + cleanSearch : '');
   } catch (e) {
-    // Extrem robuster Fallback bei Fehlern im URL-Constructor
-    let clean = urlStr.trim().toLowerCase();
-    clean = clean.split('#')[0]; // Sprungmarken entfernen
-    clean = clean.split('?')[0]; // Parameter entfernen (defensiver Fallback)
-    clean = clean.replace(/^https?:\/\//i, '');
-    clean = clean.replace(/^www\./i, '');
-    clean = clean.replace(/\/$/, '');
-    return clean;
+    // Absolut sicherer innerer Fallback
+    try {
+      let clean = urlStr.trim().toLowerCase();
+      clean = clean.split('#')[0]; 
+      clean = clean.split('?')[0]; 
+      clean = clean.replace(/^https?:\/\//i, '');
+      clean = clean.replace(/^www\./i, '');
+      clean = clean.replace(/\/$/, '');
+      return clean;
+    } catch (innerError) {
+      return ''; // Verhindert unter allen Umständen einen Thread-Absturz
+    }
   }
 }
 
@@ -1009,44 +1012,41 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
     }
 
     // --- DEFENSIRE DUPLIKAT-WARNUNG START ---
-    allLinks = await getLinks();
-    
-    const normalizedIncomingUrl = normalizeUrlForComparison(validUrl);
-    
-    // DIAGNOSTIK: Protokolliere den Versuch in der Konsole der Seite
-    console.log("[LeanTabs] Checking manual input:", {
-        rawInput: validUrl,
-        normalizedInput: normalizedIncomingUrl
-    });
-
-    const duplicateMatch = allLinks.find(link => {
-        const normalizedDbUrl = normalizeUrlForComparison(link.url);
-        if (normalizedDbUrl === normalizedIncomingUrl) {
-            console.log("[LeanTabs] ✓ Duplicate match found in Database:", {
-                dbRaw: link.url,
-                dbNormalized: normalizedDbUrl
-            });
-            return true;
-        }
-        return false;
-    });
-
-    if (duplicateMatch) {
-        const existingSessionName = duplicateMatch.sessionLabel || "another session";
+    try {
+        allLinks = await getLinks();
+        const normalizedIncomingUrl = normalizeUrlForComparison(validUrl);
         
-        const userConfirmed = await showCustomModal(
-            "Link Already Saved",
-            `This URL is already saved in "${existingSessionName}".\n\nDo you want to add it to this session anyway?`,
-            [
-                { text: "Cancel", value: false, class: "btn-modal-cancel" },
-                { text: "Add Anyway", value: true, class: "btn-modal-confirm" }
-            ]
-        );
-        
-        if (!userConfirmed) {
-            input.value = ''; // Feld leeren
-            return; // Vorgang abbrechen ohne Mutation
+        console.log("[LeanTabs] Checking manual input:", {
+            rawInput: validUrl,
+            normalizedInput: normalizedIncomingUrl
+        });
+
+        const duplicateMatch = allLinks.find(link => {
+            if (!link || !link.url) return false; // Schutz vor korrupten DB-Einträgen
+            const normalizedDbUrl = normalizeUrlForComparison(link.url);
+            return normalizedDbUrl === normalizedIncomingUrl;
+        });
+
+        if (duplicateMatch) {
+            const existingSessionName = duplicateMatch.sessionLabel || "another session";
+            
+            const userConfirmed = await showCustomModal(
+                "Link Already Saved",
+                `This URL is already saved in "${existingSessionName}".\n\nDo you want to add it to this session anyway?`,
+                [
+                    { text: "Cancel", value: false, class: "btn-modal-cancel" },
+                    { text: "Add Anyway", value: true, class: "btn-modal-confirm" }
+                ]
+            );
+            
+            if (!userConfirmed) {
+                input.value = ''; // Feld leeren
+                return; // Vorgang abbrechen ohne Mutation
+            }
         }
+    } catch (criticalCheckError) {
+        // Gekapseltes Fallback: Fehler loggen, aber den Hauptprozess NICHT blockieren
+        console.error("[LeanTabs] Non-blocking duplicate check error:", criticalCheckError);
     }
     // --- DEFENSIRE DUPLIKAT-WARNUNG END ---
 

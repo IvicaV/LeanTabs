@@ -3312,34 +3312,50 @@ function getLinkKey(link) {
   return `${link.url}-${uniqueTimestamp}`;
 }
 
-// --- HELPER: ELITE-GRADE CRASH-PROOF URL NORMALIZATION ---
+// --- HELPER: ELITE-GRADE SMART-FOCUS URL NORMALIZATION ---
 function normalizeUrlForComparison(urlStr) {
   if (!urlStr || typeof urlStr !== 'string') {
     return '';
   }
   
   try {
-    // UNICODE NORMALISIERUNG (NFC): Bereinigt unsichtbare Zeichencodierungen
-    let tempUrl = urlStr.normalize('NFC').trim();
+    // 1. URL-Encoding auflösen (%2F -> /)
+    let decoded = urlStr;
+    try { decoded = decodeURIComponent(urlStr); } catch (e) {}
+
+    // 2. Unicode-Normalisierung
+    let tempUrl = decoded.normalize('NFC').trim();
     if (!/^https?:\/\//i.test(tempUrl)) tempUrl = 'https://' + tempUrl;
     
     const url = new URL(tempUrl);
     let host = url.hostname.toLowerCase().replace(/^www\./i, '');
     let path = url.pathname.toLowerCase().replace(/\/$/, '');
     
-    let searchParams = new URLSearchParams(url.search.toLowerCase());
-    const paramsToStrip = [
-      'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
-      'ref', 'fbclid', 'gclid', 'yclid', 'spm', 't'
-    ];
-    paramsToStrip.forEach(p => searchParams.delete(p));
-    searchParams.sort();
-    
-    const cleanSearch = searchParams.toString();
-    return host + path + (cleanSearch ? '?' + cleanSearch : '');
+    // 3. Smart-Focus Filter: Parameter nur bei Video- & Suchportalen erhalten
+    const preserveParamsHosts = ['youtube.com', 'google.com', 'google.de', 'stackoverflow.com', 'bing.com'];
+    const shouldPreserveParams = preserveParamsHosts.some(h => host === h || host.endsWith('.' + h));
+
+    if (shouldPreserveParams) {
+        let searchParams = new URLSearchParams(url.search.toLowerCase());
+        const paramsToStrip = [
+          'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+          'ref', 'fbclid', 'gclid', 'yclid', 'spm', 't'
+        ];
+        paramsToStrip.forEach(p => searchParams.delete(p));
+        searchParams.sort();
+        const cleanSearch = searchParams.toString();
+        return host + path + (cleanSearch ? '?' + cleanSearch : '');
+    } else {
+        // Für Standard-Webseiten ignorieren wir Query-Strings und Hashes komplett,
+        // da diese nur temporäre Sessions, Sprachen oder Tracker enthalten.
+        return host + path;
+    }
   } catch (e) {
+    // Absolut sicherer String-Fallback
     try {
-      let clean = urlStr.normalize('NFC').trim().toLowerCase();
+      let decoded = urlStr;
+      try { decoded = decodeURIComponent(urlStr); } catch (err) {}
+      let clean = decoded.normalize('NFC').trim().toLowerCase();
       clean = clean.split('#')[0]; 
       clean = clean.split('?')[0]; 
       clean = clean.replace(/^https?:\/\//i, '');

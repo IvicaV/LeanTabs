@@ -13,6 +13,8 @@ Use this skill whenever modifying or creating user interfaces in LeanTabs (`save
 
 ## Core Design Principles
 
+- 📋 [2026-06-11] **Zero-Emoji-Sovereignty**: Die Verwendung von farbigen System-Emojis (wie 📝, ➕, 📌, 🛡️ etc.) im UI-Code, in Modals, Toasts oder Kontextmenü-Einträgen ist STRENGSTENS untersagt. Sie beschädigen das visuelle Profil des Produkts. Alle grafischen Indikatoren müssen ausnahmslos als farblose, filigrane Vektor-Icons (SVG-Pfad-Elemente in der vordefinierten `ICONS` Pipeline) realisiert werden.
+
 ### 1. Vibrancy Over Flatness
 - Avoid flat colors. Utilize modern, tailored HSL color tokens and gradients configured in `styles.css`.
 - Ensure elements change state smoothly when hovered or activated using CSS variables (e.g., modifying background opacity or borders dynamically).
@@ -691,6 +693,8 @@ Preserving critical insights and decisions for the LeanTabs workspace.
 - 📋 [2026-06-11] **Double-Read Pattern on Async Storage Writes**:
   Any function that performs an async fetch before calling `saveLinks` MUST follow the double-read pattern. Read the storage once if needed for initial validation, but query the fresh state again immediately prior to the write command.
 
+- 📋 [2026-06-11] **Zero-Emoji-Sovereignty**: Die Verwendung von farbigen System-Emojis (wie 📝, ➕, 📌, 🛡️ etc.) im UI-Code, in Modals, Toasts oder Kontextmenü-Einträgen ist STRENGSTENS untersagt. Sie beschädigen das visuelle Profil des Produkts. Alle grafischen Indikatoren müssen ausnahmslos als farblose, filigrane Vektor-Icons (SVG-Pfad-Elemente in der vordefinierten `ICONS` Pipeline) realisiert werden.
+
 --- END OF FILE SCRATCHPAD.md ---
 
 --- START OF FILE src\background.js ---
@@ -829,7 +833,8 @@ async function initializeDefaults() {
     keepLastTabs: 3, 
     autoBackup: true, 
     confirmBeforeClose: true, 
-    cleanAllWorkspaces: false
+    cleanAllWorkspaces: false,
+    enableRatings: true // Standardmäßig aktiv!
   });
 }
 
@@ -904,14 +909,14 @@ async function buildContextMenu() {
     chrome.contextMenus.create({
       id: "action-new-session",
       parentId: "leantabs-root",
-      title: "➕ Start New Session",
+      title: "+ Start New Session",
       contexts: ["page", "link"]
     });
 
     chrome.contextMenus.create({
       id: "action-quick-save",
       parentId: "leantabs-root",
-      title: "📥 Quick Save (Today's List)",
+      title: "Quick Save (Today's List)",
       contexts: ["page", "link"]
     });
     
@@ -926,7 +931,7 @@ async function buildContextMenu() {
     chrome.contextMenus.create({
         id: "action-add-whitelist",
         parentId: "leantabs-root",
-        title: "🛡️ Add to Whitelist",
+        title: "Add to Whitelist",
         contexts: ["page", "link"]
     });
     // ------------------------------------------
@@ -957,7 +962,7 @@ async function buildContextMenu() {
             try {
                 chrome.contextMenus.create({
                     id: `session-${id}`,
-                    title: `📌 Add to: ${shortLabel}`,
+                    title: `Add to: ${shortLabel}`,
                     parentId: "leantabs-root",
                     contexts: ["page", "link"]
                 });
@@ -985,6 +990,14 @@ async function saveSingleLink(url, title, favicon, targetSessionId) {
 
     // CRITICAL: Get fresh data AFTER the async fetch to prevent race conditions
     const allLinks = await getLinks();
+    
+    // --- DEFENSIRE DUPLIKAT-PRÜFUNG IM BACKGROUND START ---
+    const normalizedIncomingUrl = normalizeUrlForComparison(url);
+    const isDuplicate = allLinks.some(link => {
+        if (!link || !link.url) return false;
+        return normalizeUrlForComparison(link.url) === normalizedIncomingUrl;
+    });
+    // --- DEFENSIRE DUPLIKAT-PRÜFUNG IM BACKGROUND END ---
     
     const timestamp = new Date().toISOString();
     const dateGroup = new Date().toLocaleDateString('en-US');
@@ -1052,8 +1065,14 @@ async function saveSingleLink(url, title, favicon, targetSessionId) {
     allLinks.unshift(newLink);
     await saveLinks(allLinks);
     
-    chrome.action.setBadgeText({ text: "OK" });
-    chrome.action.setBadgeBackgroundColor({ color: "#10b981" }); 
+    // --- CONDITIONALES OPTISCHES FEEDBACK ---
+    if (isDuplicate) {
+        chrome.action.setBadgeText({ text: "DUP" });
+        chrome.action.setBadgeBackgroundColor({ color: "#f59e0b" }); // Gelb/Orange für Duplikat
+    } else {
+        chrome.action.setBadgeText({ text: "OK" });
+        chrome.action.setBadgeBackgroundColor({ color: "#10b981" }); // Grün für neuen Link
+    }
     setTimeout(() => chrome.action.setBadgeText({ text: "" }), 1500);
 
   } catch (err) {
@@ -1134,10 +1153,25 @@ async function performBackgroundClean() {
 
         const sessionId = `clean-shortcut-${winId}-${timestamp}`;
 
-        candidates.forEach(tab => {
+        // --- GRUPPEN-CACHE IM BACKGROUND (Mit API-Handshake-Check) ---
+        const groupsCache = {};
+        if (chrome.tabGroups) {
+            for (const tab of candidates) {
+                if (tab.groupId !== chrome.tabs.TAB_ID_NONE) {
+                    try {
+                        if (!groupsCache[tab.groupId]) {
+                            groupsCache[tab.groupId] = await chrome.tabGroups.get(tab.groupId);
+                        }
+                    } catch (e) { /* ignore */ }
+                }
+            }
+        }
+
+        for (const tab of candidates) {
             // STEP 1: Save logic - Happens BEFORE whitelist logic
-            // This guarantees whitelisted items are saved if they are about to be processed
             if (!isSystemLink(tab.url)) {
+                 const hasGroup = chrome.tabGroups && tab.groupId !== chrome.tabs.TAB_ID_NONE && groupsCache[tab.groupId];
+                 
                  linksToSave.push({
                     url: tab.url,
                     title: tab.title,
@@ -1146,7 +1180,11 @@ async function performBackgroundClean() {
                     category: extractDomain(tab.url),
                     favicon: tab.favIconUrl || '',
                     sessionId,
-                    sessionLabel: `${timeString} - Background Clean`
+                    sessionLabel: `${timeString} - Background Clean`,
+                    // --- METADATEN-SERIALISIERUNG ---
+                    groupTitle: hasGroup ? groupsCache[tab.groupId].title : null,
+                    groupColor: hasGroup ? groupsCache[tab.groupId].color : null,
+                    groupOriginalId: tab.groupId !== chrome.tabs.TAB_ID_NONE ? tab.groupId : null
                  });
             }
 
@@ -1169,7 +1207,7 @@ async function performBackgroundClean() {
             if (shouldClose) {
                 tabsToClose.push(tab.id);
             }
-        });
+        }
     }
 
     if (tabsToClose.length > 0 || linksToSave.length > 0) {
@@ -1242,6 +1280,60 @@ async function createBackup(links, tabsClosed = 0) {
     await saveBackups(backupList);
   } catch (error) { console.error('Backup error:', error); }
 }
+
+// --- HELPER: ELITE-GRADE SMART-FOCUS URL NORMALIZATION ---
+function normalizeUrlForComparison(urlStr) {
+  if (!urlStr || typeof urlStr !== 'string') {
+    return '';
+  }
+  
+  try {
+    let decoded = urlStr;
+    try { decoded = decodeURIComponent(urlStr); } catch (e) {}
+
+    let tempUrl = decoded.normalize('NFC').trim();
+    if (!/^https?:\/\//i.test(tempUrl)) tempUrl = 'https://' + tempUrl;
+    
+    const url = new URL(tempUrl);
+    let host = url.hostname.toLowerCase().replace(/^www\./i, '');
+    let path = url.pathname.toLowerCase();
+
+    path = path.replace(/^\/([a-z]{2}(?:-[a-z]{2})?)(\/|$)/i, '$2');
+    path = path.replace(/\/$/, '');
+    
+    const preserveParamsHosts = ['youtube.com', 'google.com', 'google.de', 'stackoverflow.com', 'bing.com'];
+    const shouldPreserveParams = preserveParamsHosts.some(h => host === h || host.endsWith('.' + h));
+
+    if (shouldPreserveParams) {
+        let searchParams = new URLSearchParams(url.search.toLowerCase());
+        const paramsToStrip = [
+          'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+          'ref', 'fbclid', 'gclid', 'yclid', 'spm', 't'
+        ];
+        paramsToStrip.forEach(p => searchParams.delete(p));
+        searchParams.sort();
+        const cleanSearch = searchParams.toString();
+        return host + path + (cleanSearch ? '?' + cleanSearch : '');
+    } else {
+        return host + path;
+    }
+  } catch (e) {
+    try {
+      let decoded = urlStr;
+      try { decoded = decodeURIComponent(urlStr); } catch (err) {}
+      let clean = decoded.normalize('NFC').trim().toLowerCase();
+      clean = clean.split('#')[0]; 
+      clean = clean.split('?')[0]; 
+      clean = clean.replace(/^https?:\/\//i, '');
+      clean = clean.replace(/^www\./i, '');
+      clean = clean.replace(/\/([a-z]{2}(?:-[a-z]{2})?)(\/|$)/i, '$2');
+      clean = clean.replace(/\/$/, '');
+      return clean;
+    } catch (innerError) {
+      return '';
+    }
+  }
+}
 --- END OF FILE src\background.js ---
 
 --- START OF FILE src\manifest.json ---
@@ -1254,7 +1346,8 @@ async function createBackup(links, tabsClosed = 0) {
     "tabs",
     "storage",
     "unlimitedStorage",
-    "contextMenus"
+    "contextMenus",
+    "tabGroups"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -1422,6 +1515,14 @@ import { getLinks, saveLinks } from './storage.js';
  */
 export async function deleteSession(sessionId) {
   const allLinks = await getLinks();
+  const sessionLinks = allLinks.filter(link => {
+    const linkSessionId = link.sessionId || `${link.dateGroup}-${link.timestamp}`;
+    return linkSessionId === sessionId;
+  });
+  const isLocked = sessionLinks.some(link => link.isLocked);
+  if (isLocked) {
+    return; // Do not delete locked sessions
+  }
   const updatedLinks = allLinks.filter(link => {
     const linkSessionId = link.sessionId || `${link.dateGroup}-${link.timestamp}`;
     return linkSessionId !== sessionId;
@@ -1490,6 +1591,27 @@ export async function bumpSession(sessionId) {
   if (changed) {
     await saveLinks(allLinks);
   }
+}
+
+
+/**
+ * Toggles the locked status for a session. Returns the new status.
+ */
+export async function toggleLockSession(sessionId) {
+  const allLinks = await getLinks();
+  const sessionLinks = allLinks.filter(l => (l.sessionId || `${l.dateGroup}-${l.timestamp}`) === sessionId);
+  if (sessionLinks.length > 0) {
+    const newStatus = !(sessionLinks[0].isLocked || false);
+    allLinks.forEach(link => {
+      const linkSessionId = link.sessionId || `${link.dateGroup}-${link.timestamp}`;
+      if (linkSessionId === sessionId) {
+        link.isLocked = newStatus;
+      }
+    });
+    await saveLinks(allLinks);
+    return newStatus;
+  }
+  return false;
 }
 
 --- END OF FILE src\modules\sessions.js ---
@@ -1575,867 +1697,23 @@ export async function saveBackups(backups) {
 --- END OF FILE src\modules\storage.js ---
 
 --- START OF FILE src\options.html ---
-<!--
-  LeanTabs - The Smart Tab & Workspace Manager
-  Author: Ivica Vrgoc
-  Repository: https://github.com/IvicaV/LeanTabs
--->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="author" content="Ivica Vrgoc">
   <title>Settings - LeanTabs</title>
-  <link rel="stylesheet" href="styles.css">
-  <script src="theme.js"></script>
-</head>
-<body class="page">
-  <div class="page-container" style="max-width: 800px;">
-    
-    <header>
-      <h1>
-        <img src="icon128.png" alt="LeanTabs Logo" class="logo-icon">
-        LeanTabs - Settings
-      </h1>
-      <div style="position: absolute; top: 40px; right: 40px;">
-        <button id="goToDashboardBtn" class="btn btn-secondary" title="Open Saved Links">
-          <svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-          Saved Links
-        </button>
-      </div>
-    </header>
-
-    <section class="settings-section">
-      <h2>
-        <svg class="icon-lg" style="color:var(--primary);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        Whitelist (Protected Tabs)
-      </h2>
-      
-      <p class="description">Tabs from these domains are protected during 'Run Tab Clean' (does not apply to Emergency Reset).</p>
-      
-      <div style="display:flex; gap:10px; margin-bottom:15px;">
-        <input type="text" id="whitelistInput" placeholder="e.g. gmail.com" class="search-input">
-        <button id="addWhitelistBtn" class="btn btn-primary">Add Domain</button>
-      </div>
-      <div id="whitelistContainer" class="whitelist-container"></div>
-    </section>
-
-    <section class="settings-section">
-      <h2>
-        <svg class="icon-lg" style="color:var(--primary);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
-        Behavior
-      </h2>
-      
-      <span class="settings-group-title">Cleaning Logic</span>
-      <div style="margin-bottom: 12px;">
-        <label style="display:flex; align-items:center; gap:12px; margin-bottom:4px;">
-          <span style="font-weight:600; font-size:12px;">Keep last tabs:</span>
-          <input type="number" id="keepTabsInput" min="1" max="20" class="search-input" style="width:60px; padding:4px;">
-        </label>
-        <span class="checkbox-note" style="margin-left:0;">Number of tabs to leave open in active window.</span>
-      </div>
-
-      <label class="checkbox-label">
-        <input type="checkbox" id="cleanAllWorkspacesCheck" class="master-checkbox">
-        <span>Set "Global Clean" as default option</span>
-      </label>
-      <span class="checkbox-note">Pre-selects 'Global' in popup menu.</span>
-
-      <span class="settings-group-title">Interface & Experience</span>
-      
-      <label class="checkbox-label">
-        <input type="checkbox" id="darkModeCheck" class="master-checkbox">
-        <span>Enable Dark Mode</span>
-      </label>
-      <span class="checkbox-note">Switch between Light and Dark theme.</span>
-
-      <label class="checkbox-label">
-        <input type="checkbox" id="sessionsDefaultCollapsedCheck" class="master-checkbox">
-        <span>Show sessions collapsed by default</span>
-      </label>
-      <span class="checkbox-note">Keeps your dashboard compact.</span>
-
-      <label class="checkbox-label">
-        <input type="checkbox" id="confirmCheck" class="master-checkbox">
-        <span>Confirmation before closing</span>
-      </label>
-      <span class="checkbox-note">Shows a summary before deleting tabs.</span>
-
-      <span class="settings-group-title">Safety & Restoration</span>
-
-      <label class="checkbox-label">
-        <input type="checkbox" id="autoBackupCheck" class="master-checkbox">
-        <span>Create automatic backups</span>
-      </label>
-      <span class="checkbox-note">Saves a JSON snapshot of every clean.</span>
-
-      <label class="checkbox-label">
-        <input type="checkbox" id="restoreWindowStructureCheck" class="master-checkbox">
-        <span>Restore window structure</span>
-      </label>
-      <span class="checkbox-note">Opens tabs in separate windows as originally saved.</span>
-
-      <label class="checkbox-label">
-        <input type="checkbox" id="deleteAfterRestoreCheck" class="master-checkbox">
-        <span>Auto-delete sessions after restore</span>
-      </label>
-      <span class="checkbox-note">Removes the tile from dashboard after you restore it.</span>
-
-    </section>
-
-    <section class="settings-section">
-      <h2>
-        <svg class="icon-lg" style="color:var(--primary);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
-        Data Management & Backups
-      </h2>
-      
-      <label class="checkbox-label" style="margin-bottom: 20px;">
-        <input type="checkbox" id="smartImportCheck" class="master-checkbox">
-        <span>Enable Smart Import Filtering</span>
-      </label>
-      <span class="checkbox-note" style="margin-top: -16px; margin-bottom: 20px;">
-        Analyzes imported files for duplicates and asks you how to handle them.
-      </span>
-
-      <div style="display:flex; gap:12px; margin-bottom:8px;">
-        <button id="exportDataBtn" class="btn btn-secondary">
-            <svg class="icon-svg" style="color:var(--primary);" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Full System Backup
-        </button>
-        <button id="importDataBtn" class="btn btn-primary">
-            <svg class="icon-svg" style="color:white;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="17 8 12 3 7 8"></polyline>
-              <line x1="12" y1="3" x2="12" y2="15"></line>
-            </svg>
-            Import Data
-        </button>
-        <input type="file" id="importFileInput" accept=".json" style="display: none;">
-      </div>
-      <p class="description" style="margin-bottom: 20px;">
-        Creates a complete archive including all sessions, settings, whitelist, and backup history.
-      </p>
-      
-      <div id="backupList">
-        <h3 style="font-size:12px; margin-bottom:12px; color:var(--text-muted);">Auto-Backups (Last 50 cleans)</h3>
-        <div id="backupContainer"></div>
-      </div>
-    </section>
-
-    <section class="settings-section">
-      <h2>
-        <svg class="icon-lg" style="color:var(--primary);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 14a1 1 0 1 1 1-1 1 1 0 0 1-1 1zm1-4a1 1 0 0 0-2 0v-4a1 1 0 0 1 2 0z"/></svg>
-        Pro Tips & Shortcuts
-      </h2>
-      
-      <div class="tips-grid">
-        <div class="tip-card">
-          <span class="tip-title">⌨️ Keyboard Shortcuts</span>
-          
-          <div class="shortcut-row">
-            <span>Clean & <b>S</b>ave:</span>
-            <span class="kbd-group"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd></span>
-          </div>
-          <span class="shortcut-desc">Standard clean. Saves tabs and frees memory.</span>
-          
-          <div class="shortcut-row">
-            <span>Dashboard (<b>L</b>inks):</span>
-            <span class="kbd-group"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>L</kbd></span>
-          </div>
-          <span class="shortcut-desc">Opens your saved sessions library.</span>
-
-          <div class="shortcut-row">
-            <span>Reset (<b>K</b>ill All):</span>
-            <span class="kbd-group"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>K</kbd></span>
-          </div>
-          <span class="shortcut-desc" style="color:var(--danger);">⚠️ Kills tabs in the Active Window only (ignores Scope settings). No saving.</span>
-
-          <p class="tip-desc" style="margin-top:16px;">Shortcuts can be customized in your browser's <a href="#" id="shortcutsLink" style="color:var(--primary); text-decoration:none; cursor:pointer;">extension settings</a>.</p>
-        </div>
-
-        <div class="tip-card">
-          <span class="tip-title">🖱️ Context Menu</span>
-          <p class="tip-desc">
-            Right-click on any page or link to verify options:
-            <br>• <strong>Quick Save:</strong> Adds directly to today's list.
-            <br>• <strong>New Session:</strong> Creates a fresh session.
-            <br>• <strong>📌 Pinned:</strong> Save directly to your pinned sessions.
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <div class="save-bar">
-      <span id="saveStatus" class="save-status"></span>
-      <button id="saveBtn" class="btn btn-success">Save Settings</button>
-    </div>
-
-    <!-- FOOTER WITH GITHUB & KO-FI -->
-    <div class="footer-link">
-      <a id="aboutLink" href="#" style="cursor: pointer;">
-        <svg style="width:16px; height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
-        About LeanTabs
-      </a>
-      <span style="color:var(--border-color);">|</span>
-      <a id="kofiLink" href="#" class="kofi-link" style="cursor: pointer;">
-        <svg style="width:16px; height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path><line x1="6" y1="1" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line></svg>
-        Support
-      </a>
-    </div>
-
-  </div>
-
-  <div id="customModal" class="modal-overlay hidden">
-    <div class="modal-content">
-      <h3 id="modalTitle" class="modal-title">Confirm Action</h3>
-      <div id="modalMessage" class="modal-text"></div>
-      <div id="modalActions" class="modal-actions">
-        </div>
-    </div>
-  </div>
-
   <script type="module" src="options.js"></script>
+</head>
+<body>
+  <p>Redirecting to LeanTabs Settings...</p>
 </body>
 </html>
 --- END OF FILE src\options.html ---
 
 --- START OF FILE src\options.js ---
-/**
- * LeanTabs - The Smart Tab & Workspace Manager
- * @author Ivica Vrgoc
- * @repository https://github.com/IvicaV/LeanTabs
- * @description Script handling the Options page logic, backup management, and settings persistence.
- */
+// --- EMERGENCY HASH REDIRECT TO UNIFIED DASHBOARD ---
+window.location.href = 'saved-links.html#settings';
 
-// --- START OF options.js (Final: Smart Import Redirect) ---
-import { getLinks, saveLinks, getSettings, saveSettings, getWhitelist, saveWhitelist, getBackups, saveBackups } from './modules/storage.js';
-
-let whitelist = [];
-let settings = {};
-
-// SVG Icons (Matching saved-links.js for consistency)
-const ICONS = {
-  shield: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  trash: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  box: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>',
-  restore: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  download: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-};
-
-// --- MODAL HELPER ---
-function showCustomModal(title, message, buttons) {
-  return new Promise((resolve) => {
-    const modal = document.getElementById('customModal');
-    const titleEl = document.getElementById('modalTitle');
-    const msgEl = document.getElementById('modalMessage');
-    const actionsEl = document.getElementById('modalActions');
-
-    titleEl.textContent = title;
-    msgEl.textContent = message;
-    actionsEl.innerHTML = ''; // Clear previous buttons
-
-    buttons.forEach(btnConfig => {
-      const btn = document.createElement('button');
-      btn.className = `btn-modal ${btnConfig.class || 'btn-modal-cancel'}`;
-      btn.textContent = btnConfig.text;
-      btn.onclick = () => {
-        modal.classList.add('hidden');
-        resolve(btnConfig.value);
-      };
-      actionsEl.appendChild(btn);
-    });
-
-    modal.classList.remove('hidden');
-  });
-}
-
-function showSaveStatus(message, type = 'success') {
-  const status = document.getElementById('saveStatus');
-  status.textContent = message;
-  status.className = `save-status ${type}`;
-  setTimeout(() => { status.textContent = ''; }, 3000);
-}
-
-function renderWhitelist() {
-  const container = document.getElementById('whitelistContainer');
-  if (whitelist.length === 0) {
-    container.innerHTML = '<p class="empty-state" style="padding:15px; font-size:12px;">No protected domains. Add some!</p>';
-    return;
-  }
-  
-  // Updated to use SVG Icons
-  container.innerHTML = whitelist.map((domain, index) => `
-    <div class="whitelist-item">
-      <span style="display:flex; align-items:center; gap:8px;">${ICONS.shield} ${domain}</span>
-      <button class="btn-icon-danger btn-delete" data-index="${index}" title="Delete File">
-        ${ICONS.trash}
-      </button>
-    </div>
-  `).join('');
-}
-
-function loadSettings() {
-  const keepTabsInput = document.getElementById('keepTabsInput');
-  if (keepTabsInput) keepTabsInput.value = settings.keepLastTabs;
-
-  document.getElementById('autoBackupCheck').checked = settings.autoBackup;
-  document.getElementById('confirmCheck').checked = settings.confirmBeforeClose;
-  document.getElementById('deleteAfterRestoreCheck').checked = settings.deleteAfterRestore || false;
-  document.getElementById('cleanAllWorkspacesCheck').checked = settings.cleanAllWorkspaces || false;
-  document.getElementById('sessionsDefaultCollapsedCheck').checked = settings.sessionsDefaultCollapsed || false;
-  document.getElementById('restoreWindowStructureCheck').checked = (settings.restoreWindowStructure !== undefined) ? settings.restoreWindowStructure : true;
-  document.getElementById('smartImportCheck').checked = (settings.smartImport !== undefined) ? settings.smartImport : true;
-  
-  // Load Theme from localStorage (Synchronous for instant UI)
-  const currentTheme = localStorage.getItem('theme') || 'light';
-  document.getElementById('darkModeCheck').checked = (currentTheme === 'dark');
-}
-
-function loadBackups(backups) {
-  const container = document.getElementById('backupContainer');
-  if (backups.length === 0) {
-    container.innerHTML = '<p class="empty-state" style="padding:15px; font-size:12px;">No automatic backups available yet.</p>';
-    return;
-  }
-  const sortedBackups = [...backups].reverse();
-  
-  const backupHTML = sortedBackups.map((backup, displayIndex) => {
-    const originalIndex = backups.length - 1 - displayIndex;
-    
-    // --- SMART LABEL DISPLAY WITH PREFIX ---
-    const displayTitle = backup.label 
-        ? `Auto-Backup: ${backup.label}` 
-        : `Backup #${backups.length - displayIndex}`;
-
-    return `
-      <div class="backup-item">
-        <div style="display:flex; flex-direction:column; overflow:hidden;">
-          <strong style="color:var(--primary); display:flex; align-items:center; gap:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${displayTitle}">
-            ${ICONS.box} ${displayTitle}
-          </strong>
-          <span style="font-size:11px; color:var(--text-muted); margin-left: 22px;">${backup.readableTime}</span>
-          <span style="font-size:11px; color:var(--text-muted); margin-left: 22px;">${backup.count} links saved, ${backup.tabsClosed || 0} closed</span>
-        </div>
-        <div style="display:flex; gap:6px; flex-shrink:0;">
-          <button class="btn btn-secondary btn-sm" data-backup-index="${originalIndex}" title="Restore">${ICONS.restore}</button>
-          <button class="btn btn-secondary btn-sm" data-download-backup-index="${originalIndex}" title="Download JSON">${ICONS.download}</button>
-          <button class="btn btn-danger btn-sm" data-delete-backup-index="${originalIndex}" title="Delete">${ICONS.trash}</button>
-        </div>
-      </div>
-    `;
-  }).join('');
-  container.innerHTML = backupHTML;
-}
-
-async function loadData() {
-  whitelist = await getWhitelist();
-  const rawSettings = await getSettings();
-  settings = Object.keys(rawSettings).length > 0 ? rawSettings : { 
-    keepLastTabs: 3, 
-    autoBackup: true, 
-    confirmBeforeClose: true, 
-    deleteAfterRestore: false,
-    cleanAllWorkspaces: false,
-    sessionsDefaultCollapsed: false,
-    restoreWindowStructure: true,
-    smartImport: true 
-  };
-  const backups = await getBackups();
-  renderWhitelist();
-  loadSettings();
-  loadBackups(backups);
-}
-
-function initEventListeners() {
-  const dashBtn = document.getElementById('goToDashboardBtn');
-  if (dashBtn) {
-    dashBtn.addEventListener('click', async () => {
-       const targetUrl = chrome.runtime.getURL('saved-links.html');
-       
-       // 1. Get the current active tab to identify the CURRENT Workspace context
-       const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
-       const currentActiveTab = activeTabs[0];
-
-       if (currentActiveTab) {
-           // 2. Find existing saved-links tabs in the SAME WINDOW ID
-           const existingTabs = await chrome.tabs.query({ url: targetUrl, windowId: currentActiveTab.windowId });
-           
-           // 3. SMART FILTER: Check if it's in the SAME Workspace
-           // Opera/Vivaldi share windowId across workspaces, but workspaceId differs.
-           const tabInSameWorkspace = existingTabs.find(t => t.workspaceId === currentActiveTab.workspaceId);
-           
-           if (tabInSameWorkspace) {
-               // Safe: Same visual context
-               await chrome.tabs.update(tabInSameWorkspace.id, { active: true });
-           } else {
-               // Not found in THIS workspace -> Create new (prevents crash by not switching workspaces)
-               await chrome.tabs.create({ url: 'saved-links.html' });
-           }
-       } else {
-           // Fallback
-           await chrome.tabs.create({ url: 'saved-links.html' });
-       }
-    });
-  }
-
-  document.getElementById('whitelistContainer').addEventListener('click', async (e) => {
-    const btn = e.target.closest('.btn-delete');
-    if (btn) {
-      const index = parseInt(btn.dataset.index);
-      whitelist.splice(index, 1);
-      await saveWhitelist(whitelist);
-      renderWhitelist();
-      showSaveStatus('Domain removed!');
-    }
-  });
-
-  document.getElementById('addWhitelistBtn').addEventListener('click', async () => {
-    const input = document.getElementById('whitelistInput');
-    const domain = input.value.trim();
-    if (!domain) {
-      showSaveStatus('Please enter a domain!', 'error');
-      return;
-    }
-    let cleanDomain = domain.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
-    if (!cleanDomain.includes('.')) {
-      showSaveStatus('Invalid domain! Example: gmail.com', 'error');
-      return;
-    }
-    if (!whitelist.includes(cleanDomain)) {
-      whitelist.push(cleanDomain);
-      await saveWhitelist(whitelist);
-      renderWhitelist();
-      input.value = '';
-      showSaveStatus('Domain added!');
-    } else {
-      showSaveStatus('Domain already exists!', 'error');
-    }
-  });
-
-  document.getElementById('whitelistInput').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') document.getElementById('addWhitelistBtn').click();
-  });
-
-  document.getElementById('darkModeCheck').addEventListener('change', (e) => {
-      const newTheme = e.target.checked ? 'dark' : 'light';
-      localStorage.setItem('theme', newTheme);
-      document.documentElement.setAttribute('data-theme', newTheme);
-  });
-
-  document.getElementById('saveBtn').addEventListener('click', async () => {
-    try {
-      let keepTabs = parseInt(document.getElementById('keepTabsInput').value);
-      if (isNaN(keepTabs) || keepTabs < 1) keepTabs = 1;
-      if (keepTabs > 20) keepTabs = 20;
-      settings.keepLastTabs = keepTabs;
-      settings.autoBackup = document.getElementById('autoBackupCheck').checked;
-      settings.confirmBeforeClose = document.getElementById('confirmCheck').checked;
-      settings.deleteAfterRestore = document.getElementById('deleteAfterRestoreCheck').checked;
-      settings.cleanAllWorkspaces = document.getElementById('cleanAllWorkspacesCheck').checked;
-      settings.sessionsDefaultCollapsed = document.getElementById('sessionsDefaultCollapsedCheck').checked;
-      settings.restoreWindowStructure = document.getElementById('restoreWindowStructureCheck').checked;
-      settings.smartImport = document.getElementById('smartImportCheck').checked;
-
-      await saveSettings(settings);
-      loadSettings();
-      showSaveStatus('✅ Settings saved!', 'success');
-    } catch (error) {
-      console.error('Error saving settings:', error);
-      showSaveStatus('❌ Error saving!', 'error');
-    }
-  });
-
-  document.getElementById('backupContainer').addEventListener('click', async (e) => {
-    const restoreBtn = e.target.closest('[data-backup-index]');
-    const downloadBtn = e.target.closest('[data-download-backup-index]');
-    const deleteBtn = e.target.closest('[data-delete-backup-index]');
-
-    if (restoreBtn) {
-      const index = parseInt(restoreBtn.dataset.backupIndex);
-      const backups = await getBackups();
-      const currentLinks = await getLinks();
-      const backup = backups[index];
-      
-      const choice = await showCustomModal(
-          "Restore Backup?", 
-          `Restore ${backup.count} links from ${backup.readableTime}?\nThis will add them to your saved links list.`,
-          [
-              { text: "Cancel", value: false, class: "btn-modal-cancel" },
-              { text: "Restore Backup", value: true, class: "btn-modal-confirm" }
-          ]
-      );
-
-      if (choice) {
-        const timestamp = new Date().toISOString();
-        const timeString = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-        const sessionId = `restored-${timestamp}`;
-        const restoredLinks = backup.data.links.map(link => ({
-          ...link, 
-          originalTimestamp: link.timestamp, 
-          sessionId, 
-          sessionLabel: `${timeString} - Restored Backup`, 
-          restoredAt: timestamp, 
-          timestamp 
-        }));
-        const allLinks = [...restoredLinks, ...currentLinks];
-        await saveLinks(allLinks);
-        showSaveStatus('✅ Backup restored!', 'success');
-        setTimeout(() => chrome.tabs.create({ url: 'saved-links.html' }), 1000);
-      }
-      return;
-    }
-
-    if (downloadBtn) {
-      const index = parseInt(downloadBtn.dataset.downloadBackupIndex);
-      const backups = await getBackups();
-      const backup = backups[index];
-      const timestamp = new Date(backup.timestamp).toISOString().slice(0, 10);
-      const dataStr = JSON.stringify(backup.data, null, 2);
-      const blob = new Blob([dataStr], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `leantabs-backup-${timestamp}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      showSaveStatus('✅ Downloaded!', 'success');
-      return;
-    }
-
-    if (deleteBtn) {
-      const index = parseInt(deleteBtn.dataset.deleteBackupIndex);
-      const backupList = await getBackups();
-      
-      const choice = await showCustomModal(
-          "Delete Backup?", 
-          "Are you sure you want to permanently delete this backup file?",
-          [
-              { text: "Cancel", value: false, class: "btn-modal-cancel" },
-              { text: "Delete Permanently", value: true, class: "btn-modal-danger" }
-          ]
-      );
-
-      if (choice) {
-        backupList.splice(index, 1);
-        await saveBackups(backupList);
-        loadBackups(backupList);
-        showSaveStatus('Backup deleted!', 'success');
-      }
-      return;
-    }
-  });
-
-  document.getElementById('exportDataBtn').addEventListener('click', async () => {
-    const data = await chrome.storage.local.get(null);
-    const timestamp = new Date().toISOString().slice(0, 10);
-    const dataStr = JSON.stringify(data, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `leantabs-full-backup-${timestamp}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showSaveStatus('✅ Export complete!', 'success');
-  });
-
-  document.getElementById('importDataBtn').addEventListener('click', () => {
-    document.getElementById('importFileInput').click();
-  });
-
-  document.getElementById('importFileInput').addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    try {
-      const text = await file.text();
-      let data;
-      try {
-          data = JSON.parse(text);
-      } catch (e) {
-          throw new Error('Invalid JSON format');
-      }
-
-      if (typeof data !== 'object' || data === null) {
-        throw new Error('Imported file is not a valid JSON object.');
-      }
-
-      // --- NEW: CONFIG IMPORT LOGIC (Settings & Whitelist) ---
-      // This block checks for configuration data and asks the user before overwriting.
-      if (data.settings || data.whitelist) {
-          const importConfig = await showCustomModal(
-              "System Configuration Found",
-              "This backup includes Settings and Whitelist data.\nDo you want to restore them? (Overwrites current settings)",
-              [
-                  { text: "No, Links Only", value: false, class: "btn-modal-cancel" },
-                  { text: "Yes, Restore Config", value: true, class: "btn-modal-confirm" }
-              ]
-          );
-
-          if (importConfig) {
-              if (data.settings) {
-                  settings = data.settings; // Update local var
-                  await saveSettings(data.settings);
-              }
-              if (data.whitelist) {
-                  whitelist = data.whitelist; // Update local var
-                  await saveWhitelist(data.whitelist);
-              }
-              // Refresh UI immediately
-              loadSettings();
-              renderWhitelist();
-              showSaveStatus("✅ Settings & Whitelist restored!");
-          }
-      }
-      // --- END OF CONFIG IMPORT LOGIC ---
-
-      let rawLinks = [];
-      if (data.links && Array.isArray(data.links)) {
-        rawLinks = data.links;
-      } else if (data.savedLinks && Array.isArray(data.savedLinks)) {
-        rawLinks = data.savedLinks;
-      } else if (Array.isArray(data)) {
-        rawLinks = data;
-      }
-      
-      const linksToImport = rawLinks.filter(l => l && typeof l === 'object' && l.url);
-
-      if (linksToImport.length === 0) {
-        // If we imported settings but found no links, that's still a success, just finish here.
-        if (data.settings || data.whitelist) return;
-        
-        showSaveStatus('❌ No valid links found!', 'error');
-        return;
-      }
-
-      const currentLinks = await getLinks();
-      
-      const getSignature = (l) => l.url + (l.originalTimestamp || l.timestamp);
-      
-      const existingSignatures = new Set(currentLinks.map(l => getSignature(l)));
-      
-      const cleanLinks = [];
-      const duplicateLinks = [];
-
-      linksToImport.forEach(link => {
-          if (existingSignatures.has(getSignature(link))) {
-              duplicateLinks.push(link);
-          } else {
-              cleanLinks.push(link);
-          }
-      });
-
-      let finalImportList = [];
-      let shouldImport = false;
-      let preserveStructure = false; 
-
-      // --- SMART RESTORE DETECTION ---
-      const hasSessionStructure = linksToImport.some(l => l.sessionId && l.sessionLabel);
-
-      if (hasSessionStructure) {
-          const restoreMode = await showCustomModal(
-              "Backup Detected", 
-              `This file contains ${linksToImport.length} links with Session structure.\n\nHow do you want to restore them?`,
-              [
-                  { text: "Cancel", value: "cancel", class: "btn-modal-cancel" },
-                  { text: "Merge into 1 List", value: "merge", class: "btn-modal-secondary" },
-                  { text: "Restore Sessions", value: "restore", class: "btn-modal-confirm" }
-              ]
-          );
-
-          if (restoreMode === "cancel") return;
-          
-          if (restoreMode === "restore") {
-              preserveStructure = true;
-              
-              if (duplicateLinks.length > 0) {
-                  const dupChoice = await showCustomModal(
-                      "Duplicates Found",
-                      `Warning: ${duplicateLinks.length} links already exist.\nRestore duplicates anyway?`,
-                      [
-                          { text: "Skip Duplicates", value: "skip", class: "btn-modal-secondary" },
-                          { text: "Restore All", value: "all", class: "btn-modal-confirm" }
-                      ]
-                  );
-                  finalImportList = (dupChoice === 'all') ? linksToImport : cleanLinks;
-              } else {
-                  finalImportList = linksToImport;
-              }
-              shouldImport = true;
-          } else {
-              preserveStructure = false;
-          }
-      } 
-      
-      if (!preserveStructure && !shouldImport) {
-          const useSmartImport = (settings.smartImport !== false); 
-          
-          if (!useSmartImport) {
-              const confirmAll = await showCustomModal(
-                "Confirm Import",
-                `Import ${linksToImport.length} links into a new session?`,
-                [
-                  { text: "Cancel", value: "cancel", class: "btn-modal-cancel" },
-                  { text: "Import All", value: "all", class: "btn-modal-confirm" }
-                ]
-              );
-              if (confirmAll === 'all') {
-                 finalImportList = linksToImport;
-                 shouldImport = true;
-              }
-          } else {
-              if (duplicateLinks.length > 0) {
-                  const choice = await showCustomModal(
-                      "Duplicates Found", 
-                      `Found ${linksToImport.length} links.\n⚠️ ${duplicateLinks.length} duplicates.\n✅ ${cleanLinks.length} unique.\n\nProceed?`,
-                      [
-                          { text: "Cancel", value: "cancel", class: "btn-modal-cancel" },
-                          { text: "Import All", value: "all", class: "btn-modal-secondary" },
-                          { text: `Import ${cleanLinks.length} Unique`, value: "filter", class: "btn-modal-confirm" }
-                  ]);
-                  if (choice === 'filter') finalImportList = cleanLinks;
-                  else if (choice === 'all') finalImportList = linksToImport;
-                  if (choice !== 'cancel') shouldImport = true;
-              } else {
-                  const confirmUnique = await showCustomModal(
-                      "Confirm Import",
-                      `Import ${linksToImport.length} links?`,
-                      [{ text: "Cancel", value: "cancel", class: "btn-modal-cancel" }, { text: "Import", value: "all", class: "btn-modal-confirm" }]
-                  );
-                  if (confirmUnique === 'all') {
-                      finalImportList = linksToImport;
-                      shouldImport = true;
-                  }
-              }
-          }
-      }
-
-      if (shouldImport && finalImportList.length > 0) {
-        let preparedLinks;
-        const timestamp = new Date().toISOString();
-        const timeString = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-
-        if (preserveStructure) {
-            // --- FIX: Prevent merging by re-mapping Session IDs ---
-            const importTimestampSuffix = Date.now();
-            const sessionIdMap = {}; // Maps old sessionID -> new unique sessionID
-
-            preparedLinks = finalImportList.map(link => {
-                const oldSessionId = link.sessionId || 'unknown';
-                
-                // If we haven't seen this session ID in this import batch yet, generate a new one
-                if (!sessionIdMap[oldSessionId]) {
-                    // Append import timestamp to make it unique, even if "manual-save-today" already exists locally
-                    sessionIdMap[oldSessionId] = `${oldSessionId}-imported-${importTimestampSuffix}`;
-                }
-
-                return {
-                    ...link,
-                    sessionId: sessionIdMap[oldSessionId], // Assign new unique ID
-                    uniqueId: `${link.url}-${timestamp}-${Math.random().toString(36).substr(2, 9)}`,
-                    importedAt: timestamp
-                };
-            });
-            showSaveStatus(`✅ Restored ${preparedLinks.length} links & sessions!`, 'success');
-
-        } else {
-            const sessionId = `imported-${timestamp}`;
-            preparedLinks = finalImportList.map(link => ({
-                ...link, 
-                originalTimestamp: link.timestamp, 
-                sessionId, 
-                sessionLabel: `${timeString} - Imported Backup`, 
-                importedAt: timestamp, 
-                timestamp 
-            }));
-            showSaveStatus(`✅ Imported ${preparedLinks.length} links!`, 'success');
-        }
-
-        const allLinks = [...preparedLinks, ...currentLinks];
-        await saveLinks(allLinks);
-        
-        // --- SMART REDIRECT AFTER IMPORT ---
-        setTimeout(async () => {
-            const targetUrl = chrome.runtime.getURL('saved-links.html');
-            const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
-            const currentActiveTab = activeTabs[0];
-
-            if (currentActiveTab) {
-                const existingTabs = await chrome.tabs.query({ url: targetUrl, windowId: currentActiveTab.windowId });
-                const tabInSameWorkspace = existingTabs.find(t => t.workspaceId === currentActiveTab.workspaceId);
-                
-                if (tabInSameWorkspace) {
-                    await chrome.tabs.update(tabInSameWorkspace.id, { active: true });
-                } else {
-                    await chrome.tabs.create({ url: 'saved-links.html' });
-                }
-            } else {
-                await chrome.tabs.create({ url: 'saved-links.html' });
-            }
-        }, 1000);
-        // -----------------------------------
-
-      } else if (shouldImport && finalImportList.length === 0) {
-         showSaveStatus('⚠️ No links selected to import.', 'error');
-      }
-
-    } catch (error) {
-      showSaveStatus('❌ Import error!', 'error');
-      console.error("Import error:", error);
-    }
-    e.target.value = '';
-  });
-
-  const shortcutsLink = document.getElementById('shortcutsLink');
-  if (shortcutsLink) {
-    shortcutsLink.addEventListener('click', (e) => {
-      e.preventDefault();
-      chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
-    });
-  }
-
-  // Footer Links Handlers
-  const aboutLink = document.getElementById('aboutLink');
-  if (aboutLink) {
-    aboutLink.addEventListener('click', () => {
-      chrome.tabs.create({ url: 'https://github.com/IvicaV/LeanTabs' });
-    });
-  }
-
-  const kofiLink = document.getElementById('kofiLink');
-  if (kofiLink) {
-    kofiLink.addEventListener('click', () => {
-      chrome.tabs.create({ url: 'https://ko-fi.com/ivicav' });
-    });
-  }
-}
-
-function checkShortcuts() {
-  if (chrome.commands && chrome.commands.getAll) {
-    chrome.commands.getAll((commands) => {
-      const missingShortcuts = commands.filter(cmd => !cmd.shortcut);
-      if (missingShortcuts.length > 0) {
-        const tipDesc = document.querySelector('.tip-desc');
-        if (tipDesc) {
-          tipDesc.innerHTML = `💡 Note: If these shortcuts aren't working, your browser might not have assigned them automatically. You can check and configure them in your browser's <a href="#" id="shortcutsLink" style="color:var(--primary); text-decoration:underline; font-weight:bold; cursor:pointer;">extension settings</a>.`;
-          const shortcutsLink = document.getElementById('shortcutsLink');
-          if (shortcutsLink) {
-            shortcutsLink.addEventListener('click', (e) => {
-              e.preventDefault();
-              chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
-            });
-          }
-        }
-      }
-    });
-  }
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  initEventListeners();
-  loadData();
-  checkShortcuts();
-});
 --- END OF FILE src\options.js ---
 
 --- START OF FILE src\popup.html ---
@@ -2488,6 +1766,15 @@ document.addEventListener('DOMContentLoaded', () => {
         <option value="current">Current Window Only</option>
         <option value="global">Global (All Windows)</option>
       </select>
+    </div>
+
+    <!-- TABS SLIDER (Clean, entkoppelt, keine Label-Kollisionen) -->
+    <div class="scope-control" style="margin-top: 12px; display: flex; flex-direction: column; gap: 6px;">
+      <div style="display: flex; justify-content: space-between; align-items: center;" title="Specify how many of your most recently active tabs will remain open in your active window. All older background tabs will be safely cleared and converted to lightweight links inside your dashboard.">
+        <span style="font-size: 12px; font-weight: 600; color: var(--text-muted); cursor: help;">Keep Active Tabs</span>
+        <span id="popupKeepCount" style="font-size: 13px; font-weight: 700; color: var(--primary);">3</span>
+      </div>
+      <input type="range" id="popupKeepSlider" min="1" max="20" value="3" class="popup-slider" title="Drag to adjust open tab limit">
     </div>
 
     <div class="action-stack">
@@ -2627,9 +1914,11 @@ async function initScopeDropdown() {
     }
 
     scopeSelect.addEventListener('change', async () => {
-        updateSubtext(settings.keepLastTabs || 3);
-        settings.cleanAllWorkspaces = (scopeSelect.value === 'global');
-        await saveSettings(settings);
+        const currentSettings = await getSettings();
+        const keepCount = currentSettings.keepLastTabs || 3;
+        updateSubtext(keepCount);
+        currentSettings.cleanAllWorkspaces = (scopeSelect.value === 'global');
+        await saveSettings(currentSettings);
     });
 }
 
@@ -2671,6 +1960,35 @@ async function getTabsBasedOnScope(isGlobal) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+    
+    // --- INLINE RANGE SLIDER LOGIK START ---
+    const rawSettings = await getSettings();
+    const settingsObj = Object.keys(rawSettings).length > 0 ? rawSettings : { keepLastTabs: 3 };
+    let keepCount = settingsObj.keepLastTabs || 3;
+
+    const countEl = document.getElementById('popupKeepCount');
+    const sliderEl = document.getElementById('popupKeepSlider');
+
+    if (countEl && sliderEl) {
+        countEl.textContent = keepCount;
+        sliderEl.value = keepCount;
+
+        // Live-Feedback beim Ziehen (rein optisch, extrem performant)
+        sliderEl.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            countEl.textContent = val;
+            updateSubtext(val);
+        });
+
+        // Speichern erst beim Loslassen (Schützt vor I/O-Overhead auf der Festplatte!)
+        sliderEl.addEventListener('change', async (e) => {
+            const val = parseInt(e.target.value);
+            const currentSettings = await getSettings();
+            currentSettings.keepLastTabs = val;
+            await saveSettings(currentSettings);
+        });
+    }
+    // --- INLINE RANGE SLIDER LOGIK END ---
     
     // --- Footer Links Handlers (Initialize early) ---
     const aboutLink = document.getElementById('aboutLink');
@@ -2816,8 +2134,25 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const sessionLinks = [];
                 const sessionId = `clean-${contextKey}-${timestamp}`;
 
-                groupTabs.forEach(tab => {
+                // --- GRUPPEN-CACHE INITIALISIEREN (Mit defensivem API-Handshake-Check) ---
+                const groupsCache = {};
+                if (chrome.tabGroups) {
+                    for (const tab of groupTabs) {
+                        if (tab.groupId !== chrome.tabs.TAB_ID_NONE) {
+                            try {
+                                if (!groupsCache[tab.groupId]) {
+                                    groupsCache[tab.groupId] = await chrome.tabGroups.get(tab.groupId);
+                                }
+                            } catch (e) { /* Tab-Gruppe nicht mehr da oder blockiert */ }
+                        }
+                    }
+                }
+
+                for (const tab of groupTabs) {
                     if (!isSystemLink(tab.url)) {
+                        // Auslesen der Gruppen-Metadaten aus dem Cache (falls vorhanden)
+                        const hasGroup = chrome.tabGroups && tab.groupId !== chrome.tabs.TAB_ID_NONE && groupsCache[tab.groupId];
+                        
                         const link = {
                             url: tab.url, 
                             title: tab.title, 
@@ -2828,12 +2163,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                             windowId: tab.windowId,
                             workspaceId: tab.workspaceId,
                             sessionId,
-                            sessionLabel: `${timeString} - ${contextData.label}`
+                            sessionLabel: `${timeString} - ${contextData.label}`,
+                            // --- METADATEN-SERIALISIERUNG ---
+                            groupTitle: hasGroup ? groupsCache[tab.groupId].title : null,
+                            groupColor: hasGroup ? groupsCache[tab.groupId].color : null,
+                            groupOriginalId: tab.groupId !== chrome.tabs.TAB_ID_NONE ? tab.groupId : null
                         };
                         sessionLinks.push(link);
                         globalTabsToBackup.push(link);
                     }
-                });
+                }
 
                 if (sessionLinks.length > 0) {
                     sessionsToCreate.push(sessionLinks);
@@ -2927,34 +2266,55 @@ document.addEventListener('DOMContentLoaded', async () => {
         viewLinksBtn.addEventListener('click', async () => {
              const targetUrl = chrome.runtime.getURL('saved-links.html');
              
-             // 1. Get the current active tab to identify the CURRENT Workspace context
+             // Get currently active tab to know the context (Window & Workspace)
              const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
              const currentActiveTab = activeTabs[0];
 
              if (currentActiveTab) {
-                 // 2. Find existing saved-links tabs in the SAME WINDOW ID
-                 const existingTabs = await chrome.tabs.query({ url: targetUrl, windowId: currentActiveTab.windowId });
+                 // --- WILDCARD FIX START (Erkennt geöffnete Dashboards mit Hashtags) ---
+                 const existingTabs = await chrome.tabs.query({ url: targetUrl + '*', windowId: currentActiveTab.windowId });
+                 // --- WILDCARD FIX END ---
                  
-                 // 3. SMART FILTER: Check if it's in the SAME Workspace
-                 // Opera/Vivaldi share windowId across workspaces, but workspaceId differs.
+                 // SMART FILTER: Check if it's in the SAME Workspace
                  const tabInSameWorkspace = existingTabs.find(t => t.workspaceId === currentActiveTab.workspaceId);
                  
                  if (tabInSameWorkspace) {
-                     // Safe: Same visual context
+                     // Safe: Same visual context -> Focus it
                      await chrome.tabs.update(tabInSameWorkspace.id, { active: true });
                  } else {
-                     // Not found in THIS workspace -> Create new (prevents crash by not switching workspaces)
+                     // Not found in THIS workspace -> Create new
                      await chrome.tabs.create({ url: 'saved-links.html' });
                  }
              } else {
-                 // Fallback
+                 // Fallback if no active tab context found
                  await chrome.tabs.create({ url: 'saved-links.html' });
              }
         });
     }
     
     const optionsBtn = document.getElementById('optionsBtn');
-    if (optionsBtn) optionsBtn.addEventListener('click', () => chrome.runtime.openOptionsPage());
+    if (optionsBtn) {
+        optionsBtn.addEventListener('click', async () => {
+             const targetUrl = chrome.runtime.getURL('saved-links.html');
+             const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
+             const currentActiveTab = activeTabs[0];
+
+             if (currentActiveTab) {
+                 const existingTabs = await chrome.tabs.query({ url: targetUrl + '*', windowId: currentActiveTab.windowId });
+                 const tabInSameWorkspace = existingTabs.find(t => t.workspaceId === currentActiveTab.workspaceId);
+                 
+                 if (tabInSameWorkspace) {
+                     // Tab existiert bereits -> Fokus & Wechsle auf Settings-Hash!
+                     await chrome.tabs.update(tabInSameWorkspace.id, { url: targetUrl + '#settings', active: true });
+                 } else {
+                     // Tab existiert nicht -> Neu erstellen mit Hash
+                     await chrome.tabs.create({ url: 'saved-links.html#settings' });
+                 }
+             } else {
+                 await chrome.tabs.create({ url: 'saved-links.html#settings' });
+             }
+        });
+    }
 });
 --- END OF FILE src\popup.js ---
 
@@ -2975,89 +2335,277 @@ document.addEventListener('DOMContentLoaded', async () => {
   <script src="theme.js"></script>
 </head>
 <body class="page">
-  <div class="page-container">
-    <header>
-      <h1>
+  <div class="app-layout">
+    
+    <!-- SPALTE 1: DIE LINKE SEITENLEISTE (Premium Obsidian Zinc) -->
+    <aside class="sidebar-panel select-none">
+      <div class="sidebar-header">
         <img src="icon128.png" alt="LeanTabs Logo" class="logo-icon">
-        LeanTabs - Saved Links
-      </h1>
-      
-      <div class="header-controls">
-        <input type="text" id="searchInput" placeholder="Search saved tabs..." class="search-input">
-        <select id="categoryFilter" class="filter-select">
-          <option value="">All Categories</option>
-        </select>
-        <select id="windowFilter" class="filter-select">
-          <option value="">All Windows</option>
-        </select>
-        
-        <button id="goToSettingsBtn" class="btn btn-header-action" title="Open Settings" style="padding: 0 12px; margin-left: 8px;">
-            <svg class="icon-svg" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="sidebar-title">LeanTabs</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button id="nav-links-btn" class="nav-btn active">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+          <span>Saved Sessions</span>
         </button>
 
-        <div style="margin-left:auto; display: flex; gap: 8px;">
-          <button id="exportBtn" class="btn btn-header-action" title="Export ALL Sessions">Export All</button>
-          <button id="clearAllBtn" class="btn btn-header-action" title="Delete ALL Sessions">Delete All</button>
+        <button id="nav-settings-btn" class="nav-btn">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          <span>Settings & Whitelist</span>
+        </button>
+      </nav>
+
+      <!-- Sidebar Footer (Abwärtskompatible Links) -->
+      <div class="sidebar-footer">
+        <a id="aboutLink" href="#" class="sidebar-link">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+          About
+        </a>
+        <a id="kofiLink" href="#" class="sidebar-link kofi-link">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path><line x1="6" y1="1" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line></svg>
+          Support me
+        </a>
+      </div>
+    </aside>
+
+    <!-- WORKSPACE PANEL (Rechte Hauptfläche) -->
+    <main class="workspace-container">
+      
+      <!-- ANSICHT 1: SAVED SESSIONS (Das originale Dashboard) -->
+      <div id="linksViewContainer" class="view-panel">
+        <header>
+          <h1>LeanTabs - Saved Links</h1>
+          <div class="header-controls">
+            <input type="text" id="searchInput" placeholder="Search saved tabs..." class="search-input">
+            <select id="categoryFilter" class="filter-select">
+              <option value="">All Categories</option>
+            </select>
+            <select id="windowFilter" class="filter-select">
+              <option value="">All Windows</option>
+            </select>
+            
+            <div style="margin-left:auto; display: flex; gap: 8px;">
+              <button id="exportBtn" class="btn btn-header-action" title="Export ALL Sessions">Export All</button>
+              <button id="clearAllBtn" class="btn btn-header-action" title="Delete ALL Sessions">Delete All</button>
+            </div>
+          </div>
+        </header>
+
+        <div class="stats-bar">
+          <div class="stats-left">
+            <span>Total: <strong id="totalCount" class="stat-highlight">0</strong></span>
+            <span class="stat-divider">|</span>
+            <span>Filtered: <strong id="filteredCount" class="stat-highlight">0</strong></span>
+            <span class="stat-divider">|</span>
+            <span>Sessions: <strong id="sessionCount" class="stat-highlight">0</strong></span>
+            <span id="selectedInfo" class="selection-info-inline hidden" style="margin-left: 15px;">
+              <strong id="selectionCount">0</strong> selected
+            </span>
+          </div>
+          <div class="stats-right">
+            <button id="createSessionBtn" class="btn-toggle-pill" title="Create a new empty session">
+              <span class="icon" style="font-weight:800; font-size:14px; color:var(--primary);">+</span> New Session
+            </button>
+            <button id="toggleAllBtn" class="btn-toggle-pill">
+              <span class="icon">▼</span> Collapse All
+            </button>
+          </div>
+        </div>
+
+        <div id="linksContainer" class="links-container">
+          <p class="empty-state">No links saved yet. Use the "Run Tab Clean" function!</p>
         </div>
       </div>
-    </header>
 
-    <div class="stats-bar">
-      <div class="stats-left">
-        <span>Total: <strong id="totalCount" class="stat-highlight">0</strong></span>
-        <span class="stat-divider">|</span>
-        <span>Filtered: <strong id="filteredCount" class="stat-highlight">0</strong></span>
-        <span class="stat-divider">|</span>
-        <span>Sessions: <strong id="sessionCount" class="stat-highlight">0</strong></span>
-        
-        <span id="selectedInfo" class="selection-info-inline hidden" style="margin-left: 15px;">
-          <strong id="selectionCount">0</strong> selected
-        </span>
+      <!-- ANSICHT 2: SETTINGS (Die vollständig unifizierte Einstellungsseite) -->
+      <div id="settingsViewContainer" class="view-panel hidden">
+        <header style="margin-bottom: 24px;">
+          <h1 style="font-size: 24px;">Settings & Whitelist</h1>
+          <p class="description" style="margin-top: 4px;">Configure cleaning rules, whitelist domains, and manage automatic backups.</p>
+        </header>
+
+        <!-- Whitelist Section -->
+        <section class="settings-section">
+          <h2>
+            <svg class="icon-lg" style="color:var(--primary);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Whitelist (Protected Tabs)
+          </h2>
+          <p class="description">Tabs from these domains are protected during 'Run Tab Clean'.</p>
+          <div style="display:flex; gap:10px; margin-bottom:15px;">
+            <input type="text" id="whitelistInput" placeholder="e.g. gmail.com" class="search-input" style="flex:1;">
+            <button id="addWhitelistBtn" class="btn btn-primary" style="padding: 0 20px;">Add Domain</button>
+          </div>
+          <div id="whitelistContainer" class="whitelist-container"></div>
+        </section>
+
+        <!-- Behavior Section -->
+        <section class="settings-section">
+          <h2>
+            <svg class="icon-lg" style="color:var(--primary);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
+            Behavior
+          </h2>
+          <span class="settings-group-title">Cleaning Logic</span>
+          <div style="margin-bottom: 12px;">
+            <label style="display:flex; align-items:center; gap:12px; margin-bottom:4px;">
+              <span style="font-weight:600; font-size:12px;">Keep last tabs:</span>
+              <input type="number" id="keepTabsInput" min="1" max="20" class="search-input" style="width:60px; padding:4px;">
+            </label>
+            <span class="checkbox-note" style="margin-left:0;">Number of tabs to leave open in active window.</span>
+          </div>
+          <label class="checkbox-label">
+            <input type="checkbox" id="cleanAllWorkspacesCheck" class="master-checkbox">
+            <span>Set "Global Clean" as default option</span>
+          </label>
+          <span class="checkbox-note">Pre-selects 'Global' in popup menu.</span>
+
+          <span class="settings-group-title">Interface & Experience</span>
+          <label class="checkbox-label">
+            <input type="checkbox" id="darkModeCheck" class="master-checkbox">
+            <span>Enable Dark Mode</span>
+          </label>
+          <span class="checkbox-note">Switch between Light and Dark theme.</span>
+          <label class="checkbox-label">
+            <input type="checkbox" id="sessionsDefaultCollapsedCheck" class="master-checkbox">
+            <span>Show sessions collapsed by default</span>
+          </label>
+          <span class="checkbox-note">Keeps your dashboard compact.</span>
+          <label class="checkbox-label">
+            <input type="checkbox" id="confirmCheck" class="master-checkbox">
+            <span>Confirmation before closing</span>
+          </label>
+          <span class="checkbox-note">Shows a summary before deleting tabs.</span>
+          <label class="checkbox-label">
+            <input type="checkbox" id="enableRatingsCheck" class="master-checkbox">
+            <span>Enable link ratings</span>
+          </label>
+          <span class="checkbox-note">Shows 1-3 star rating controls on saved links.</span>
+
+
+          <span class="settings-group-title">Safety & Restoration</span>
+          <label class="checkbox-label">
+            <input type="checkbox" id="autoBackupCheck" class="master-checkbox">
+            <span>Create automatic backups</span>
+          </label>
+          <span class="checkbox-note">Saves a JSON snapshot of every clean.</span>
+          <label class="checkbox-label">
+            <input type="checkbox" id="restoreWindowStructureCheck" class="master-checkbox">
+            <span>Restore window structure</span>
+          </label>
+          <span class="checkbox-note">Opens tabs in separate windows as originally saved.</span>
+          <label class="checkbox-label">
+            <input type="checkbox" id="deleteAfterRestoreCheck" class="master-checkbox">
+            <span>Auto-delete sessions after restore</span>
+          </label>
+          <span class="checkbox-note">Removes the tile from dashboard after you restore it.</span>
+        </section>
+
+        <!-- Data & Backup Section -->
+        <section class="settings-section">
+          <h2>
+            <svg class="icon-lg" style="color:var(--primary);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
+            Data Management & Backups
+          </h2>
+          <label class="checkbox-label" style="margin-bottom: 20px;">
+            <input type="checkbox" id="smartImportCheck" class="master-checkbox">
+            <span>Enable Smart Import Filtering</span>
+          </label>
+          <span class="checkbox-note" style="margin-top: -16px; margin-bottom: 20px;">Analyzes imported files for duplicates.</span>
+
+          <div style="display:flex; gap:12px; margin-bottom:8px;">
+            <button id="exportDataBtn" class="btn btn-secondary">Full System Backup</button>
+            <button id="importDataBtn" class="btn btn-primary">Import Data</button>
+            <input type="file" id="importFileInput" accept=".json" style="display: none;">
+          </div>
+          <p class="description" style="margin-bottom: 20px;">Creates a complete archive (.json) including sessions, whitelist, and history.</p>
+
+          <div id="backupList">
+            <h3 style="font-size:12px; margin-bottom:12px; color:var(--text-muted);">Auto-Backups (Last 50 cleans)</h3>
+            <div id="backupContainer"></div>
+          </div>
+        </section>
+
+        <!-- Pro Tips & Shortcuts Section -->
+        <section class="settings-section">
+          <h2>
+            <svg class="icon-lg" style="color:var(--primary);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 14a1 1 0 1 1 1-1 1 1 0 0 1-1 1zm1-4a1 1 0 0 0-2 0v-4a1 1 0 0 1 2 0z"/></svg>
+            Pro Tips & Shortcuts
+          </h2>
+          
+          <div class="tips-grid">
+            <div class="tip-card">
+              <span class="tip-title">Keyboard Shortcuts</span>
+              
+              <div class="shortcut-row">
+                <span>Clean & <b>S</b>ave:</span>
+                <span class="kbd-group"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd></span>
+              </div>
+              <span class="shortcut-desc">Standard clean. Saves tabs and frees memory.</span>
+              
+              <div class="shortcut-row">
+                <span>Dashboard (<b>L</b>inks):</span>
+                <span class="kbd-group"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>L</kbd></span>
+              </div>
+              <span class="shortcut-desc">Opens your saved sessions library.</span>
+
+              <div class="shortcut-row">
+                <span>Reset (<b>K</b>ill All):</span>
+                <span class="kbd-group"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>K</kbd></span>
+              </div>
+              <span class="shortcut-desc" style="color:var(--danger);">Kills tabs in the Active Window only (ignores Scope settings). No saving.</span>
+
+              <p class="tip-desc" style="margin-top:16px;">Shortcuts can be customized in your browser's <a href="#" id="shortcutsLink" style="color:var(--primary); text-decoration:none; cursor:pointer;">extension settings</a>.</p>
+            </div>
+
+            <div class="tip-card">
+              <span class="tip-title">Context Menu</span>
+              <p class="tip-desc">
+                Right-click on any page or link to verify options:
+                <br>• <strong>Quick Save:</strong> Adds directly to today's list.
+                <br>• <strong>New Session:</strong> Creates a fresh session.
+                <br>• <strong>Pinned:</strong> Save directly to your pinned sessions.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Save Sticky Bar -->
+        <div class="save-bar" style="position: relative; bottom: 0; margin-top: 24px;">
+          <span id="saveStatus" class="save-status"></span>
+          <button id="saveBtn" class="btn btn-success">Save Settings</button>
+        </div>
       </div>
-      
-      <div class="stats-right">
-        <button id="createSessionBtn" class="btn-toggle-pill" title="Create a new empty session">
-          <span class="icon" style="font-weight:800; font-size:14px; color:var(--primary);">+</span> New Session
-        </button>
-        
-        <button id="toggleAllBtn" class="btn-toggle-pill">
-          <span class="icon">▼</span> Collapse All
-        </button>
-      </div>
-    </div>
-
-    <div id="linksContainer" class="links-container">
-      <p class="empty-state">No links saved yet. Use the "Run Tab Clean" function!</p>
-    </div>
-
-    <!-- UPDATED FOOTER -->
-    <div class="footer-link">
-      <a id="aboutLink" href="#" style="cursor: pointer;">
-        <svg style="width:16px; height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
-        About LeanTabs
-      </a>
-      <span style="color:var(--border-color);">|</span>
-      <a id="kofiLink" href="#" class="kofi-link" style="cursor: pointer;">
-        <svg style="width:16px; height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path><line x1="6" y1="1" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line></svg>
-        Support
-      </a>
-    </div>
+    </main>
 
   </div>
 
   <div id="customModal" class="modal-overlay hidden">
-    <div class="modal-content">
+    <div class="modal-content" style="position: relative;">
       <h3 id="modalTitle" class="modal-title">Confirm Action</h3>
+      
+      <!-- NEU: Radiergummi-Schaltfläche (Nur im Notiz-Modus sichtbar, absolute Position oben rechts) -->
+      <button id="modalEraserBtn" class="btn-icon" style="display: none; position: absolute !important; top: 16px !important; right: 16px !important;" title="Clear Note">
+        <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><path d="m20 20-5-5M16 20l-5-5M12 20H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h12l5 5-9 9Z"></path><path d="m18 12-8-8a2.119 2.119 0 1 0-3 3l8 8"></path></svg>
+      </button>
+
       <div id="modalMessage" class="modal-text"></div>
       
       <input type="text" id="modalInput" class="modal-input" placeholder="Enter text...">
       
+      <!-- NEU: Mehrzeilige Textarea für die Post-It Notizen (Zustandshaltend) -->
+      <textarea id="modalTextarea" class="modal-input" placeholder="Enter notes..." style="display:none; resize:none; height: 120px; font-family: inherit; font-size: 13px; box-sizing: border-box; padding: 10px; border-radius: 8px;"></textarea>
+      
       <select id="modalSelect" class="modal-input" style="display:none; cursor:pointer;">
       </select>
 
-      <div id="modalActions" class="modal-actions">
-      </div>
+      <div id="modalActions" class="modal-actions"></div>
     </div>
+  </div>
+
+  <!-- LP UNDO TOAST -->
+  <div id="lp-undo-toast" class="lp-undo-toast hidden">
+    <span id="lp-undo-text" style="font-size: 13px; font-weight: 500;">Link deleted</span>
+    <button id="lp-undo-btn" style="all: unset !important; cursor: pointer !important; font-weight: 700 !important; color: var(--primary) !important; font-size: 13px !important; text-transform: uppercase !important; letter-spacing: 0.5px !important;">Undo</button>
   </div>
 
   <script type="module" src="saved-links.js"></script>
@@ -3074,8 +2622,8 @@ document.addEventListener('DOMContentLoaded', async () => {
  */
 
 // --- START OF saved-links.js (Final: Smart Import Refresh & UI State Sync) ---
-import { getLinks, saveLinks, getSettings, saveSettings, getWhitelist, saveWhitelist } from './modules/storage.js';
-import { deleteSession, renameSession, togglePinSession, bumpSession } from './modules/sessions.js';
+import { getLinks, saveLinks, getSettings, saveSettings, getWhitelist, saveWhitelist, getBackups, saveBackups } from './modules/storage.js';
+import { deleteSession, renameSession, togglePinSession, bumpSession, toggleLockSession } from './modules/sessions.js';
 import { extractDomain } from './modules/categorizer.js';
 import { setRating } from './modules/ratings.js';
 
@@ -3089,6 +2637,9 @@ let visibleLimit = 100;
 
 // In-memory sort state: sessionId -> sortType ('date', 'rating', 'alphabetical', 'opens')
 let sessionSortStates = {}; 
+
+let lpActiveUndoData = null; // In-Memory Puffer
+let lpUndoTimeout = null;
 
 // Track background updates to refresh UI upon visibility
 let hasPendingUpdate = false;
@@ -3108,7 +2659,9 @@ const ICONS = {
   pin: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.4 14.6L17 10.2V4h2V2H5v2h2v6.2l-4.4 4.4v2h8v6l1 2 1-2v-6h8v-2z"/></svg>',
   box: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>',
   move: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M5 9l7-7 7 7"/><path d="M12 2v14"/><path d="M19 15v6H5v-6"/></svg>',
-  arrowUp: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  arrowUp: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  note: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-linecap="round" stroke-linejoin="round"></path><polyline points="14 2 14 8 20 8" stroke-linecap="round" stroke-linejoin="round"></polyline><line x1="16" y1="13" x2="8" y2="13" stroke-linecap="round" stroke-linejoin="round"></line><line x1="16" y1="17" x2="8" y2="17" stroke-linecap="round" stroke-linejoin="round"></line><polyline points="10 9 9 9 8 9" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>',
+  fallbackFavicon: '<svg class="icon-svg favicon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-linecap="round" stroke-linejoin="round"></path><polyline points="14 2 14 8 20 8" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>'
 };
 
 // Listener for live theme changes
@@ -3149,6 +2702,8 @@ function showCustomModal(title, message, buttons, inputConfig = null) {
     const actionsEl = document.getElementById('modalActions');
     const inputEl = document.getElementById('modalInput');
     const selectEl = document.getElementById('modalSelect');
+    const textareaEl = document.getElementById('modalTextarea');
+    const eraserBtn = document.getElementById('modalEraserBtn'); // NEU
 
     titleEl.textContent = title;
     msgEl.textContent = message;
@@ -3159,10 +2714,39 @@ function showCustomModal(title, message, buttons, inputConfig = null) {
     selectEl.style.display = 'none';
     inputEl.value = '';
     selectEl.innerHTML = '';
+    if (eraserBtn) eraserBtn.style.display = 'none'; // Standardmäßig ausblenden
+    if (textareaEl) {
+        textareaEl.style.display = 'none';
+        textareaEl.value = '';
+    }
 
-    // Handle Input/Select Logic
+    // Handle Input/Select/Textarea Logic
     if (inputConfig) {
-        if (inputConfig.type === 'select') {
+        if (inputConfig.type === 'textarea') {
+            // POST-IT MODUS AKTIVIEREN
+            if (textareaEl) {
+                textareaEl.style.display = 'block';
+                textareaEl.value = inputConfig.defaultValue || '';
+                textareaEl.placeholder = inputConfig.placeholder || '';
+                
+                // Schwebendes Post-It-Farbschema (Bernstein-Glow)
+                textareaEl.style.backgroundColor = 'rgba(251, 191, 36, 0.05)';
+                textareaEl.style.borderColor = 'rgba(251, 191, 36, 0.3)';
+                textareaEl.style.color = 'var(--text-main)';
+                
+                // Einblenden und Klick-Event für den Radiergummi registrieren
+                if (eraserBtn) {
+                    eraserBtn.style.display = 'block';
+                    eraserBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        textareaEl.value = ''; // Inhalt leeren
+                        textareaEl.focus();    // Fokus zurücksetzen
+                    };
+                }
+                
+                setTimeout(() => textareaEl.focus(), 100);
+            }
+        } else if (inputConfig.type === 'select') {
             // SELECT MODE
             selectEl.style.display = 'block';
             
@@ -3194,7 +2778,9 @@ function showCustomModal(title, message, buttons, inputConfig = null) {
         let valueToReturn = btnConfig.value;
         
         if (btnConfig.value === true && inputConfig) {
-            if (inputConfig.type === 'select') {
+            if (inputConfig.type === 'textarea') {
+                valueToReturn = textareaEl ? textareaEl.value : ''; // Wert aus der Textarea lesen
+            } else if (inputConfig.type === 'select') {
                 valueToReturn = selectEl.value;
             } else {
                 valueToReturn = inputEl.value;
@@ -3207,8 +2793,8 @@ function showCustomModal(title, message, buttons, inputConfig = null) {
       actionsEl.appendChild(btn);
     });
 
-    // Handle Enter key for Input
-    if (inputConfig && inputConfig.type !== 'select') {
+    // Handle Enter key for Input (excluding textarea to allow line breaks)
+    if (inputConfig && inputConfig.type !== 'select' && inputConfig.type !== 'textarea') {
         inputEl.onkeydown = (e) => {
             if (e.key === 'Enter') {
                  const confirmBtn = buttons.find(b => b.value === true);
@@ -3243,6 +2829,18 @@ async function fetchTitleFromUrl(url) {
 async function loadLinks() {
   allLinks = await getLinks();
   const settings = await getSettings();
+  
+  // --- CONFIG-WEICHE FÜR STERNE START ---
+  const enableRatings = settings.enableRatings !== false; // Default: true (aktiviert)
+  const container = document.getElementById('linksContainer');
+  if (container) {
+      if (enableRatings) {
+          container.classList.remove('ratings-disabled');
+      } else {
+          container.classList.add('ratings-disabled');
+      }
+  }
+  // --- CONFIG-WEICHE FÜR STERNE END ---
   
   let needsSave = false;
   allLinks.forEach((link, index) => {
@@ -3467,7 +3065,8 @@ function renderLinks() {
   sessionsToRender.forEach(([sessionId, session]) => {
     const sessionSection = document.createElement('div');
     const isPinned = session.links[0].isPinned || false;
-    sessionSection.className = `session-section ${isPinned ? 'pinned' : ''}`; 
+    const isLocked = session.links[0].isLocked || false;
+    sessionSection.className = `session-section ${isPinned ? 'pinned' : ''} ${isLocked ? 'is-locked-panel' : ''}`; 
     
     sessionSection.addEventListener('click', () => {
       sessionSection.classList.add('active');
@@ -3506,7 +3105,10 @@ function renderLinks() {
     masterCheckbox.className = 'master-checkbox';
     masterCheckbox.name = `session-select-${sessionId}`; 
     masterCheckbox.dataset.sessionId = sessionId;
-    masterCheckbox.title = 'Select all';
+    masterCheckbox.title = isLocked ? 'Session is locked' : 'Select all';
+    if (isLocked) {
+        masterCheckbox.disabled = true; // Sperre die Master-Checkbox
+    }
     
     const dateBadge = document.createElement('span');
     dateBadge.className = 'session-date-badge';
@@ -3525,6 +3127,7 @@ function renderLinks() {
     
     headerText.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (isLocked) return; // Gesperrte Titel können nicht editiert werden
       if (document.activeElement !== headerText) {
         headerText.dataset.originalText = headerText.textContent; 
         headerText.contentEditable = 'true';
@@ -3611,10 +3214,10 @@ function renderLinks() {
     sortSelect.title = 'Sort links';
     
     const sortOptions = [
-      { value: 'date', text: '📅 Date' },
-      { value: 'rating', text: '⭐ Rating' },
-      { value: 'alphabetical', text: '🔤 A-Z' },
-      { value: 'opens', text: '🔥 Most Opened' }
+      { value: 'date', text: 'Date' },
+      { value: 'rating', text: 'Rating' },
+      { value: 'alphabetical', text: 'A-Z' },
+      { value: 'opens', text: 'Most Opened' }
     ];
     
     const currentSort = sessionSortStates[sessionId] || 'date';
@@ -3695,6 +3298,12 @@ function renderLinks() {
     deleteSessionBtn.innerHTML = `${ICONS.trash} Delete Session`;
     deleteSessionBtn.dataset.sessionId = sessionId;
     deleteSessionBtn.title = 'Delete Session';
+    if (isLocked) {
+        deleteSessionBtn.disabled = true;
+        deleteSessionBtn.style.opacity = '0.4';
+        deleteSessionBtn.style.cursor = 'not-allowed';
+        deleteSessionBtn.title = "Session is locked";
+    }
 
     dropdownMenu.appendChild(replaceSessionBtn);
     dropdownMenu.appendChild(downloadSessionBtn);
@@ -3705,6 +3314,14 @@ function renderLinks() {
     dropdownDiv.appendChild(dropdownToggleBtn);
     dropdownDiv.appendChild(dropdownMenu);
     
+    const lockSessionBtn = document.createElement('button');
+    lockSessionBtn.className = `btn-session btn-lock ${isLocked ? 'active' : ''}`;
+    lockSessionBtn.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
+    lockSessionBtn.dataset.sessionId = sessionId;
+    lockSessionBtn.dataset.action = 'toggleLock';
+    lockSessionBtn.title = isLocked ? 'Unlock Session' : 'Lock/Freeze Session';
+
+    sessionActions.appendChild(lockSessionBtn);
     sessionActions.appendChild(sortSelect);
     sessionActions.appendChild(restoreSessionBtn);
     sessionActions.appendChild(dropdownDiv);
@@ -3714,7 +3331,8 @@ function renderLinks() {
     sessionSection.appendChild(sessionHeader);
     
     const linksList = document.createElement('div');
-    linksList.className = 'links-list';
+    // Weiche: Nur bei mehr als 5 Links wird die Kachel scrollbar (verhindert Dropdown-Clipping)
+    linksList.className = `links-list ${session.links.length > 5 ? 'has-scrollbar' : ''}`;
     linksList.dataset.sessionId = sessionId;
     
     if (isCollapsed) {
@@ -3724,8 +3342,8 @@ function renderLinks() {
     const addLinkArea = document.createElement('div');
     addLinkArea.className = 'add-link-area';
     addLinkArea.innerHTML = `
-        <input type="text" class="add-link-input" placeholder="Paste URL to add..." data-session-id="${sessionId}">
-        <button class="btn btn-primary btn-sm btn-add-link" data-session-id="${sessionId}">Add Link</button>
+        <input type="text" class="add-link-input" placeholder="${isLocked ? 'Session is locked...' : 'Paste URL to add...'}" data-session-id="${sessionId}" ${isLocked ? 'disabled' : ''}>
+        <button class="btn btn-primary btn-sm btn-add-link" data-session-id="${sessionId}" ${isLocked ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>Add Link</button>
     `;
     linksList.appendChild(addLinkArea);
     
@@ -3801,7 +3419,6 @@ function createLinkElement(link) {
 
   const div = document.createElement('div');
   div.className = 'link-item';
-  div.setAttribute('draggable', 'true');
 
   const linkKey = getLinkKey(link);
   const isSelected = selectedLinks.has(linkKey);
@@ -3812,6 +3429,15 @@ function createLinkElement(link) {
   checkbox.className = 'link-checkbox';
   checkbox.dataset.linkKey = linkKey; 
   if (isSelected) checkbox.checked = true;
+
+  const isSessionLocked = link.isLocked || false;
+  if (isSessionLocked) {
+      checkbox.disabled = true;
+      div.setAttribute('draggable', 'false');
+      div.style.cursor = 'default';
+  } else {
+      div.setAttribute('draggable', 'true');
+  }
 
   const linkInfo = document.createElement('div');
   linkInfo.className = 'link-info';
@@ -3826,10 +3452,10 @@ function createLinkElement(link) {
       img.onerror = () => { img.style.display = 'none'; }; 
       linkHeader.appendChild(img);
   } else {
-      const fallback = document.createElement('span');
-      fallback.style.fontSize = '14px';
-      fallback.textContent = '📄';
-      linkHeader.appendChild(fallback);
+      const fallbackContainer = document.createElement('div');
+      fallbackContainer.style.cssText = 'display: flex !important; align-items: center !important; justify-content: center !important; flex-shrink: 0 !important; width: 14px !important; height: 14px !important;';
+      fallbackContainer.innerHTML = ICONS.fallbackFavicon;
+      linkHeader.appendChild(fallbackContainer);
   }
 
   const linkTitle = document.createElement('a');
@@ -3846,6 +3472,16 @@ function createLinkElement(link) {
   });
   
   linkHeader.appendChild(linkTitle);
+
+  // --- DYNAMISCHER SIGNAL-INDICATOR START ---
+  if (link.note && link.note.trim() !== "") {
+      const noteIndicator = document.createElement('span');
+      noteIndicator.className = 'link-note-indicator';
+      noteIndicator.innerHTML = ICONS.note; // Ersetzt das Emoij '📝' durch unseren sauberen SVG-Pfad!
+      noteIndicator.title = link.note; // Hover-Vorschau bleibt erhalten
+      linkHeader.appendChild(noteIndicator);
+  }
+  // --- DYNAMISCHER SIGNAL-INDICATOR END ---
 
   // Rating Rendering
   const rating = link.rating || 0;
@@ -3964,6 +3600,17 @@ function createLinkElement(link) {
   const dropdownMenu = document.createElement('div');
   dropdownMenu.className = 'link-dropdown-menu';
 
+  // Edit Note button inside dropdown
+  const noteItemBtn = createBtn(ICONS.tag, 'btn-link-note', 'Add/Edit Note', { url: link.url, timestamp: link.timestamp });
+  noteItemBtn.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24" style="width: 13px; height: 13px; color: var(--primary);"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> <span>Edit Note</span>';
+  noteItemBtn.className = 'link-dropdown-item btn-link-note';
+  if (isSessionLocked) {
+      noteItemBtn.disabled = true;
+      noteItemBtn.style.opacity = '0.4';
+      noteItemBtn.style.cursor = 'not-allowed';
+      noteItemBtn.title = "Session is locked";
+  }
+
   // Whitelist item inside dropdown
   const whitelistItemBtn = createBtn(ICONS.shield, 'btn-link-whitelist', 'Add to Whitelist', { url: link.url });
   whitelistItemBtn.innerHTML = `${ICONS.shield} <span>Whitelist</span>`;
@@ -3974,6 +3621,7 @@ function createLinkElement(link) {
   categoryItemBtn.innerHTML = `${ICONS.tag} <span>Edit Category</span>`;
   categoryItemBtn.className = 'link-dropdown-item btn-link-category';
 
+  dropdownMenu.appendChild(noteItemBtn);
   dropdownMenu.appendChild(whitelistItemBtn);
   dropdownMenu.appendChild(categoryItemBtn);
 
@@ -3981,7 +3629,14 @@ function createLinkElement(link) {
   dropdownDiv.appendChild(dropdownMenu);
 
   linkActions.appendChild(createBtn(ICONS.link, 'btn-link-open', 'Open Tab', { action: 'open', url: link.url }));
-  linkActions.appendChild(createBtn(ICONS.trash, 'btn-link-delete', 'Delete', { action: 'delete', url: link.url, timestamp: link.timestamp }));
+  
+  const trashBtn = createBtn(ICONS.trash, 'btn-link-delete', isSessionLocked ? 'Session is locked' : 'Delete', { action: 'delete', url: link.url, timestamp: link.timestamp });
+  if (isSessionLocked) {
+      trashBtn.disabled = true;
+      trashBtn.style.opacity = '0.3';
+      trashBtn.style.cursor = 'not-allowed';
+  }
+  linkActions.appendChild(trashBtn);
   linkActions.appendChild(dropdownDiv);
 
   div.appendChild(checkbox);
@@ -4069,7 +3724,7 @@ document.getElementById('linksContainer').addEventListener('change', (e) => {
   }
 });
 
-document.getElementById('goToSettingsBtn').addEventListener('click', () => {
+document.getElementById('goToSettingsBtn')?.addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
 });
 
@@ -4089,6 +3744,14 @@ if (kofiLink) {
 }
 
 document.getElementById('linksContainer').addEventListener('click', async (e) => {
+  if (e.target.closest('[data-action="toggleLock"]')) {
+    e.stopPropagation();
+    const btn = e.target.closest('[data-action="toggleLock"]');
+    const sessionId = btn.dataset.sessionId;
+    await toggleLockSession(sessionId);
+    await loadLinks();
+    return;
+  }
   if (e.target.closest('.btn-add-link')) {
     e.stopImmediatePropagation();
     const btn = e.target.closest('.btn-add-link');
@@ -4234,11 +3897,57 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
     }
     return;
   }
+  if (e.target.closest('.btn-link-note')) {
+    e.stopImmediatePropagation();
+    const btn = e.target.closest('.btn-link-note');
+    const url = btn.dataset.url;
+    const timestamp = btn.dataset.timestamp;
+    
+    allLinks = await getLinks();
+    const linkToUpdate = allLinks.find(l => l.url === url && l.timestamp === timestamp);
+    
+    if (linkToUpdate) {
+      if (linkToUpdate.isLocked) {
+          return; // Safety guard: do not edit notes of locked links
+      }
+      const currentNote = linkToUpdate.note || "";
+      
+      // Wir nutzen das erweiterte showCustomModal im 'textarea' Post-It-Modus!
+      const newNote = await showCustomModal(
+          "Link Notes", 
+          "Add, edit, or delete notes for this link:", 
+          [
+              { text: "Cancel", value: null, class: "btn-modal-cancel" },
+              { text: "Save Note", value: true, class: "btn-modal-confirm" }
+          ],
+          { type: 'textarea', defaultValue: currentNote, placeholder: "Type your notes here... (Supports multiple lines)" }
+      );
+      
+      if (newNote !== null) {
+        allLinks.forEach(l => {
+          if (l.url === url && l.timestamp === timestamp) {
+              l.note = newNote.trim();
+          }
+        });
+        await saveLinks(allLinks);
+        await loadLinks(); // UI Refresh
+      }
+    }
+    return;
+  }
   if (e.target.closest('.btn-link-delete')) {
     e.stopImmediatePropagation();
     const btn = e.target.closest('.btn-link-delete');
     const url = btn.dataset.url;
     const timestamp = btn.dataset.timestamp;
+
+    // Safety check: is parent session locked?
+    allLinks = await getLinks();
+    const targetLink = allLinks.find(link => link.url === url && link.timestamp === timestamp);
+    if (targetLink && targetLink.isLocked) {
+        return; // Do not delete locked links
+    }
+
     const settings = await getSettings();
     
     if (settings.confirmBeforeClose !== false) {
@@ -4255,9 +3964,18 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
     allLinks = await getLinks();
     const indexToDelete = allLinks.findIndex(link => link.url === url && link.timestamp === timestamp);
     if (indexToDelete !== -1) {
+      // Sichern vor Mutation
+      lpActiveUndoData = {
+        type: 'link',
+        index: indexToDelete,
+        data: { ...allLinks[indexToDelete] } // Flache Kopie
+      };
+
       allLinks.splice(indexToDelete, 1);
       await saveLinks(allLinks);
-      await loadLinks();
+      await loadLinks(); // UI Update
+
+      showLpUndoToast("Link deleted");
     }
     return;
   }
@@ -4342,7 +4060,7 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
     const selectedInSession = sessionLinks.filter(link => selectedLinks.has(getLinkKey(link)));
     if (selectedInSession.length === 0) return;
     const sessionOptions = [];
-    sessionOptions.push({ value: 'NEW_SESSION_AUTO', text: '✨ Create New Session' });
+    sessionOptions.push({ value: 'NEW_SESSION_AUTO', text: 'Create New Session' });
     const processedSessionIds = new Set();
     allLinks.forEach(link => {
         const sId = link.sessionId || `${link.dateGroup}-${link.timestamp}`;
@@ -4406,6 +4124,12 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
     const sessionId = btn.dataset.sessionId;
     const selectedInSession = allLinks.filter(link => selectedLinks.has(getLinkKey(link)));
     if (selectedInSession.length === 0) return;
+
+    // Safety check: is parent session locked?
+    const isLocked = selectedInSession.some(link => link.isLocked);
+    if (isLocked) {
+        return; // Do not delete locked links
+    }
     const settings = await getSettings();
     if (settings.confirmBeforeClose !== false) {
         const confirmed = await showCustomModal("Delete Selected", `Really delete ${selectedInSession.length} selected link(s)?\nThis cannot be undone.`, [{ text: "Cancel", value: false, class: "btn-modal-cancel" }, { text: "Delete All", value: true, class: "btn-modal-danger" }]);
@@ -4492,7 +4216,50 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
              }
           }
       } else {
-          for (const link of sessionLinks) await chrome.tabs.create({ url: link.url, active: false });
+          // --- UNFALLFREIE GRUPPEN-REKONSTRUKTION START ---
+          const createdTabsByGroup = {}; // groupOriginalId -> [tabId, tabId]
+          const groupMetadata = {};      // groupOriginalId -> { title, color }
+
+          for (const link of sessionLinks) {
+              try {
+                  const createdTab = await chrome.tabs.create({ url: link.url, active: false });
+                  
+                  // Hat der Link eine gespeicherte Gruppen-Zugehörigkeit?
+                  if (link.groupOriginalId !== undefined && link.groupOriginalId !== null && link.groupTitle) {
+                      const gId = link.groupOriginalId;
+                      if (!createdTabsByGroup[gId]) {
+                          createdTabsByGroup[gId] = [];
+                          groupMetadata[gId] = { title: link.groupTitle, color: link.groupColor };
+                      }
+                      createdTabsByGroup[gId].push(createdTab.id);
+                  }
+              } catch (tabCreateError) {
+                  console.error("Failed to restore single tab:", tabCreateError);
+              }
+          }
+
+          // Nach dem Öffnen alle Tabs gruppieren
+          for (const [gId, tabIds] of Object.entries(createdTabsByGroup)) {
+              if (tabIds.length > 0) {
+                  try {
+                      // Bündele die Tabs im aktuellen Fenster zu einer neuen Gruppe
+                      const newGroupId = await chrome.tabs.group({ tabIds });
+                      const meta = groupMetadata[gId];
+                      
+                      // Titel und Farbe der Gruppe rekonstruieren
+                      if (meta && chrome.tabGroups) {
+                          await chrome.tabGroups.update(newGroupId, {
+                              title: meta.title,
+                              color: meta.color
+                          });
+                      }
+                  } catch (groupError) {
+                      // Silent Fallback: Schützt Vivaldi/Opera vor Abstürzen, falls die Group-API blockiert
+                      console.log("Tab grouping not supported or failed on this window:", groupError.message);
+                  }
+              }
+          }
+          // --- UNFALLFREIE GRUPPEN-REKONSTRUKTION ENDE ---
       }
       if (isReplace && oldTabsIds.length > 0) await chrome.tabs.remove(oldTabsIds);
       if (settings.deleteAfterRestore) {
@@ -4506,13 +4273,48 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
     e.stopImmediatePropagation();
     const btn = e.target.closest('.btn-session.btn-delete');
     const sessionId = btn.dataset.sessionId;
+
+    // Safety check: is session locked?
+    allLinks = await getLinks();
+    const sessionLinks = allLinks.filter(link => {
+      const linkSessionId = link.sessionId || `${link.dateGroup}-${link.timestamp}`;
+      return linkSessionId === sessionId;
+    });
+    const isLocked = sessionLinks.some(link => link.isLocked);
+    if (isLocked) {
+        return; // Do not delete locked session
+    }
+
     const settings = await getSettings();
     if (settings.confirmBeforeClose !== false) {
         const confirmed = await showCustomModal("Delete Session", "Really delete all links from this session?\nThis action cannot be undone.", [{ text: "Cancel", value: false, class: "btn-modal-cancel" }, { text: "Delete Session", value: true, class: "btn-modal-danger" }]);
         if (!confirmed) return;
     }
-    await deleteSession(sessionId);
-    await loadLinks();
+
+    // --- DEFENSIRE SESSION-UNDO INJEKTION START ---
+    allLinks = await getLinks();
+    const indicesAndLinks = [];
+    
+    // Ermittle alle Links dieser Session und sichere ihre Indizes chronologisch
+    allLinks.forEach((link, idx) => {
+        const linkSessionId = link.sessionId || `${link.dateGroup}-${link.timestamp}`;
+        if (linkSessionId === sessionId) {
+            indicesAndLinks.push({ index: idx, data: { ...link } });
+        }
+    });
+
+    if (indicesAndLinks.length > 0) {
+        lpActiveUndoData = {
+            type: 'session',
+            data: indicesAndLinks
+        };
+        
+        await deleteSession(sessionId);
+        await loadLinks(); // UI Update
+        
+        showLpUndoToast("Session deleted");
+    }
+    // --- DEFENSIRE SESSION-UNDO INJEKTION END ---
     return;
   }
 });
@@ -4581,7 +4383,10 @@ document.getElementById('clearAllBtn').addEventListener('click', async () => {
   if (confirm1) {
     const confirm2 = await showCustomModal("Final Confirmation", "Are you ABSOLUTELY sure?", [{ text: "Cancel", value: false, class: "btn-modal-cancel" }, { text: "Yes, Wipe Everything", value: true, class: "btn-modal-danger" }]);
     if (confirm2) {
-      await saveLinks([]);
+      // Keep locked sessions intact
+      allLinks = await getLinks();
+      const lockedLinks = allLinks.filter(link => link.isLocked);
+      await saveLinks(lockedLinks);
       await loadLinks();
     }
   }
@@ -4626,7 +4431,6 @@ function handleDragStart(e) {
   const searchInput = document.getElementById('searchInput');
   if (searchInput.value.trim() !== '' || document.getElementById('categoryFilter').value !== '' || document.getElementById('windowFilter').value !== '') {
       e.preventDefault();
-      // FIX: Optional feedback (minimal invasive)
       return;
   }
   dragSourceEl = this;
@@ -4635,6 +4439,9 @@ function handleDragStart(e) {
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/html', this.innerHTML); 
   this.classList.add('dragging');
+
+  // --- NEU: AKTIVIERE DRAG-SHIELD IM CONTAINER ---
+  document.getElementById('linksContainer')?.classList.add('dragging-active');
 }
 
 function handleDragOver(e) {
@@ -4643,9 +4450,19 @@ function handleDragOver(e) {
   return false;
 }
 
+// --- UPGRADED DRAG ENTER (CROSS-CARD & LOCK AWARE) ---
 function handleDragEnter(e) {
   const targetSession = this.closest('.links-list').dataset.sessionId;
-  if (this !== dragSourceEl && targetSession === dragSessionId) {
+  
+  // Sicherheits-Check: Holen des Sperr-Zustands der Ziel-Session
+  const targetSessionLink = allLinks.find(l => {
+      const sId = l.sessionId || `${l.dateGroup}-${l.timestamp}`;
+      return sId === targetSession;
+  });
+  const isTargetLocked = targetSessionLink?.isLocked || false;
+
+  // Erlaube Ziehen über Grenzen hinweg, aber sperre ge-lock-te Kacheln
+  if (this !== dragSourceEl && !isTargetLocked) {
     this.classList.add('drag-over');
   }
 }
@@ -4654,25 +4471,57 @@ function handleDragLeave(e) {
   this.classList.remove('drag-over');
 }
 
+// --- UPGRADED DROP TRIGGER (CROSS-CARD & STORAGE ATOMIC) ---
 async function handleDrop(e) {
   e.stopPropagation(); 
   const targetSession = this.closest('.links-list').dataset.sessionId;
-  if (dragSourceEl !== this && dragSessionId === targetSession) {
+  
+  // Sicherheits-Check: Ist der Ziel-Ordner gesperrt?
+  const targetSessionLink = allLinks.find(l => {
+      const sId = l.sessionId || `${l.dateGroup}-${l.timestamp}`;
+      return sId === targetSession;
+  });
+  const isTargetLocked = targetSessionLink?.isLocked || false;
+  if (isTargetLocked) {
+      return false; // Hart abbrechen bei gesperrter Ziel-Session
+  }
+
+  if (dragSourceEl !== this) {
       const targetKey = this.querySelector('.link-checkbox').dataset.linkKey;
       const sourceIndex = allLinks.findIndex(l => getLinkKey(l) === dragSourceKey);
       const targetIndex = allLinks.findIndex(l => getLinkKey(l) === targetKey);
+      
       if (sourceIndex > -1 && targetIndex > -1) {
+          // Link aus alter Position herausnehmen (Mutiert allLinks temporär im Speicher)
           const [movedItem] = allLinks.splice(sourceIndex, 1);
+          
+          // KACHELÜBERGREIFENDER DROP-SYNC:
+          if (dragSessionId !== targetSession) {
+              const targetLabel = targetSessionLink ? targetSessionLink.sessionLabel : "Restored Session";
+              
+              // 1. Zuweisen der neuen Kachel-Schnittstellen
+              movedItem.sessionId = targetSession;
+              movedItem.sessionLabel = targetLabel;
+              
+              // 2. Synchronisieren des Pinned-Zustands der Ziel-Kachel
+              movedItem.isPinned = targetSessionLink ? (targetSessionLink.isPinned || false) : false;
+          }
+
+          // An exakter Ziel-Position der neuen Kachel einfügen
           allLinks.splice(targetIndex, 0, movedItem);
+          
           sessionSortStates[targetSession] = 'date';
           await saveLinks(allLinks);
-          renderLinks(); 
+          await loadLinks(); // UI neu rendern zur Aktivierung des neuen Zustands
       }
   }
   return false;
 }
 
 function handleDragEnd(e) {
+  // --- NEU: DEAKTIVIERE DRAG-SHIELD ---
+  document.getElementById('linksContainer')?.classList.remove('dragging-active');
+
   this.classList.remove('dragging');
   document.querySelectorAll('.link-item').forEach(item => {
     item.classList.remove('drag-over');
@@ -4761,6 +4610,661 @@ document.addEventListener('keydown', (e) => {
 });
 
 loadLinks();
+
+// --- HELPER: SHOW UNDO TOAST FOR DELETED ELEMENTS (SELF-HEALING) ---
+function showLpUndoToast(message) {
+  let toast = document.getElementById('lp-undo-toast');
+  
+  // DYNAMISCHE SELBTHEILUNG: Falls der Toast fehlt, erzeuge ihn direkt im body
+  if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'lp-undo-toast';
+      toast.className = 'lp-undo-toast hidden';
+      
+      // SEMANTISCHES SVG ICON (Filigraner Mülleimer)
+      const iconContainer = document.createElement('div');
+      iconContainer.style.cssText = 'display: flex !important; align-items: center !important; justify-content: center !important; color: var(--primary) !important; flex-shrink: 0 !important;';
+      iconContainer.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>';
+      
+      const textSpan = document.createElement('span');
+      textSpan.id = 'lp-undo-text';
+      textSpan.style.fontSize = '13px';
+      textSpan.style.fontWeight = '600'; // Etwas dickerer Schriftschnitt für bessere Lesbarkeit
+      
+      const btnEl = document.createElement('button');
+      btnEl.id = 'lp-undo-btn';
+      btnEl.style.cssText = 'all: unset !important; cursor: pointer !important; font-weight: 700 !important; color: var(--primary) !important; font-size: 13px !important; text-transform: uppercase !important; letter-spacing: 0.5px !important; margin-left: 16px;';
+      btnEl.textContent = 'Undo';
+      
+      toast.appendChild(iconContainer); // Icon zuerst einfügen!
+      toast.appendChild(textSpan);
+      toast.appendChild(btnEl);
+      document.body.appendChild(toast);
+  }
+
+  const text = document.getElementById('lp-undo-text');
+  const btn = document.getElementById('lp-undo-btn');
+  
+  if (!text || !btn) return;
+
+  text.textContent = message;
+  toast.classList.remove('hidden');
+
+  if (lpUndoTimeout) clearTimeout(lpUndoTimeout);
+
+  btn.onclick = async (e) => {
+    e.stopPropagation();
+    if (lpActiveUndoData) {
+      const currentLinks = await getLinks();
+      
+      if (lpActiveUndoData.type === 'link') {
+        const insertIndex = Math.min(lpActiveUndoData.index, currentLinks.length);
+        currentLinks.splice(insertIndex, 0, lpActiveUndoData.data);
+      } else if (lpActiveUndoData.type === 'session') {
+        // Rekonstruiere alle Links der gelöschten Session an ihren Ursprungspositionen
+        const sortedBackup = [...lpActiveUndoData.data].sort((a, b) => a.index - b.index);
+        sortedBackup.forEach(item => {
+            const insertIndex = Math.min(item.index, currentLinks.length);
+            currentLinks.splice(insertIndex, 0, item.data);
+        });
+      }
+      
+      await saveLinks(currentLinks);
+      lpActiveUndoData = null;
+      toast.classList.add('hidden');
+      await loadLinks(); // UI Update
+    }
+  };
+
+  lpUndoTimeout = setTimeout(() => {
+    toast.classList.add('hidden');
+    lpActiveUndoData = null;
+  }, 6000); // 6 Sekunden Einblendzeit
+}
+
+// =============================================================================
+// --- VIEW SWITCHER & SETTINGS UNIFICATION LOGIC (ZERO-REGRESSION) ---
+// =============================================================================
+
+// 1. NAVIGATION CONTROL (With Hash-Aware Initiation)
+function initViewNavigation() {
+    const btnLinks = document.getElementById('nav-links-btn');
+    const btnSettings = document.getElementById('nav-settings-btn');
+    const viewLinks = document.getElementById('linksViewContainer');
+    const viewSettings = document.getElementById('settingsViewContainer');
+
+    if (!btnLinks || !btnSettings || !viewLinks || !viewSettings) return;
+
+    const switchView = (targetView) => {
+        if (targetView === 'settings') {
+            viewLinks.classList.add('hidden');
+            viewSettings.classList.remove('hidden');
+            btnLinks.classList.remove('active');
+            btnSettings.classList.add('active');
+            loadSettingsViewData();
+        } else {
+            viewSettings.classList.add('hidden');
+            viewLinks.classList.remove('hidden');
+            btnSettings.classList.remove('active');
+            btnLinks.classList.add('active');
+            loadLinks(); 
+        }
+    };
+
+    btnLinks.addEventListener('click', () => { window.location.hash = 'links'; switchView('links'); });
+    btnSettings.addEventListener('click', () => { window.location.hash = 'settings'; switchView('settings'); });
+
+    // --- DEFENSIRE INITIALISIERUNG ANHAND DES HASHES ---
+    const handleHash = () => {
+        const currentHash = window.location.hash;
+        if (currentHash === '#settings') {
+            switchView('settings');
+        } else {
+            switchView('links');
+        }
+    };
+    handleHash();
+    window.addEventListener('hashchange', handleHash);
+}
+
+// 2. UNIFIED SETTINGS CONTROLLER (Adapted from options.js)
+let settingsWhitelist = [];
+let localSettingsObj = {};
+
+function updateSettingsSaveStatus(message, type = 'success') {
+    const status = document.getElementById('saveStatus');
+    if (!status) return;
+    status.textContent = message;
+    status.style.color = type === 'success' ? 'var(--success)' : 'var(--danger)';
+    setTimeout(() => { status.textContent = ''; }, 3000);
+}
+
+async function loadSettingsViewData() {
+    try {
+        settingsWhitelist = await getWhitelist();
+        const rawSettings = await getSettings();
+        localSettingsObj = Object.keys(rawSettings).length > 0 ? rawSettings : { 
+            keepLastTabs: 3, 
+            autoBackup: true, 
+            confirmBeforeClose: true, 
+            deleteAfterRestore: false,
+            cleanAllWorkspaces: false,
+            sessionsDefaultCollapsed: false,
+            restoreWindowStructure: true,
+            smartImport: true 
+        };
+        const backups = await getBackups();
+        
+        renderWhitelistUI();
+        syncSettingsToForm();
+        renderBackupsUI(backups);
+    } catch (e) {
+        console.error("Failed to load settings data:", e);
+    }
+}
+
+function renderWhitelistUI() {
+    const container = document.getElementById('whitelistContainer');
+    if (!container) return;
+    if (settingsWhitelist.length === 0) {
+        container.innerHTML = '<p class="empty-state" style="padding:15px; font-size:12px;">No protected domains. Add some!</p>';
+        return;
+    }
+    const ICONS_SHIELD = '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const ICONS_TRASH = '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+    container.innerHTML = settingsWhitelist.map((domain, index) => `
+        <div class="whitelist-item">
+          <span style="display:flex; align-items:center; gap:8px;">${ICONS_SHIELD} ${domain}</span>
+          <button class="btn-icon-danger btn-delete-whitelist" data-index="${index}" title="Delete Domain">
+            ${ICONS_TRASH}
+          </button>
+        </div>
+    `).join('');
+}
+
+function syncSettingsToForm() {
+    const keepInput = document.getElementById('keepTabsInput');
+    if (keepInput) keepInput.value = localSettingsObj.keepLastTabs;
+
+    const mappings = [
+        { id: 'autoBackupCheck', key: 'autoBackup' },
+        { id: 'confirmCheck', key: 'confirmBeforeClose' },
+        { id: 'deleteAfterRestoreCheck', key: 'deleteAfterRestore' },
+        { id: 'cleanAllWorkspacesCheck', key: 'cleanAllWorkspaces' },
+        { id: 'sessionsDefaultCollapsedCheck', key: 'sessionsDefaultCollapsed' },
+        { id: 'restoreWindowStructureCheck', key: 'restoreWindowStructure' },
+        { id: 'smartImportCheck', key: 'smartImport' },
+        { id: 'enableRatingsCheck', key: 'enableRatings' }
+    ];
+
+    mappings.forEach(m => {
+        const el = document.getElementById(m.id);
+        if (el) el.checked = localSettingsObj[m.key] || false;
+    });
+
+    // Dark Mode Specific
+    const dmCheck = document.getElementById('darkModeCheck');
+    if (dmCheck) {
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        dmCheck.checked = (currentTheme === 'dark');
+    }
+}
+
+function renderBackupsUI(backups) {
+    const container = document.getElementById('backupContainer');
+    if (!container) return;
+    if (backups.length === 0) {
+        container.innerHTML = '<p class="empty-state" style="padding:15px; font-size:12px;">No automatic backups available yet.</p>';
+        return;
+    }
+    const sortedBackups = [...backups].reverse();
+    const ICONS_BOX = '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>';
+    const ICONS_RESTORE = '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const ICONS_DOWNLOAD = '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const ICONS_TRASH = '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+    container.innerHTML = sortedBackups.map((backup, displayIndex) => {
+        const originalIndex = backups.length - 1 - displayIndex;
+        const displayTitle = backup.label ? `Auto-Backup: ${backup.label}` : `Backup #${backups.length - displayIndex}`;
+
+        return `
+          <div class="backup-item">
+            <div style="display:flex; flex-direction:column; overflow:hidden; text-align: left;">
+              <strong style="color:var(--primary); display:flex; align-items:center; gap:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${displayTitle}">
+                ${ICONS_BOX} ${displayTitle}
+              </strong>
+              <span style="font-size:11px; color:var(--text-muted); margin-left: 22px;">${backup.readableTime}</span>
+              <span style="font-size:11px; color:var(--text-muted); margin-left: 22px;">${backup.count} links saved, ${backup.tabsClosed || 0} closed</span>
+            </div>
+            <div style="display:flex; gap:6px; flex-shrink:0;">
+              <button class="btn btn-secondary btn-sm" data-backup-index="${originalIndex}" title="Restore">${ICONS_RESTORE}</button>
+              <button class="btn btn-secondary btn-sm" data-download-backup-index="${originalIndex}" title="Download JSON">${ICONS_DOWNLOAD}</button>
+              <button class="btn btn-danger btn-sm" data-delete-backup-index="${originalIndex}" title="Delete">${ICONS_TRASH}</button>
+            </div>
+          </div>
+        `;
+    }).join('');
+}
+
+function initSettingsLogic() {
+    const viewContainer = document.getElementById('settingsViewContainer');
+    if (!viewContainer) return;
+
+    // A. ADD WHITELIST DOMAIN
+    const addWhitelistDomain = async () => {
+        const input = document.getElementById('whitelistInput');
+        if (!input) return;
+        const domain = input.value.trim();
+        if (!domain) {
+            updateSettingsSaveStatus('Please enter a domain!', 'error');
+            return;
+        }
+        let cleanDomain = domain.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+        if (!cleanDomain.includes('.')) {
+            updateSettingsSaveStatus('Invalid domain! Example: gmail.com', 'error');
+            return;
+        }
+
+        if (!settingsWhitelist.includes(cleanDomain)) {
+            settingsWhitelist.push(cleanDomain);
+            await saveWhitelist(settingsWhitelist);
+            renderWhitelistUI();
+            input.value = '';
+            updateSettingsSaveStatus('Domain added!');
+        } else {
+            updateSettingsSaveStatus('Domain already exists!', 'error');
+        }
+    };
+
+    document.getElementById('addWhitelistBtn')?.addEventListener('click', addWhitelistDomain);
+    document.getElementById('whitelistInput')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') addWhitelistDomain();
+    });
+
+    // B. DELETE WHITELIST DOMAIN
+    document.getElementById('whitelistContainer')?.addEventListener('click', async (e) => {
+        const btn = e.target.closest('.btn-delete-whitelist');
+        if (btn) {
+            const index = parseInt(btn.dataset.index);
+            settingsWhitelist.splice(index, 1);
+            await saveWhitelist(settingsWhitelist);
+            renderWhitelistUI();
+            updateSettingsSaveStatus('Domain removed!');
+        }
+    });
+
+    // C. THEME TOGGLE SYNC
+    document.getElementById('darkModeCheck')?.addEventListener('change', (e) => {
+        const newTheme = e.target.checked ? 'dark' : 'light';
+        localStorage.setItem('theme', newTheme);
+        document.documentElement.setAttribute('data-theme', newTheme);
+    });
+
+    // D. SAVE BUTTON
+    document.getElementById('saveBtn')?.addEventListener('click', async () => {
+        try {
+            let keepTabs = parseInt(document.getElementById('keepTabsInput').value);
+            if (isNaN(keepTabs) || keepTabs < 1) keepTabs = 1;
+            if (keepTabs > 20) keepTabs = 20;
+
+            localSettingsObj.keepLastTabs = keepTabs;
+            localSettingsObj.autoBackup = document.getElementById('autoBackupCheck').checked;
+            localSettingsObj.confirmBeforeClose = document.getElementById('confirmCheck').checked;
+            localSettingsObj.deleteAfterRestore = document.getElementById('deleteAfterRestoreCheck').checked;
+            localSettingsObj.cleanAllWorkspaces = document.getElementById('cleanAllWorkspacesCheck').checked;
+            localSettingsObj.sessionsDefaultCollapsed = document.getElementById('sessionsDefaultCollapsedCheck').checked;
+            localSettingsObj.restoreWindowStructure = document.getElementById('restoreWindowStructureCheck').checked;
+            localSettingsObj.smartImport = document.getElementById('smartImportCheck').checked;
+            localSettingsObj.enableRatings = document.getElementById('enableRatingsCheck').checked;
+
+            await saveSettings(localSettingsObj);
+            updateSettingsSaveStatus("✅ Settings saved!", "success");
+        } catch (err) {
+            updateSettingsSaveStatus("❌ Error saving!", "error");
+        }
+    });
+
+    // E. BACKUP ACCORDION CLICK ACTIONS
+    document.getElementById('backupContainer')?.addEventListener('click', async (e) => {
+        const restoreBtn = e.target.closest('[data-backup-index]');
+        const downloadBtn = e.target.closest('[data-download-backup-index]');
+        const deleteBtn = e.target.closest('[data-delete-backup-index]');
+
+        if (restoreBtn) {
+            const index = parseInt(restoreBtn.dataset.backupIndex);
+            const backups = await getBackups();
+            const currentLinks = await getLinks();
+            const backup = backups[index];
+
+            const choice = await showCustomModal(
+                "Restore Backup?",
+                `Restore ${backup.count} links from ${backup.readableTime}?\nThis will append them to your dashboard list.`,
+                [
+                    { text: "Cancel", value: false, class: "btn-modal-cancel" },
+                    { text: "Restore Backup", value: true, class: "btn-modal-confirm" }
+                ]
+            );
+
+            if (choice) {
+                const timestamp = new Date().toISOString();
+                const timeString = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                const sessionId = `restored-${timestamp}`;
+                const restoredLinks = backup.data.links.map(link => ({
+                    ...link,
+                    originalTimestamp: link.timestamp,
+                    sessionId,
+                    sessionLabel: `${timeString} - Restored Backup`,
+                    restoredAt: timestamp,
+                    timestamp
+                }));
+                const allLinks = [...restoredLinks, ...currentLinks];
+                await saveLinks(allLinks);
+                updateSettingsSaveStatus('✅ Backup restored!', 'success');
+                loadSettingsViewData();
+            }
+        }
+
+        if (downloadBtn) {
+            const index = parseInt(downloadBtn.dataset.downloadBackupIndex);
+            const backups = await getBackups();
+            const backup = backups[index];
+            const timestamp = new Date(backup.timestamp).toISOString().slice(0, 10);
+            const dataStr = JSON.stringify(backup.data, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `leantabs-backup-${timestamp}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            updateSettingsSaveStatus('✅ Downloaded!', 'success');
+        }
+
+        if (deleteBtn) {
+            const index = parseInt(deleteBtn.dataset.deleteBackupIndex);
+            const backupList = await getBackups();
+
+            const choice = await showCustomModal(
+                "Delete Backup?",
+                "Are you sure you want to permanently delete this backup file?",
+                [
+                    { text: "Cancel", value: false, class: "btn-modal-cancel" },
+                    { text: "Delete Permanently", value: true, class: "btn-modal-danger" }
+                ]
+            );
+
+            if (choice) {
+                backupList.splice(index, 1);
+                await saveBackups(backupList);
+                loadSettingsViewData();
+                updateSettingsSaveStatus('Backup deleted!', 'success');
+            }
+        }
+    });
+
+    // F. DATA SYSTEM ACTIONS (FULL BACKUP / SMART IMPORT)
+    document.getElementById('exportDataBtn')?.addEventListener('click', async () => {
+        const data = await chrome.storage.local.get(null);
+        const timestamp = new Date().toISOString().slice(0, 10);
+        const dataStr = JSON.stringify(data, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `leantabs-full-backup-${timestamp}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        updateSettingsSaveStatus('✅ Export complete!', 'success');
+    });
+
+    const fileInput = document.getElementById('importFileInput');
+    document.getElementById('importDataBtn')?.addEventListener('click', () => {
+        fileInput?.click();
+    });
+
+    fileInput?.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+            const text = await file.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (err) {
+                throw new Error('Invalid JSON format');
+            }
+
+            if (typeof data !== 'object' || data === null) {
+                throw new Error('Imported file is not a valid JSON object.');
+            }
+
+            // A. CONFIG IMPORT LOGIC (Settings & Whitelist)
+            if (data.settings || data.whitelist) {
+                const importConfig = await showCustomModal(
+                    "System Configuration Found",
+                    "This backup includes Settings and Whitelist data.\nDo you want to restore them? (Overwrites current settings)",
+                    [
+                        { text: "No, Links Only", value: false, class: "btn-modal-cancel" },
+                        { text: "Yes, Restore Config", value: true, class: "btn-modal-confirm" }
+                    ]
+                );
+
+                if (importConfig) {
+                    if (data.settings) {
+                        localSettingsObj = data.settings;
+                        await saveSettings(data.settings);
+                    }
+                    if (data.whitelist) {
+                        settingsWhitelist = data.whitelist;
+                        await saveWhitelist(data.whitelist);
+                    }
+                    updateSettingsSaveStatus("✅ Settings & Whitelist restored!");
+                }
+            }
+
+            // B. LINKS IMPORT LOGIC (Duplicate checking + re-indexing)
+            let rawLinks = [];
+            if (data.links && Array.isArray(data.links)) {
+                rawLinks = data.links;
+            } else if (data.savedLinks && Array.isArray(data.savedLinks)) {
+                rawLinks = data.savedLinks;
+            } else if (Array.isArray(data)) {
+                rawLinks = data;
+            }
+
+            const linksToImport = rawLinks.filter(l => l && typeof l === 'object' && l.url);
+
+            if (linksToImport.length === 0) {
+                if (data.settings || data.whitelist) {
+                    loadSettingsViewData();
+                    return;
+                }
+                updateSettingsSaveStatus('❌ No valid links found!', 'error');
+                return;
+            }
+
+            const currentLinks = await getLinks();
+            const getSignature = (l) => l.url + (l.originalTimestamp || l.timestamp);
+            const existingSignatures = new Set(currentLinks.map(l => getSignature(l)));
+
+            const cleanLinks = [];
+            const duplicateLinks = [];
+
+            linksToImport.forEach(link => {
+                if (existingSignatures.has(getSignature(link))) {
+                    duplicateLinks.push(link);
+                } else {
+                    cleanLinks.push(link);
+                }
+            });
+
+            let finalImportList = [];
+            let shouldImport = false;
+            let preserveStructure = false;
+
+            const hasSessionStructure = linksToImport.some(l => l.sessionId && l.sessionLabel);
+
+            if (hasSessionStructure) {
+                const restoreMode = await showCustomModal(
+                    "Backup Detected",
+                    `This file contains ${linksToImport.length} links with Session structure.\n\nHow do you want to restore them?`,
+                    [
+                        { text: "Cancel", value: "cancel", class: "btn-modal-cancel" },
+                        { text: "Merge into 1 List", value: "merge", class: "btn-modal-secondary" },
+                        { text: "Restore Sessions", value: "restore", class: "btn-modal-confirm" }
+                    ]
+                );
+
+                if (restoreMode === "cancel") return;
+
+                if (restoreMode === "restore") {
+                    preserveStructure = true;
+                    if (duplicateLinks.length > 0) {
+                        const dupChoice = await showCustomModal(
+                            "Duplicates Found",
+                            `Warning: ${duplicateLinks.length} links already exist.\nRestore duplicates anyway?`,
+                            [
+                                { text: "Skip Duplicates", value: "skip", class: "btn-modal-secondary" },
+                                { text: "Restore All", value: "all", class: "btn-modal-confirm" }
+                            ]
+                        );
+                        finalImportList = (dupChoice === 'all') ? linksToImport : cleanLinks;
+                    } else {
+                        finalImportList = linksToImport;
+                    }
+                    shouldImport = true;
+                } else {
+                    preserveStructure = false;
+                }
+            }
+
+            if (!preserveStructure && !shouldImport) {
+                const useSmartImport = (localSettingsObj.smartImport !== false);
+                if (!useSmartImport) {
+                    const confirmAll = await showCustomModal(
+                        "Confirm Import",
+                        `Import ${linksToImport.length} links into a new session?`,
+                        [
+                            { text: "Cancel", value: "cancel", class: "btn-modal-cancel" },
+                            { text: "Import All", value: "all", class: "btn-modal-confirm" }
+                        ]
+                    );
+                    if (confirmAll === 'all') {
+                        finalImportList = linksToImport;
+                        shouldImport = true;
+                    }
+                } else {
+                    if (duplicateLinks.length > 0) {
+                        const choice = await showCustomModal(
+                            "Duplicates Found",
+                            `Found ${linksToImport.length} links.\n⚠️ ${duplicateLinks.length} duplicates.\n✅ ${cleanLinks.length} unique.\n\nProceed?`,
+                            [
+                                { text: "Cancel", value: "cancel", class: "btn-modal-cancel" },
+                                { text: "Import All", value: "all", class: "btn-modal-secondary" },
+                                { text: `Import ${cleanLinks.length} Unique`, value: "filter", class: "btn-modal-confirm" }
+                            ]
+                        );
+                        if (choice === 'filter') finalImportList = cleanLinks;
+                        else if (choice === 'all') finalImportList = linksToImport;
+                        if (choice !== 'cancel') shouldImport = true;
+                    } else {
+                        const confirmUnique = await showCustomModal(
+                            "Confirm Import",
+                            `Import ${linksToImport.length} links?`,
+                            [
+                                { text: "Cancel", value: "cancel", class: "btn-modal-cancel" },
+                                { text: "Import", value: "all", class: "btn-modal-confirm" }
+                            ]
+                        );
+                        if (confirmUnique === 'all') {
+                            finalImportList = linksToImport;
+                            shouldImport = true;
+                        }
+                    }
+                }
+            }
+
+            if (shouldImport && finalImportList.length > 0) {
+                let preparedLinks;
+                const timestamp = new Date().toISOString();
+                const timeString = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+                if (preserveStructure) {
+                    const importTimestampSuffix = Date.now();
+                    const sessionIdMap = {};
+                    preparedLinks = finalImportList.map(link => {
+                        const oldSessionId = link.sessionId || 'unknown';
+                        if (!sessionIdMap[oldSessionId]) {
+                            sessionIdMap[oldSessionId] = `${oldSessionId}-imported-${importTimestampSuffix}`;
+                        }
+                        return {
+                            ...link,
+                            sessionId: sessionIdMap[oldSessionId],
+                            uniqueId: `${link.url}-${timestamp}-${Math.random().toString(36).substr(2, 9)}`,
+                            importedAt: timestamp
+                        };
+                    });
+                    updateSettingsSaveStatus(`✅ Restored ${preparedLinks.length} links & sessions!`, 'success');
+                } else {
+                    const sessionId = `imported-${timestamp}`;
+                    preparedLinks = finalImportList.map(link => ({
+                        ...link,
+                        originalTimestamp: link.timestamp,
+                        sessionId,
+                        sessionLabel: `${timeString} - Imported Backup`,
+                        importedAt: timestamp,
+                        timestamp
+                    }));
+                    updateSettingsSaveStatus(`✅ Imported ${preparedLinks.length} links!`, 'success');
+                }
+
+                const allLinks = [...preparedLinks, ...currentLinks];
+                await saveLinks(allLinks);
+            } else if (shouldImport && finalImportList.length === 0) {
+                updateSettingsSaveStatus('⚠️ No links selected to import.', 'error');
+            }
+
+            loadSettingsViewData();
+        } catch (err) {
+            updateSettingsSaveStatus('❌ Import error!', 'error');
+            console.error("Import error:", err);
+        }
+        e.target.value = '';
+    });
+
+    // --- NEUE EVENT-LISTENER FÜR SHORTCUTS ---
+    document.getElementById('shortcutsLink')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+    });
+
+    checkShortcuts(); // Führe Diagnose beim Laden der Settings aus
+}
+
+// --- HELPER: CHECK BROWSER SHORTCUTS DIAGNOSTIC ---
+function checkShortcuts() {
+  if (chrome.commands && chrome.commands.getAll) {
+    chrome.commands.getAll((commands) => {
+      const missingShortcuts = commands.filter(cmd => !cmd.shortcut);
+      if (missingShortcuts.length > 0) {
+        const tipDesc = document.querySelector('.tip-desc');
+        if (tipDesc) {
+          tipDesc.innerHTML = `💡 Note: If these shortcuts aren't working, your browser might not have assigned them automatically. You can check and configure them in your browser's <a href="#" id="shortcutsLink" style="color:var(--primary); text-decoration:underline; font-weight:bold; cursor:pointer;">extension settings</a>.`;
+          document.getElementById('shortcutsLink')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+          });
+        }
+      }
+    });
+  }
+}
+
+// 3. INITIALIZE BOTH VIEW ROUTER & SETTINGS LOGIC
+initViewNavigation();
+initSettingsLogic();
+
 // --- END OF saved-links.js ---
 --- END OF FILE src\saved-links.js ---
 
@@ -5159,7 +5663,8 @@ header h1 {
 /* --- TILE CARD STYLE --- */
 .session-section { 
   background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius); 
-  overflow: hidden; height: fit-content; box-shadow: var(--shadow-sm);
+  overflow: visible !important; /* Verhindert das Abschneiden ausklappbarer Menüs */
+  height: fit-content; box-shadow: var(--shadow-sm);
   transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 
@@ -5185,19 +5690,26 @@ header h1 {
     background: var(--surface-bg); 
     padding: 16px; border-bottom: 1px solid var(--border-color); 
     display: flex; justify-content: space-between; cursor: pointer; 
+    border-top-left-radius: inherit; /* Verhindert optisches Auslaufen der Ecken */
+    border-top-right-radius: inherit;
 }
 .links-list { 
   max-height: 320px; 
-  overflow-y: auto; /* Ermöglicht direktes, blockierungsfreies Scrollen */
-  overflow-x: hidden;
+  overflow: visible !important; /* Erlaubt das Herausragen des Menüs bei kurzen Kacheln */
   background: var(--card-bg); 
-  scrollbar-width: thin; /* Firefox */
-  scrollbar-color: transparent transparent; /* Versteckt Scrollbar standardmäßig */
+  border-bottom-left-radius: inherit;
+  border-bottom-right-radius: inherit;
+}
+
+/* Aktiviert das Scrollen und die Scrollbars NUR bei langen Listen */
+.links-list.has-scrollbar {
+  overflow-y: auto !important;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
   transition: scrollbar-color 0.2s ease;
 }
 
-/* Zeigt die Scrollbar diskret nur beim Hovern über die Karte */
-.links-list:hover {
+.links-list.has-scrollbar:hover {
   scrollbar-color: var(--border-color) transparent;
 }
 
@@ -5713,6 +6225,301 @@ kbd {
 .link-dropdown-menu .link-dropdown-item svg {
   width: 14px;
   height: 14px;
+}
+
+/* UNIFIED UNDO-TOAST DESIGN (PRO-TOOL CONTRAST & OBSIDIAN GLOW) */
+.lp-undo-toast {
+  position: fixed !important;
+  bottom: 32px !important; /* Etwas angehoben für bessere vertikale Balance */
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  
+  /* OBSIDIAN KONTRAST: Sattes, tiefes Schwarz-Zink trennt den Toast visuell von den grauen Karten ab */
+  background: #09090b !important; 
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-left: 5px solid var(--primary) !important; /* Breiterer, markanterer linker Akzent */
+  
+  padding: 14px 28px !important; /* Mehr Symmetrie */
+  border-radius: 10px !important;
+  
+  /* DEEP AMBIENT GLOW: Erhöhte Intensität sorgt für schwebenden 3D-Effekt */
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.5), 
+    0 0 20px rgba(59, 130, 246, 0.25) !important; 
+  
+  display: flex;
+  align-items: center !important;
+  gap: 12px !important;
+  z-index: 2147483647 !important;
+  color: #f4f4f5 !important; /* Strahlend weißer, kontraststarker Text */
+  font-family: inherit !important;
+  animation: lp-slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Nativer Licht-Kontrast für den Light-Mode */
+[data-theme="light"] .lp-undo-toast {
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  color: #09090b !important;
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.1), 
+    0 0 15px rgba(59, 130, 246, 0.12) !important;
+}
+
+/* Hover-Effekt für den Undo-Button */
+#lp-undo-btn {
+  transition: opacity 0.2s ease, transform 0.1s ease !important;
+}
+#lp-undo-btn:hover {
+  opacity: 0.8 !important;
+  text-decoration: underline !important;
+}
+#lp-undo-btn:active {
+  transform: scale(0.95) !important;
+}
+
+@keyframes lp-slide-up {
+  from { transform: translate(-50%, 20px); opacity: 0; }
+  to { transform: translate(-50%, 0); opacity: 1; }
+}
+
+/* --- UNIFIED APP WORKSPACE LAYOUT (ZERO-REGRESSION) --- */
+.app-layout {
+  display: flex !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  overflow: hidden !important;
+}
+
+/* SPALTE 1: DIE SIDEBAR */
+.sidebar-panel {
+  width: 240px !important;
+  background-color: #0d0c14 !important; /* Obsidian Zinc */
+  border-right: 1px solid var(--border-color) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 24px 16px !important;
+  flex-shrink: 0 !important;
+  z-index: 10 !important;
+}
+
+[data-theme="light"] .sidebar-panel {
+  background-color: #ffffff !important;
+}
+
+.sidebar-header {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  margin-bottom: 32px !important;
+  padding-left: 8px !important;
+}
+
+.sidebar-title {
+  font-size: 16px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em !important;
+  color: var(--text-strong) !important;
+}
+
+.sidebar-nav {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  flex: 1 1 auto !important;
+}
+
+/* Sidebar Nav Buttons */
+.nav-btn {
+  all: unset !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 10px 16px !important;
+  border-radius: 8px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--text-muted) !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease-in-out !important;
+  box-sizing: border-box !important;
+}
+
+.nav-btn:hover {
+  background-color: var(--surface-bg) !important;
+  color: var(--text-strong) !important;
+}
+
+.nav-btn.active {
+  background-color: var(--primary-light) !important;
+  color: var(--primary) !important;
+}
+
+[data-theme="dark"] .nav-btn.active {
+  background-color: rgba(96, 165, 250, 0.15) !important;
+}
+
+.sidebar-footer {
+  margin-top: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  border-top: 1px solid var(--border-color) !important;
+  padding-top: 16px !important;
+}
+
+.sidebar-link {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: var(--text-muted) !important;
+  text-decoration: none !important;
+  padding: 6px 12px !important;
+  border-radius: 6px !important;
+  transition: all 0.2s !important;
+}
+
+.sidebar-link:hover {
+  color: var(--primary) !important;
+  background-color: var(--surface-bg) !important;
+}
+
+.sidebar-link.kofi-link:hover {
+  color: var(--kofi-color) !important;
+}
+
+/* SPALTE 2 & 3: MAIN WORKSPACE CONTAINER */
+.workspace-container {
+  flex: 1 !important;
+  height: 100vh !important;
+  overflow-y: auto !important;
+  background-color: var(--bg-color) !important;
+  position: relative !important;
+}
+
+.view-panel {
+  max-width: 1200px !important;
+  margin: 0 auto !important;
+  padding: 40px !important;
+  animation: fadeIn 0.2s ease-out !important;
+}
+
+/* Zielgerichtete Breitenbegrenzung: Schützt das Einstellungs-Layout vor Dehnung */
+#settingsViewContainer.view-panel {
+  max-width: 800px !important;
+}
+
+.view-panel.hidden {
+  display: none !important;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* --- VISUAL ALIGNMENT FIXES (ZERO-REGRESSION) --- */
+
+/* 1. Sperrt die Bewertungssterne starr an die rechte Kante der Link-Zeile */
+.link-title {
+  flex: 1 !important;
+  min-width: 0 !important; /* Verhindert das Aufblähen der Flexbox bei Riesen-Titeln */
+}
+
+.link-rating-container {
+  margin-left: auto !important; /* Erzwingt Rechtsbündigkeit */
+  flex-shrink: 0 !important;    /* Verhindert das Stauchen der Sterne */
+}
+
+/* 2. Vereinheitlicht die visuelle Gewichtung der Theme-Symbole (Statisch & Stabil) */
+.btn-theme-toggle svg {
+  width: 18px !important;
+  height: 18px !important;
+  display: block !important;
+}
+
+/* --- LINK-LEVEL NOTE INDICATOR --- */
+.link-note-indicator {
+  color: #f59e0b !important; /* Amber 500 */
+  font-size: 11px !important;
+  margin-left: 6px !important;
+  cursor: help !important; /* Signalisiert dem Nutzer die Hover-Vorschau */
+  flex-shrink: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  line-height: 1 !important;
+}
+
+/* Gesperrter Kachel-Zustand */
+.session-section.is-locked-panel {
+  border-color: rgba(239, 68, 68, 0.2) !important; /* Roter Hauch zur Warnung */
+}
+
+/* --- TABS STEPPER & RATINGS ACCENT (POPUP) --- */
+
+/* Unsichtbarkeit der Sterne bei Deaktivierung */
+.ratings-disabled .link-rating-container {
+  display: none !important;
+}
+
+/* --- PREMIUM MINIMALIST SLIDER (ZERO-REGRESSION) --- */
+.popup-slider {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  width: 100% !important;
+  height: 4px !important;
+  border-radius: 99px !important;
+  background: var(--surface-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  outline: none !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+  box-sizing: border-box !important;
+}
+
+/* Der Ziehknopf (Thumb) für Chrome, Safari, Opera, Brave */
+.popup-slider::-webkit-slider-thumb {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  width: 14px !important;
+  height: 14px !important;
+  border-radius: 50% !important;
+  background: var(--primary) !important;
+  border: 2px solid var(--card-bg) !important;
+  box-shadow: var(--shadow-sm) !important;
+  transition: transform 0.1s ease-in-out, background-color 0.2s !important;
+}
+
+.popup-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2) !important; /* Taktiler Hover-Effekt */
+  background-color: var(--primary-hover) !important;
+}
+
+.popup-slider::-webkit-slider-thumb:active {
+  transform: scale(0.95) !important;
+}
+
+/* Der Ziehknopf für Firefox */
+.popup-slider::-moz-range-thumb {
+  width: 12px !important;
+  height: 12px !important;
+  border-radius: 50% !important;
+  background: var(--primary) !important;
+  border: 2px solid var(--card-bg) !important;
+  box-shadow: var(--shadow-sm) !important;
+  transition: transform 0.1s ease-in-out, background-color 0.2s !important;
+  cursor: pointer !important;
+}
+.popup-slider::-moz-range-thumb:hover {
+  transform: scale(1.2) !important;
+}
+
+/* --- DRAG-AND-DROP GRAPHIC STABILIZER (ZERO-JITTER) --- */
+/* Verhindert, dass verschachtelte Kind-Elemente Drag-Events abfangen und Flimmern verursachen */
+.dragging-active .link-item * {
+  pointer-events: none !important;
 }
 
 /* --- END OF styles.css --- */

@@ -392,7 +392,8 @@ header h1 {
 /* --- TILE CARD STYLE --- */
 .session-section { 
   background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius); 
-  overflow: hidden; height: fit-content; box-shadow: var(--shadow-sm);
+  overflow: visible !important; /* Verhindert das Abschneiden ausklappbarer Menüs */
+  height: fit-content; box-shadow: var(--shadow-sm);
   transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 
@@ -418,19 +419,26 @@ header h1 {
     background: var(--surface-bg); 
     padding: 16px; border-bottom: 1px solid var(--border-color); 
     display: flex; justify-content: space-between; cursor: pointer; 
+    border-top-left-radius: inherit; /* Verhindert optisches Auslaufen der Ecken */
+    border-top-right-radius: inherit;
 }
 .links-list { 
   max-height: 320px; 
-  overflow-y: auto; /* Ermöglicht direktes, blockierungsfreies Scrollen */
-  overflow-x: hidden;
+  overflow: visible !important; /* Erlaubt das Herausragen des Menüs bei kurzen Kacheln */
   background: var(--card-bg); 
-  scrollbar-width: thin; /* Firefox */
-  scrollbar-color: transparent transparent; /* Versteckt Scrollbar standardmäßig */
+  border-bottom-left-radius: inherit;
+  border-bottom-right-radius: inherit;
+}
+
+/* Aktiviert das Scrollen und die Scrollbars NUR bei langen Listen */
+.links-list.has-scrollbar {
+  overflow-y: auto !important;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
   transition: scrollbar-color 0.2s ease;
 }
 
-/* Zeigt die Scrollbar diskret nur beim Hovern über die Karte */
-.links-list:hover {
+.links-list.has-scrollbar:hover {
   scrollbar-color: var(--border-color) transparent;
 }
 

@@ -715,7 +715,8 @@ function renderLinks() {
     sessionSection.appendChild(sessionHeader);
     
     const linksList = document.createElement('div');
-    linksList.className = 'links-list';
+    // Weiche: Nur bei mehr als 5 Links wird die Kachel scrollbar (verhindert Dropdown-Clipping)
+    linksList.className = `links-list ${session.links.length > 5 ? 'has-scrollbar' : ''}`;
     linksList.dataset.sessionId = sessionId;
     
     if (isCollapsed) {

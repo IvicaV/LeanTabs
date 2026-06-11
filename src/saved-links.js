@@ -22,6 +22,9 @@ let visibleLimit = 100;
 // In-memory sort state: sessionId -> sortType ('date', 'rating', 'alphabetical', 'opens')
 let sessionSortStates = {}; 
 
+let lpActiveUndoData = null; // In-Memory Puffer
+let lpUndoTimeout = null;
+
 // Track background updates to refresh UI upon visibility
 let hasPendingUpdate = false;
 
@@ -1187,9 +1190,18 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
     allLinks = await getLinks();
     const indexToDelete = allLinks.findIndex(link => link.url === url && link.timestamp === timestamp);
     if (indexToDelete !== -1) {
+      // Sichern vor Mutation
+      lpActiveUndoData = {
+        type: 'link',
+        index: indexToDelete,
+        data: { ...allLinks[indexToDelete] } // Flache Kopie
+      };
+
       allLinks.splice(indexToDelete, 1);
       await saveLinks(allLinks);
-      await loadLinks();
+      await loadLinks(); // UI Update
+
+      showLpUndoToast("Link deleted");
     }
     return;
   }
@@ -1443,8 +1455,31 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
         const confirmed = await showCustomModal("Delete Session", "Really delete all links from this session?\nThis action cannot be undone.", [{ text: "Cancel", value: false, class: "btn-modal-cancel" }, { text: "Delete Session", value: true, class: "btn-modal-danger" }]);
         if (!confirmed) return;
     }
-    await deleteSession(sessionId);
-    await loadLinks();
+
+    // --- DEFENSIRE SESSION-UNDO INJEKTION START ---
+    allLinks = await getLinks();
+    const indicesAndLinks = [];
+    
+    // Ermittle alle Links dieser Session und sichere ihre Indizes chronologisch
+    allLinks.forEach((link, idx) => {
+        const linkSessionId = link.sessionId || `${link.dateGroup}-${link.timestamp}`;
+        if (linkSessionId === sessionId) {
+            indicesAndLinks.push({ index: idx, data: { ...link } });
+        }
+    });
+
+    if (indicesAndLinks.length > 0) {
+        lpActiveUndoData = {
+            type: 'session',
+            data: indicesAndLinks
+        };
+        
+        await deleteSession(sessionId);
+        await loadLinks(); // UI Update
+        
+        showLpUndoToast("Session deleted");
+    }
+    // --- DEFENSIRE SESSION-UNDO INJEKTION END ---
     return;
   }
 });
@@ -1693,4 +1728,49 @@ document.addEventListener('keydown', (e) => {
 });
 
 loadLinks();
+
+// --- HELPER: SHOW UNDO TOAST FOR DELETED ELEMENTS ---
+function showLpUndoToast(message) {
+  const toast = document.getElementById('lp-undo-toast');
+  const text = document.getElementById('lp-undo-text');
+  const btn = document.getElementById('lp-undo-btn');
+  
+  if (!toast || !text || !btn) return;
+
+  text.textContent = message;
+  toast.classList.remove('hidden');
+
+  if (lpUndoTimeout) clearTimeout(lpUndoTimeout);
+
+  btn.onclick = async (e) => {
+    e.stopPropagation();
+    if (lpActiveUndoData) {
+      const currentLinks = await getLinks();
+      
+      if (lpActiveUndoData.type === 'link') {
+        const insertIndex = Math.min(lpActiveUndoData.index, currentLinks.length);
+        currentLinks.splice(insertIndex, 0, lpActiveUndoData.data);
+      } else if (lpActiveUndoData.type === 'session') {
+        // Rekonstruiere alle Links der gelöschten Session an ihren Ursprungspositionen
+        // Aufsteigend nach Index sortieren, um Verschiebungen während der Splices zu verhindern
+        const sortedBackup = [...lpActiveUndoData.data].sort((a, b) => a.index - b.index);
+        sortedBackup.forEach(item => {
+            const insertIndex = Math.min(item.index, currentLinks.length);
+            currentLinks.splice(insertIndex, 0, item.data);
+        });
+      }
+      
+      await saveLinks(currentLinks);
+      lpActiveUndoData = null;
+      toast.classList.add('hidden');
+      await loadLinks(); // UI Update über Standard-Pfad
+    }
+  };
+
+  lpUndoTimeout = setTimeout(() => {
+    toast.classList.add('hidden');
+    lpActiveUndoData = null;
+  }, 6000); // 6 Sekunden Einblendzeit
+}
+
 // --- END OF saved-links.js ---

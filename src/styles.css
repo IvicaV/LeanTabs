@@ -948,4 +948,29 @@ kbd {
   height: 14px;
 }
 
+/* UNIFIED UNDO-TOAST DESIGN */
+.lp-undo-toast {
+  position: fixed !important;
+  bottom: 24px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  background: var(--card-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  padding: 12px 24px !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 16px !important;
+  z-index: 2147483647 !important; /* Über allen anderen Ebenen */
+  color: var(--text-main) !important;
+  font-family: inherit !important;
+  animation: lp-slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+@keyframes lp-slide-up {
+  from { transform: translate(-50%, 20px); opacity: 0; }
+  to { transform: translate(-50%, 0); opacity: 1; }
+}
+
 /* --- END OF styles.css --- */

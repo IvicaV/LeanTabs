@@ -1729,13 +1729,41 @@ document.addEventListener('keydown', (e) => {
 
 loadLinks();
 
-// --- HELPER: SHOW UNDO TOAST FOR DELETED ELEMENTS ---
+// --- HELPER: SHOW UNDO TOAST FOR DELETED ELEMENTS (SELF-HEALING) ---
 function showLpUndoToast(message) {
-  const toast = document.getElementById('lp-undo-toast');
+  let toast = document.getElementById('lp-undo-toast');
+  
+  // DYNAMISCHE SELBTHEILUNG: Falls der Toast fehlt, erzeuge ihn direkt im body
+  if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'lp-undo-toast';
+      toast.className = 'lp-undo-toast hidden';
+      
+      // SEMANTISCHES SVG ICON (Filigraner Mülleimer)
+      const iconContainer = document.createElement('div');
+      iconContainer.style.cssText = 'display: flex !important; align-items: center !important; justify-content: center !important; color: var(--primary) !important; flex-shrink: 0 !important;';
+      iconContainer.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>';
+      
+      const textSpan = document.createElement('span');
+      textSpan.id = 'lp-undo-text';
+      textSpan.style.fontSize = '13px';
+      textSpan.style.fontWeight = '600'; // Etwas dickerer Schriftschnitt für bessere Lesbarkeit
+      
+      const btnEl = document.createElement('button');
+      btnEl.id = 'lp-undo-btn';
+      btnEl.style.cssText = 'all: unset !important; cursor: pointer !important; font-weight: 700 !important; color: var(--primary) !important; font-size: 13px !important; text-transform: uppercase !important; letter-spacing: 0.5px !important; margin-left: 16px;';
+      btnEl.textContent = 'Undo';
+      
+      toast.appendChild(iconContainer); // Icon zuerst einfügen!
+      toast.appendChild(textSpan);
+      toast.appendChild(btnEl);
+      document.body.appendChild(toast);
+  }
+
   const text = document.getElementById('lp-undo-text');
   const btn = document.getElementById('lp-undo-btn');
   
-  if (!toast || !text || !btn) return;
+  if (!text || !btn) return;
 
   text.textContent = message;
   toast.classList.remove('hidden');
@@ -1752,7 +1780,6 @@ function showLpUndoToast(message) {
         currentLinks.splice(insertIndex, 0, lpActiveUndoData.data);
       } else if (lpActiveUndoData.type === 'session') {
         // Rekonstruiere alle Links der gelöschten Session an ihren Ursprungspositionen
-        // Aufsteigend nach Index sortieren, um Verschiebungen während der Splices zu verhindern
         const sortedBackup = [...lpActiveUndoData.data].sort((a, b) => a.index - b.index);
         sortedBackup.forEach(item => {
             const insertIndex = Math.min(item.index, currentLinks.length);
@@ -1763,7 +1790,7 @@ function showLpUndoToast(message) {
       await saveLinks(currentLinks);
       lpActiveUndoData = null;
       toast.classList.add('hidden');
-      await loadLinks(); // UI Update über Standard-Pfad
+      await loadLinks(); // UI Update
     }
   };
 

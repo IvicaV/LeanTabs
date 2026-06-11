@@ -948,24 +948,55 @@ kbd {
   height: 14px;
 }
 
-/* UNIFIED UNDO-TOAST DESIGN */
+/* UNIFIED UNDO-TOAST DESIGN (PRO-TOOL CONTRAST & OBSIDIAN GLOW) */
 .lp-undo-toast {
   position: fixed !important;
-  bottom: 24px !important;
+  bottom: 32px !important; /* Etwas angehoben für bessere vertikale Balance */
   left: 50% !important;
   transform: translateX(-50%) !important;
-  background: var(--card-bg) !important;
-  border: 1px solid var(--border-color) !important;
-  padding: 12px 24px !important;
-  border-radius: 12px !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
-  display: flex !important;
+  
+  /* OBSIDIAN KONTRAST: Sattes, tiefes Schwarz-Zink trennt den Toast visuell von den grauen Karten ab */
+  background: #09090b !important; 
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-left: 5px solid var(--primary) !important; /* Breiterer, markanterer linker Akzent */
+  
+  padding: 14px 28px !important; /* Mehr Symmetrie */
+  border-radius: 10px !important;
+  
+  /* DEEP AMBIENT GLOW: Erhöhte Intensität sorgt für schwebenden 3D-Effekt */
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.5), 
+    0 0 20px rgba(59, 130, 246, 0.25) !important; 
+  
+  display: flex;
   align-items: center !important;
-  gap: 16px !important;
-  z-index: 2147483647 !important; /* Über allen anderen Ebenen */
-  color: var(--text-main) !important;
+  gap: 12px !important;
+  z-index: 2147483647 !important;
+  color: #f4f4f5 !important; /* Strahlend weißer, kontraststarker Text */
   font-family: inherit !important;
   animation: lp-slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Nativer Licht-Kontrast für den Light-Mode */
+[data-theme="light"] .lp-undo-toast {
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  color: #09090b !important;
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.1), 
+    0 0 15px rgba(59, 130, 246, 0.12) !important;
+}
+
+/* Hover-Effekt für den Undo-Button */
+#lp-undo-btn {
+  transition: opacity 0.2s ease, transform 0.1s ease !important;
+}
+#lp-undo-btn:hover {
+  opacity: 0.8 !important;
+  text-decoration: underline !important;
+}
+#lp-undo-btn:active {
+  transform: scale(0.95) !important;
 }
 
 @keyframes lp-slide-up {

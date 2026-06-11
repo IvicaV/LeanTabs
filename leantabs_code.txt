@@ -3312,7 +3312,7 @@ function getLinkKey(link) {
   return `${link.url}-${uniqueTimestamp}`;
 }
 
-// --- HELPER: ELITE-GRADE SMART-FOCUS URL NORMALIZATION ---
+// --- HELPER: ELITE-GRADE SMART-FOCUS URL NORMALIZATION WITH LOCALIZATION STRIPPER ---
 function normalizeUrlForComparison(urlStr) {
   if (!urlStr || typeof urlStr !== 'string') {
     return '';
@@ -3323,13 +3323,21 @@ function normalizeUrlForComparison(urlStr) {
     let decoded = urlStr;
     try { decoded = decodeURIComponent(urlStr); } catch (e) {}
 
-    // 2. Unicode-Normalisierung
+    // 2. Unicode-Normalisierung & Trimming
     let tempUrl = decoded.normalize('NFC').trim();
     if (!/^https?:\/\//i.test(tempUrl)) tempUrl = 'https://' + tempUrl;
     
     const url = new URL(tempUrl);
     let host = url.hostname.toLowerCase().replace(/^www\./i, '');
-    let path = url.pathname.toLowerCase().replace(/\/$/, '');
+    let path = url.pathname.toLowerCase();
+
+    // --- NEU: LOCALIZATION STRIPPER ---
+    // Entfernt Ländercodes wie /de, /en, /fr, /de-de, /en-us am Anfang des Pfads,
+    // da diese durch automatische Server-Redirects entstehen und inhaltlich identisch sind.
+    path = path.replace(/^\/([a-z]{2}(?:-[a-z]{2})?)(\/|$)/i, '$2');
+    
+    // Schrägstrich am Ende entfernen
+    path = path.replace(/\/$/, '');
     
     // 3. Smart-Focus Filter: Parameter nur bei Video- & Suchportalen erhalten
     const preserveParamsHosts = ['youtube.com', 'google.com', 'google.de', 'stackoverflow.com', 'bing.com'];
@@ -3346,8 +3354,7 @@ function normalizeUrlForComparison(urlStr) {
         const cleanSearch = searchParams.toString();
         return host + path + (cleanSearch ? '?' + cleanSearch : '');
     } else {
-        // Für Standard-Webseiten ignorieren wir Query-Strings und Hashes komplett,
-        // da diese nur temporäre Sessions, Sprachen oder Tracker enthalten.
+        // Für Standard-Webseiten ignorieren wir Parameter und Ländercodes komplett
         return host + path;
     }
   } catch (e) {
@@ -3360,6 +3367,8 @@ function normalizeUrlForComparison(urlStr) {
       clean = clean.split('?')[0]; 
       clean = clean.replace(/^https?:\/\//i, '');
       clean = clean.replace(/^www\./i, '');
+      // Einfacher Ländercode-Schnitt für Fallback
+      clean = clean.replace(/\/([a-z]{2}(?:-[a-z]{2})?)(\/|$)/i, '$2');
       clean = clean.replace(/\/$/, '');
       return clean;
     } catch (innerError) {

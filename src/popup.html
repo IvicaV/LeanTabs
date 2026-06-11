@@ -49,6 +49,15 @@
       </select>
     </div>
 
+    <!-- TABS SLIDER (Clean, entkoppelt, keine Label-Kollisionen) -->
+    <div class="scope-control" style="margin-top: 12px; display: flex; flex-direction: column; gap: 6px;">
+      <div style="display: flex; justify-content: space-between; align-items: center;" title="Specify how many of your most recently active tabs will remain open in your active window. All older background tabs will be safely cleared and converted to lightweight links inside your dashboard.">
+        <span style="font-size: 12px; font-weight: 600; color: var(--text-muted); cursor: help;">Keep Active Tabs</span>
+        <span id="popupKeepCount" style="font-size: 13px; font-weight: 700; color: var(--primary);">3</span>
+      </div>
+      <input type="range" id="popupKeepSlider" min="1" max="20" value="3" class="popup-slider" title="Drag to adjust open tab limit">
+    </div>
+
     <div class="action-stack">
       <button id="cleanBtn" class="btn btn-primary btn-block">
         <svg style="width:20px; height:20px; stroke:white;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>

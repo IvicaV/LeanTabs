@@ -1178,8 +1178,63 @@ kbd {
   border-color: rgba(239, 68, 68, 0.2) !important; /* Roter Hauch zur Warnung */
 }
 
-.btn-session.btn-lock.active {
-  color: #ef4444 !important; /* Schloss leuchtet rot bei Sperrung */
+/* --- TABS STEPPER & RATINGS ACCENT (POPUP) --- */
+
+/* Unsichtbarkeit der Sterne bei Deaktivierung */
+.ratings-disabled .link-rating-container {
+  display: none !important;
+}
+
+/* --- PREMIUM MINIMALIST SLIDER (ZERO-REGRESSION) --- */
+.popup-slider {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  width: 100% !important;
+  height: 4px !important;
+  border-radius: 99px !important;
+  background: var(--surface-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  outline: none !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+  box-sizing: border-box !important;
+}
+
+/* Der Ziehknopf (Thumb) für Chrome, Safari, Opera, Brave */
+.popup-slider::-webkit-slider-thumb {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  width: 14px !important;
+  height: 14px !important;
+  border-radius: 50% !important;
+  background: var(--primary) !important;
+  border: 2px solid var(--card-bg) !important;
+  box-shadow: var(--shadow-sm) !important;
+  transition: transform 0.1s ease-in-out, background-color 0.2s !important;
+}
+
+.popup-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2) !important; /* Taktiler Hover-Effekt */
+  background-color: var(--primary-hover) !important;
+}
+
+.popup-slider::-webkit-slider-thumb:active {
+  transform: scale(0.95) !important;
+}
+
+/* Der Ziehknopf für Firefox */
+.popup-slider::-moz-range-thumb {
+  width: 12px !important;
+  height: 12px !important;
+  border-radius: 50% !important;
+  background: var(--primary) !important;
+  border: 2px solid var(--card-bg) !important;
+  box-shadow: var(--shadow-sm) !important;
+  transition: transform 0.1s ease-in-out, background-color 0.2s !important;
+  cursor: pointer !important;
+}
+.popup-slider::-moz-range-thumb:hover {
+  transform: scale(1.2) !important;
 }
 
 /* --- END OF styles.css --- */

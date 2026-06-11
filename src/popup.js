@@ -85,9 +85,11 @@ async function initScopeDropdown() {
     }
 
     scopeSelect.addEventListener('change', async () => {
-        updateSubtext(settings.keepLastTabs || 3);
-        settings.cleanAllWorkspaces = (scopeSelect.value === 'global');
-        await saveSettings(settings);
+        const currentSettings = await getSettings();
+        const keepCount = currentSettings.keepLastTabs || 3;
+        updateSubtext(keepCount);
+        currentSettings.cleanAllWorkspaces = (scopeSelect.value === 'global');
+        await saveSettings(currentSettings);
     });
 }
 
@@ -129,6 +131,35 @@ async function getTabsBasedOnScope(isGlobal) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+    
+    // --- INLINE RANGE SLIDER LOGIK START ---
+    const rawSettings = await getSettings();
+    const settingsObj = Object.keys(rawSettings).length > 0 ? rawSettings : { keepLastTabs: 3 };
+    let keepCount = settingsObj.keepLastTabs || 3;
+
+    const countEl = document.getElementById('popupKeepCount');
+    const sliderEl = document.getElementById('popupKeepSlider');
+
+    if (countEl && sliderEl) {
+        countEl.textContent = keepCount;
+        sliderEl.value = keepCount;
+
+        // Live-Feedback beim Ziehen (rein optisch, extrem performant)
+        sliderEl.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            countEl.textContent = val;
+            updateSubtext(val);
+        });
+
+        // Speichern erst beim Loslassen (Schützt vor I/O-Overhead auf der Festplatte!)
+        sliderEl.addEventListener('change', async (e) => {
+            const val = parseInt(e.target.value);
+            const currentSettings = await getSettings();
+            currentSettings.keepLastTabs = val;
+            await saveSettings(currentSettings);
+        });
+    }
+    // --- INLINE RANGE SLIDER LOGIK END ---
     
     // --- Footer Links Handlers (Initialize early) ---
     const aboutLink = document.getElementById('aboutLink');

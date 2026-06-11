@@ -133,7 +133,8 @@ async function initializeDefaults() {
     keepLastTabs: 3, 
     autoBackup: true, 
     confirmBeforeClose: true, 
-    cleanAllWorkspaces: false
+    cleanAllWorkspaces: false,
+    enableRatings: true // Standardmäßig aktiv!
   });
 }
 

@@ -214,6 +214,18 @@ async function loadLinks() {
   allLinks = await getLinks();
   const settings = await getSettings();
   
+  // --- CONFIG-WEICHE FÜR STERNE START ---
+  const enableRatings = settings.enableRatings !== false; // Default: true (aktiviert)
+  const container = document.getElementById('linksContainer');
+  if (container) {
+      if (enableRatings) {
+          container.classList.remove('ratings-disabled');
+      } else {
+          container.classList.add('ratings-disabled');
+      }
+  }
+  // --- CONFIG-WEICHE FÜR STERNE END ---
+  
   let needsSave = false;
   allLinks.forEach((link, index) => {
     if (!link.uniqueId) {
@@ -2078,7 +2090,8 @@ function syncSettingsToForm() {
         { id: 'cleanAllWorkspacesCheck', key: 'cleanAllWorkspaces' },
         { id: 'sessionsDefaultCollapsedCheck', key: 'sessionsDefaultCollapsed' },
         { id: 'restoreWindowStructureCheck', key: 'restoreWindowStructure' },
-        { id: 'smartImportCheck', key: 'smartImport' }
+        { id: 'smartImportCheck', key: 'smartImport' },
+        { id: 'enableRatingsCheck', key: 'enableRatings' }
     ];
 
     mappings.forEach(m => {
@@ -2199,6 +2212,7 @@ function initSettingsLogic() {
             localSettingsObj.sessionsDefaultCollapsed = document.getElementById('sessionsDefaultCollapsedCheck').checked;
             localSettingsObj.restoreWindowStructure = document.getElementById('restoreWindowStructureCheck').checked;
             localSettingsObj.smartImport = document.getElementById('smartImportCheck').checked;
+            localSettingsObj.enableRatings = document.getElementById('enableRatingsCheck').checked;
 
             await saveSettings(localSettingsObj);
             updateSettingsSaveStatus("✅ Settings saved!", "success");

@@ -4019,9 +4019,9 @@ if (kofiLink) {
 }
 
 document.getElementById('linksContainer').addEventListener('click', async (e) => {
-  if (e.target.classList.contains('btn-add-link')) {
+  if (e.target.closest('.btn-add-link')) {
     e.stopImmediatePropagation();
-    const btn = e.target;
+    const btn = e.target.closest('.btn-add-link');
     const sessionId = btn.dataset.sessionId;
     const input = btn.previousElementSibling;
     const url = input.value.trim();
@@ -4032,6 +4032,35 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
         await showCustomModal("Invalid URL", "Please enter a valid web address.", [{ text: "OK", value: true, class: "btn-modal-confirm" }]);
         return; 
     }
+
+    // --- DEFENSIRE DUPLIKAT-WARNUNG START ---
+    // Wir holen den aktuellen Stand, um vor der Netzwerkanfrage (fetchTitle) lokal zu prüfen
+    allLinks = await getLinks();
+    
+    const normalizedIncomingUrl = validUrl.replace(/\/$/, "").trim().toLowerCase();
+    const duplicateMatch = allLinks.find(link => {
+        return link.url.replace(/\/$/, "").trim().toLowerCase() === normalizedIncomingUrl;
+    });
+
+    if (duplicateMatch) {
+        const existingSessionName = duplicateMatch.sessionLabel || "another session";
+        
+        const userConfirmed = await showCustomModal(
+            "Link Already Saved",
+            `This URL is already saved in "${existingSessionName}".\n\nDo you want to add it to this session anyway?`,
+            [
+                { text: "Cancel", value: false, class: "btn-modal-cancel" },
+                { text: "Add Anyway", value: true, class: "btn-modal-confirm" }
+            ]
+        );
+        
+        if (!userConfirmed) {
+            input.value = ''; // Feld leeren
+            return; // Vorgang abbrechen ohne Mutation
+        }
+    }
+    // --- DEFENSIRE DUPLIKAT-WARNUNG END ---
+
     const originalBtnText = btn.textContent;
     btn.textContent = "...";
     btn.disabled = true;

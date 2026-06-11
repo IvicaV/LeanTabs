@@ -1237,4 +1237,10 @@ kbd {
   transform: scale(1.2) !important;
 }
 
+/* --- DRAG-AND-DROP GRAPHIC STABILIZER (ZERO-JITTER) --- */
+/* Verhindert, dass verschachtelte Kind-Elemente Drag-Events abfangen und Flimmern verursachen */
+.dragging-active .link-item * {
+  pointer-events: none !important;
+}
+
 /* --- END OF styles.css --- */

@@ -1771,7 +1771,6 @@ function handleDragStart(e) {
   const searchInput = document.getElementById('searchInput');
   if (searchInput.value.trim() !== '' || document.getElementById('categoryFilter').value !== '' || document.getElementById('windowFilter').value !== '') {
       e.preventDefault();
-      // FIX: Optional feedback (minimal invasive)
       return;
   }
   dragSourceEl = this;
@@ -1780,6 +1779,9 @@ function handleDragStart(e) {
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/html', this.innerHTML); 
   this.classList.add('dragging');
+
+  // --- NEU: AKTIVIERE DRAG-SHIELD IM CONTAINER ---
+  document.getElementById('linksContainer')?.classList.add('dragging-active');
 }
 
 function handleDragOver(e) {
@@ -1788,9 +1790,19 @@ function handleDragOver(e) {
   return false;
 }
 
+// --- UPGRADED DRAG ENTER (CROSS-CARD & LOCK AWARE) ---
 function handleDragEnter(e) {
   const targetSession = this.closest('.links-list').dataset.sessionId;
-  if (this !== dragSourceEl && targetSession === dragSessionId) {
+  
+  // Sicherheits-Check: Holen des Sperr-Zustands der Ziel-Session
+  const targetSessionLink = allLinks.find(l => {
+      const sId = l.sessionId || `${l.dateGroup}-${l.timestamp}`;
+      return sId === targetSession;
+  });
+  const isTargetLocked = targetSessionLink?.isLocked || false;
+
+  // Erlaube Ziehen über Grenzen hinweg, aber sperre ge-lock-te Kacheln
+  if (this !== dragSourceEl && !isTargetLocked) {
     this.classList.add('drag-over');
   }
 }
@@ -1799,25 +1811,57 @@ function handleDragLeave(e) {
   this.classList.remove('drag-over');
 }
 
+// --- UPGRADED DROP TRIGGER (CROSS-CARD & STORAGE ATOMIC) ---
 async function handleDrop(e) {
   e.stopPropagation(); 
   const targetSession = this.closest('.links-list').dataset.sessionId;
-  if (dragSourceEl !== this && dragSessionId === targetSession) {
+  
+  // Sicherheits-Check: Ist der Ziel-Ordner gesperrt?
+  const targetSessionLink = allLinks.find(l => {
+      const sId = l.sessionId || `${l.dateGroup}-${l.timestamp}`;
+      return sId === targetSession;
+  });
+  const isTargetLocked = targetSessionLink?.isLocked || false;
+  if (isTargetLocked) {
+      return false; // Hart abbrechen bei gesperrter Ziel-Session
+  }
+
+  if (dragSourceEl !== this) {
       const targetKey = this.querySelector('.link-checkbox').dataset.linkKey;
       const sourceIndex = allLinks.findIndex(l => getLinkKey(l) === dragSourceKey);
       const targetIndex = allLinks.findIndex(l => getLinkKey(l) === targetKey);
+      
       if (sourceIndex > -1 && targetIndex > -1) {
+          // Link aus alter Position herausnehmen (Mutiert allLinks temporär im Speicher)
           const [movedItem] = allLinks.splice(sourceIndex, 1);
+          
+          // KACHELÜBERGREIFENDER DROP-SYNC:
+          if (dragSessionId !== targetSession) {
+              const targetLabel = targetSessionLink ? targetSessionLink.sessionLabel : "Restored Session";
+              
+              // 1. Zuweisen der neuen Kachel-Schnittstellen
+              movedItem.sessionId = targetSession;
+              movedItem.sessionLabel = targetLabel;
+              
+              // 2. Synchronisieren des Pinned-Zustands der Ziel-Kachel
+              movedItem.isPinned = targetSessionLink ? (targetSessionLink.isPinned || false) : false;
+          }
+
+          // An exakter Ziel-Position der neuen Kachel einfügen
           allLinks.splice(targetIndex, 0, movedItem);
+          
           sessionSortStates[targetSession] = 'date';
           await saveLinks(allLinks);
-          renderLinks(); 
+          await loadLinks(); // UI neu rendern zur Aktivierung des neuen Zustands
       }
   }
   return false;
 }
 
 function handleDragEnd(e) {
+  // --- NEU: DEAKTIVIERE DRAG-SHIELD ---
+  document.getElementById('linksContainer')?.classList.remove('dragging-active');
+
   this.classList.remove('dragging');
   document.querySelectorAll('.link-item').forEach(item => {
     item.classList.remove('drag-over');

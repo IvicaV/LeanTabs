@@ -3312,6 +3312,22 @@ function getLinkKey(link) {
   return `${link.url}-${uniqueTimestamp}`;
 }
 
+// --- HELPER: ROBUST URL NORMALIZATION FOR DUPLICATE CHECK ---
+function normalizeUrlForComparison(urlStr) {
+  try {
+    let clean = urlStr.trim().toLowerCase();
+    // Protokoll entfernen (http:// oder https://)
+    clean = clean.replace(/^https?:\/\//i, '');
+    // www. Subdomain entfernen
+    clean = clean.replace(/^www\./i, '');
+    // Schrägstrich am Ende entfernen
+    clean = clean.replace(/\/$/, '');
+    return clean;
+  } catch (e) {
+    return urlStr.toLowerCase();
+  }
+}
+
 async function openLinkAndIncrement(linkKey, active = true) {
   allLinks = await getLinks();
   const targetLink = allLinks.find(l => getLinkKey(l) === linkKey);
@@ -4042,9 +4058,9 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
     // Wir holen den aktuellen Stand, um vor der Netzwerkanfrage (fetchTitle) lokal zu prüfen
     allLinks = await getLinks();
     
-    const normalizedIncomingUrl = validUrl.replace(/\/$/, "").trim().toLowerCase();
+    const normalizedIncomingUrl = normalizeUrlForComparison(validUrl);
     const duplicateMatch = allLinks.find(link => {
-        return link.url.replace(/\/$/, "").trim().toLowerCase() === normalizedIncomingUrl;
+        return normalizeUrlForComparison(link.url) === normalizedIncomingUrl;
     });
 
     if (duplicateMatch) {

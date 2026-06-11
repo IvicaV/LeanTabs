@@ -244,19 +244,41 @@ function getLinkKey(link) {
   return `${link.url}-${uniqueTimestamp}`;
 }
 
-// --- HELPER: ROBUST URL NORMALIZATION FOR DUPLICATE CHECK ---
+// --- HELPER: ELITE-GRADE URL NORMALIZATION FOR DUPLICATE CHECK ---
 function normalizeUrlForComparison(urlStr) {
   try {
+    let tempUrl = urlStr.trim();
+    // Sicherstellen, dass das Protokoll für den URL-Constructor vorhanden ist
+    if (!/^https?:\/\//i.test(tempUrl)) tempUrl = 'https://' + tempUrl;
+    
+    const url = new URL(tempUrl);
+    let host = url.hostname.toLowerCase().replace(/^www\./i, '');
+    let path = url.pathname.toLowerCase().replace(/\/$/, '');
+    
+    // Query-Parameter analysieren und säubern
+    let searchParams = new URLSearchParams(url.search.toLowerCase());
+    
+    // Entferne bekannte Tracking- und Navigations-Parameter
+    const paramsToStrip = [
+      'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+      'ref', 'fbclid', 'gclid', 'yclid', 'spm', 't'
+    ];
+    paramsToStrip.forEach(p => searchParams.delete(p));
+    
+    // Parameter alphabetisch sortieren, um Reihenfolgen-Diskrepanzen zu eliminieren
+    searchParams.sort();
+    
+    const cleanSearch = searchParams.toString();
+    return host + path + (cleanSearch ? '?' + cleanSearch : '');
+  } catch (e) {
+    // Extrem robuster Fallback bei Fehlern im URL-Constructor
     let clean = urlStr.trim().toLowerCase();
-    // Protokoll entfernen (http:// oder https://)
+    clean = clean.split('#')[0]; // Sprungmarken entfernen
+    clean = clean.split('?')[0]; // Parameter entfernen (defensiver Fallback)
     clean = clean.replace(/^https?:\/\//i, '');
-    // www. Subdomain entfernen
     clean = clean.replace(/^www\./i, '');
-    // Schrägstrich am Ende entfernen
     clean = clean.replace(/\/$/, '');
     return clean;
-  } catch (e) {
-    return urlStr.toLowerCase();
   }
 }
 
@@ -987,12 +1009,26 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
     }
 
     // --- DEFENSIRE DUPLIKAT-WARNUNG START ---
-    // Wir holen den aktuellen Stand, um vor der Netzwerkanfrage (fetchTitle) lokal zu prüfen
     allLinks = await getLinks();
     
     const normalizedIncomingUrl = normalizeUrlForComparison(validUrl);
+    
+    // DIAGNOSTIK: Protokolliere den Versuch in der Konsole der Seite
+    console.log("[LeanTabs] Checking manual input:", {
+        rawInput: validUrl,
+        normalizedInput: normalizedIncomingUrl
+    });
+
     const duplicateMatch = allLinks.find(link => {
-        return normalizeUrlForComparison(link.url) === normalizedIncomingUrl;
+        const normalizedDbUrl = normalizeUrlForComparison(link.url);
+        if (normalizedDbUrl === normalizedIncomingUrl) {
+            console.log("[LeanTabs] ✓ Duplicate match found in Database:", {
+                dbRaw: link.url,
+                dbNormalized: normalizedDbUrl
+            });
+            return true;
+        }
+        return false;
     });
 
     if (duplicateMatch) {

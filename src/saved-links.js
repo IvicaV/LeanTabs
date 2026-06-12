@@ -2120,6 +2120,14 @@ function initViewNavigation() {
             switchView('settings');
         } else {
             switchView('links');
+            
+            // Focus search input safely after paint
+            setTimeout(() => {
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput) {
+                    searchInput.focus();
+                }
+            }, 50);
         }
     };
     handleHash();

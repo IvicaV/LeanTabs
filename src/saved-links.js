@@ -3048,7 +3048,8 @@ function initSettingsLogic() {
                     updateSettingsSaveStatus(`Imported ${preparedLinks.length} links!`, 'success');
                 }
 
-                const allLinks = [...preparedLinks, ...currentLinks];
+                const freshCurrentLinks = await getLinks();
+                const allLinks = [...preparedLinks, ...freshCurrentLinks];
                 await saveLinks(allLinks);
             } else if (shouldImport && finalImportList.length === 0) {
                 updateSettingsSaveStatus('No links selected to import.', 'error');

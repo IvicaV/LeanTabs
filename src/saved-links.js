@@ -2037,6 +2037,7 @@ function updateStats() {
 let dragSourceEl = null;
 let dragSourceKey = null;
 let dragSessionId = null;
+let draggedSelection = null; // Will hold array of keys of selected links being dragged
 
 function handleDragStart(e) {
   const searchInput = document.getElementById('searchInput');
@@ -2047,6 +2048,25 @@ function handleDragStart(e) {
   dragSourceEl = this;
   dragSourceKey = this.querySelector('.link-checkbox').dataset.linkKey;
   dragSessionId = this.closest('.links-list').dataset.sessionId;
+  
+  // --- MULTI-DRAG CAPTURE START ---
+  if (selectedLinks.has(dragSourceKey)) {
+      draggedSelection = Array.from(selectedLinks);
+      
+      // Optional: Visual indicator inside drag feedback
+      if (e.dataTransfer.setDragImage) {
+          const badge = document.createElement('div');
+          badge.style.cssText = 'position: absolute; top: -1000px; padding: 6px 12px; background: var(--primary); color: white; font-size: 11px; font-weight: bold; border-radius: 99px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);';
+          badge.textContent = `Moving ${selectedLinks.size} link${selectedLinks.size === 1 ? '' : 's'}...`;
+          document.body.appendChild(badge);
+          e.dataTransfer.setDragImage(badge, 10, 10);
+          setTimeout(() => badge.remove(), 10);
+      }
+  } else {
+      draggedSelection = null; // Standard Single-Drag Fallback
+  }
+  // --------------------------------
+  
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/html', this.innerHTML); 
   this.classList.add('dragging');
@@ -2097,34 +2117,68 @@ async function handleDrop(e) {
       return false; // Hart abbrechen bei gesperrter Ziel-Session
   }
 
-  if (dragSourceEl !== this) {
-      const targetKey = this.querySelector('.link-checkbox').dataset.linkKey;
-      const sourceIndex = allLinks.findIndex(l => getLinkKey(l) === dragSourceKey);
-      const targetIndex = allLinks.findIndex(l => getLinkKey(l) === targetKey);
-      
-      if (sourceIndex > -1 && targetIndex > -1) {
-          // Link aus alter Position herausnehmen (Mutiert allLinks temporär im Speicher)
-          const [movedItem] = allLinks.splice(sourceIndex, 1);
-          
-          // KACHELÜBERGREIFENDER DROP-SYNC:
-          if (dragSessionId !== targetSession) {
-              const targetLabel = targetSessionLink ? targetSessionLink.sessionLabel : "Restored Session";
-              
-              // 1. Zuweisen der neuen Kachel-Schnittstellen
-              movedItem.sessionId = targetSession;
-              movedItem.sessionLabel = targetLabel;
-              
-              // 2. Synchronisieren des Pinned-Zustands der Ziel-Kachel
-              movedItem.isPinned = targetSessionLink ? (targetSessionLink.isPinned || false) : false;
+  const targetKey = this.querySelector('.link-checkbox').dataset.linkKey;
+  const targetIndex = allLinks.findIndex(l => getLinkKey(l) === targetKey);
+
+  if (targetIndex > -1) {
+      if (draggedSelection && draggedSelection.length > 0) {
+          // Guard: If dropping the selection onto itself, do nothing
+          if (draggedSelection.includes(targetKey)) {
+              return false;
           }
 
-          // An exakter Ziel-Position der neuen Kachel einfügen
-          allLinks.splice(targetIndex, 0, movedItem);
-          
-          sessionSortStates[targetSession] = 'date';
-          await saveLinks(allLinks);
-          await loadLinks(); // UI neu rendern zur Aktivierung des neuen Zustands
+          // --- MULTI-DROP LOGIC WITH TIMESTAMP SYNC ---
+          // 1. Filter out all dragged items from their current positions
+          const itemsToMove = [];
+          allLinks = allLinks.filter(l => {
+              const key = getLinkKey(l);
+              if (draggedSelection.includes(key)) {
+                  // Re-bind to target session metadata
+                  l.sessionId = targetSession;
+                  l.sessionLabel = targetSessionLink ? targetSessionLink.sessionLabel : "Restored Session";
+                  l.isPinned = targetSessionLink ? (targetSessionLink.isPinned || false) : false;
+                  
+                  // SYNC TIMESTAMPS: Freeze sorting position completely!
+                  l.timestamp = targetSessionLink ? targetSessionLink.timestamp : l.timestamp;
+                  l.dateGroup = targetSessionLink ? targetSessionLink.dateGroup : l.dateGroup;
+                  
+                  itemsToMove.push(l);
+                  return false; // Remove from old position
+              }
+              return true;
+          });
+
+          // 2. Find new insertion index (targetIndex might have shifted after filtering)
+          let adjustedTargetIndex = allLinks.findIndex(l => getLinkKey(l) === targetKey);
+          if (adjustedTargetIndex === -1) adjustedTargetIndex = allLinks.length;
+
+          // 3. Insert the entire block at the target index
+          allLinks.splice(adjustedTargetIndex, 0, ...itemsToMove);
+          selectedLinks.clear(); // Clear selection bar
+      } 
+      else if (dragSourceEl && dragSourceKey && dragSourceEl !== this) {
+          // --- STANDARD SINGLE-DROP FALLBACK WITH TIMESTAMP SYNC ---
+          const sourceIndex = allLinks.findIndex(l => getLinkKey(l) === dragSourceKey);
+          if (sourceIndex > -1) {
+              const [movedItem] = allLinks.splice(sourceIndex, 1);
+              if (dragSessionId !== targetSession) {
+                  movedItem.sessionId = targetSession;
+                  movedItem.sessionLabel = targetSessionLink ? targetSessionLink.sessionLabel : "Restored Session";
+                  movedItem.isPinned = targetSessionLink ? (targetSessionLink.isPinned || false) : false;
+                  
+                  // SYNC TIMESTAMPS
+                  movedItem.timestamp = targetSessionLink ? targetSessionLink.timestamp : movedItem.timestamp;
+                  movedItem.dateGroup = targetSessionLink ? targetSessionLink.dateGroup : movedItem.dateGroup;
+              }
+              let adjustedTargetIndex = allLinks.findIndex(l => getLinkKey(l) === targetKey);
+              if (adjustedTargetIndex === -1) adjustedTargetIndex = allLinks.length;
+              allLinks.splice(adjustedTargetIndex, 0, movedItem);
+          }
       }
+      
+      sessionSortStates[targetSession] = 'date';
+      await saveLinks(allLinks);
+      await loadLinks(); // UI neu rendern zur Aktivierung des neuen Zustands
   }
   return false;
 }
@@ -2144,6 +2198,9 @@ function handleDragEnd(e) {
     clearTimeout(dragExpandTimeout);
     dragExpandTimeout = null;
   }
+  
+  // Reset selection drag states
+  draggedSelection = null; 
 }
 
 function handleHeaderDragEnter(e) {
@@ -2201,19 +2258,55 @@ async function handleHeaderDrop(e) {
   const targetLinkSample = allLinks.find(l => (l.sessionId || `${l.dateGroup}-${l.timestamp}`) === targetSessionId);
   if (targetLinkSample?.isLocked) return false;
 
-  if (dragSourceEl && dragSourceKey && dragSessionId !== targetSessionId) {
-      // Find and extract link index in global array
+  if (draggedSelection && draggedSelection.length > 0) {
+      // --- MULTI-DROP ON COLLAPSED HEADER WITH TIMESTAMP SYNC ---
+      const itemsToMove = [];
+      allLinks = allLinks.filter(l => {
+          const key = getLinkKey(l);
+          if (draggedSelection.includes(key)) {
+              l.sessionId = targetSessionId;
+              l.sessionLabel = targetLinkSample ? targetLinkSample.sessionLabel : "Restored Session";
+              l.isPinned = targetLinkSample ? (targetLinkSample.isPinned || false) : false;
+              
+              // SYNC TIMESTAMPS: Freeze sorting position completely!
+              l.timestamp = targetLinkSample ? targetLinkSample.timestamp : l.timestamp;
+              l.dateGroup = targetLinkSample ? targetLinkSample.dateGroup : l.dateGroup;
+              
+              itemsToMove.push(l);
+              return false;
+          }
+          return true;
+      });
+
+      let insertIndex = allLinks.length;
+      for (let i = allLinks.length - 1; i >= 0; i--) {
+          const sId = allLinks[i].sessionId || `${allLinks[i].dateGroup}-${allLinks[i].timestamp}`;
+          if (sId === targetSessionId) {
+              insertIndex = i + 1;
+              break;
+          }
+      }
+
+      allLinks.splice(insertIndex, 0, ...itemsToMove);
+      selectedLinks.clear();
+      sessionSortStates[targetSessionId] = 'date';
+      
+      await saveLinks(allLinks);
+      await loadLinks();
+  } 
+  else if (dragSourceEl && dragSourceKey && dragSessionId !== targetSessionId) {
+      // --- STANDARD SINGLE-DROP FALLBACK WITH TIMESTAMP SYNC ---
       const sourceIndex = allLinks.findIndex(l => getLinkKey(l) === dragSourceKey);
       if (sourceIndex > -1) {
           const [movedItem] = allLinks.splice(sourceIndex, 1);
-          
-          // Re-route session bindings to target card
           movedItem.sessionId = targetSessionId;
           movedItem.sessionLabel = targetLinkSample ? targetLinkSample.sessionLabel : "Restored Session";
           movedItem.isPinned = targetLinkSample ? (targetLinkSample.isPinned || false) : false;
 
-          // Append to the END of the target session. 
-          // To do this, find the index of the last link in the target session, and insert after it.
+          // SYNC TIMESTAMPS
+          movedItem.timestamp = targetLinkSample ? targetLinkSample.timestamp : movedItem.timestamp;
+          movedItem.dateGroup = targetLinkSample ? targetLinkSample.dateGroup : movedItem.dateGroup;
+
           let insertIndex = allLinks.length;
           for (let i = allLinks.length - 1; i >= 0; i--) {
               const sId = allLinks[i].sessionId || `${allLinks[i].dateGroup}-${allLinks[i].timestamp}`;
@@ -2224,7 +2317,7 @@ async function handleHeaderDrop(e) {
           }
 
           allLinks.splice(insertIndex, 0, movedItem);
-          sessionSortStates[targetSessionId] = 'date'; // Reset sort to preserve position
+          sessionSortStates[targetSessionId] = 'date';
           
           await saveLinks(allLinks);
           await loadLinks();

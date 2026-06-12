@@ -376,6 +376,28 @@
     </div>
   </div>
 
+  <!-- FLOATING GLOBAL SELECTION BAR -->
+  <div id="global-selection-bar" class="global-selection-bar hidden">
+      <div class="selection-bar-content">
+          <span id="global-selection-count" class="selection-count-text">0 links selected</span>
+          <div class="selection-bar-divider"></div>
+          <div class="selection-bar-actions">
+              <button id="global-open-btn" class="btn-selection-action btn-open" title="Open Selected Tabs">
+                  <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 6H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <span>Open</span>
+              </button>
+              <button id="global-move-btn" class="btn-selection-action btn-move" title="Move Selected to other Session">
+                  <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l7-7 7 7"/><path d="M12 2v14"/><path d="M19 15v6H5v-6"/></svg>
+                  <span>Move</span>
+              </button>
+              <button id="global-delete-btn" class="btn-selection-action btn-delete-bulk" title="Delete Selected">
+                  <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <span>Delete</span>
+              </button>
+          </div>
+      </div>
+  </div>
+
   <script type="module" src="saved-links.js"></script>
 </body>
 </html>

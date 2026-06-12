@@ -567,37 +567,6 @@ function renderLinks() {
     subText.className = 'tab-count';
     subText.textContent = `${session.links.length} Tabs stored`;
     
-    // --- SELECTION ACTION BAR (SAFE CONTAINER - MOVED TO LEFT SIDE) ---
-    const selectionActions = document.createElement('div');
-    selectionActions.className = 'selection-actions'; 
-    selectionActions.dataset.sessionId = sessionId;
-    selectionActions.style.display = 'none';
-    
-    const openSelectedBtn = document.createElement('button');
-    openSelectedBtn.className = 'btn-session btn-action-select';
-    openSelectedBtn.innerHTML = ICONS.link;
-    openSelectedBtn.dataset.action = 'openSelected';
-    openSelectedBtn.dataset.sessionId = sessionId;
-    openSelectedBtn.title = 'Open Selected';
-    
-    const moveSelectedBtn = document.createElement('button');
-    moveSelectedBtn.className = 'btn-session btn-action-select';
-    moveSelectedBtn.innerHTML = ICONS.move; 
-    moveSelectedBtn.dataset.action = 'moveSelected';
-    moveSelectedBtn.dataset.sessionId = sessionId;
-    moveSelectedBtn.title = 'Move Selected to other Session';
-
-    const deleteSelectedBtn = document.createElement('button');
-    deleteSelectedBtn.className = 'btn-session btn-action-delete-select';
-    deleteSelectedBtn.innerHTML = ICONS.trash;
-    deleteSelectedBtn.dataset.action = 'deleteSelected';
-    deleteSelectedBtn.dataset.sessionId = sessionId;
-    deleteSelectedBtn.title = 'Delete Selected';
-    
-    selectionActions.appendChild(openSelectedBtn);
-    selectionActions.appendChild(moveSelectedBtn); 
-    selectionActions.appendChild(deleteSelectedBtn);
-
     // --- APPEND LEFT SIDE ELEMENTS ---
     sessionLeft.appendChild(topRow);
     sessionLeft.appendChild(headerText);
@@ -627,8 +596,6 @@ function renderLinks() {
         notePreview.title = "Global Session Note (Scroll to read)";
         sessionLeft.insertBefore(notePreview, subText);
     }
-
-    sessionLeft.appendChild(selectionActions); // <--- MOVED HERE
 
     // --- RIGHT SIDE BUTTONS ---
     const sessionActions = document.createElement('div');
@@ -896,24 +863,150 @@ function renderLinks() {
 }
 
 function updateSessionActionButtons() {
-  document.querySelectorAll('.selection-actions').forEach(actionsDiv => {
-    const sessionId = actionsDiv.dataset.sessionId;
-    const sessionLinks = filteredLinks.filter(link => {
-      const linkSessionId = link.sessionId || `${link.dateGroup}-${link.timestamp}`;
-      return linkSessionId === sessionId;
-    });
-    const selectedCount = sessionLinks.filter(link => {
-      const key = getLinkKey(link);
-      return selectedLinks.has(key);
-    }).length;
-    
-    // Visibility Logic
-    if (selectedCount > 0) {
-        actionsDiv.style.display = 'flex';
-    } else {
-        actionsDiv.style.display = 'none';
-    }
-  });
+  const bar = document.getElementById('global-selection-bar');
+  const countText = document.getElementById('global-selection-count');
+  
+  if (!bar || !countText) return;
+
+  if (selectedLinks.size > 0) {
+      countText.textContent = `${selectedLinks.size} link${selectedLinks.size === 1 ? '' : 's'} selected`;
+      bar.classList.remove('hidden');
+      
+      // Track associated session ID context for the actions (e.g. Move/Delete operations)
+      const firstSelectedKey = Array.from(selectedLinks)[0];
+      const matchedLink = filteredLinks.find(l => getLinkKey(l) === firstSelectedKey);
+      const activeSessionId = matchedLink ? (matchedLink.sessionId || `${matchedLink.dateGroup}-${matchedLink.timestamp}`) : null;
+      
+      // Map the events of the global buttons to the existing operational logic
+      document.getElementById('global-open-btn').onclick = () => {
+          const btn = document.createElement('button');
+          btn.dataset.sessionId = activeSessionId;
+          btn.dataset.action = 'openSelected';
+          // Trigger the existing handler logic in saved-links.js
+          const event = { target: btn, stopImmediatePropagation: () => {} };
+          triggerGlobalAction(event, 'openSelected', activeSessionId);
+      };
+      
+      document.getElementById('global-move-btn').onclick = () => {
+          const btn = document.createElement('button');
+          btn.dataset.sessionId = activeSessionId;
+          btn.dataset.action = 'moveSelected';
+          const event = { target: btn, stopImmediatePropagation: () => {} };
+          triggerGlobalAction(event, 'moveSelected', activeSessionId);
+      };
+      
+      document.getElementById('global-delete-btn').onclick = () => {
+          const btn = document.createElement('button');
+          btn.dataset.sessionId = activeSessionId;
+          btn.dataset.action = 'deleteSelected';
+          const event = { target: btn, stopImmediatePropagation: () => {} };
+          triggerGlobalAction(event, 'deleteSelected', activeSessionId);
+      };
+  } else {
+      bar.classList.add('hidden');
+  }
+}
+
+async function triggerGlobalAction(fakeEvent, actionName, sessionId) {
+  // Re-route dynamically to the existing central click handler
+  if (actionName === 'openSelected') {
+      const sessionLinks = filteredLinks.filter(link => {
+          const linkSessionId = link.sessionId || `${link.dateGroup}-${link.timestamp}`;
+          return linkSessionId === sessionId;
+      });
+      const selectedInSession = sessionLinks.filter(link => selectedLinks.has(getLinkKey(link)));
+      
+      const confirmed = await showCustomModal(
+          "Open Selected", 
+          `Open ${selectedInSession.length} selected link(s)?`, 
+          [
+              { text: "Cancel", value: false, class: "btn-modal-cancel" },
+              { text: "Open Tabs", value: true, class: "btn-modal-confirm" }
+          ]
+      );
+      if (confirmed) {
+          allLinks = await getLinks();
+          for (const sLink of selectedInSession) {
+              const sKey = getLinkKey(sLink);
+              const targetLink = allLinks.find(l => getLinkKey(l) === sKey);
+              if (targetLink) targetLink.openCount = (targetLink.openCount || 0) + 1;
+              await chrome.tabs.create({ url: sLink.url, active: false });
+          }
+          await saveLinks(allLinks);
+          await loadLinks();
+      }
+  } 
+  else if (actionName === 'moveSelected') {
+      const sessionLinks = filteredLinks.filter(link => {
+          const linkSessionId = link.sessionId || `${link.dateGroup}-${link.timestamp}`;
+          return linkSessionId === sessionId;
+      });
+      const selectedInSession = sessionLinks.filter(link => selectedLinks.has(getLinkKey(link)));
+      if (selectedInSession.length === 0) return;
+      
+      const sessionOptions = [{ value: 'NEW_SESSION_AUTO', text: 'Create New Session' }];
+      const processedSessionIds = new Set();
+      allLinks.forEach(link => {
+          const sId = link.sessionId || `${link.dateGroup}-${link.timestamp}`;
+          if (sId !== sessionId && !processedSessionIds.has(sId)) {
+              processedSessionIds.add(sId);
+              let label = link.sessionLabel || link.dateGroup;
+              label = label.replace(/^📅\s*/, '');
+              if (label.length > 40) label = label.substring(0, 37) + '...';
+              sessionOptions.push({ value: sId, text: label });
+          }
+      });
+      const targetValue = await showCustomModal("Move Links", `Move ${selectedInSession.length} links to:`, [{ text: "Cancel", value: false, class: "btn-modal-cancel" }, { text: "Move", value: true, class: "btn-modal-confirm" }], { type: 'select', options: sessionOptions });
+      if (targetValue) {
+          allLinks = await getLinks();
+          let targetSessionId = targetValue;
+          let targetLabel = "";
+          let targetPinned = false;
+          if (targetValue === 'NEW_SESSION_AUTO') {
+              const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+              targetSessionId = `manual-move-${Date.now()}`;
+              targetLabel = `Moved Session (${timeStr})`;
+          } else {
+              const targetLinkSample = allLinks.find(l => (l.sessionId || `${l.dateGroup}-${l.timestamp}`) === targetValue);
+              if (targetLinkSample) {
+                  targetLabel = targetLinkSample.sessionLabel;
+                  targetPinned = targetLinkSample.isPinned;
+              }
+          }
+          allLinks.forEach(link => {
+              const linkKey = getLinkKey(link);
+              if (selectedLinks.has(linkKey)) {
+                  const sId = link.sessionId || `${link.dateGroup}-${link.timestamp}`;
+                  if (sId === sessionId) {
+                      link.sessionId = targetSessionId;
+                      link.sessionLabel = targetLabel;
+                      if (targetValue !== 'NEW_SESSION_AUTO') link.isPinned = targetPinned;
+                  }
+              }
+          });
+          selectedLinks.clear();
+          await saveLinks(allLinks);
+          await loadLinks();
+      }
+  }
+  else if (actionName === 'deleteSelected') {
+      const selectedInSession = allLinks.filter(link => selectedLinks.has(getLinkKey(link)));
+      if (selectedInSession.length === 0) return;
+
+      const isLocked = selectedInSession.some(link => link.isLocked);
+      if (isLocked) return;
+
+      const settings = await getSettings();
+      if (settings.confirmBeforeClose !== false) {
+          const confirmed = await showCustomModal("Delete Selected", `Really delete ${selectedInSession.length} selected link(s)?\nThis cannot be undone.`, [{ text: "Cancel", value: false, class: "btn-modal-cancel" }, { text: "Delete All", value: true, class: "btn-modal-danger" }]);
+          if (!confirmed) return;
+      }
+      allLinks = await getLinks();
+      allLinks = allLinks.filter(link => !selectedLinks.has(getLinkKey(link)));
+      selectedInSession.forEach(link => selectedLinks.delete(getLinkKey(link)));
+      await saveLinks(allLinks);
+      await loadLinks();
+  }
 }
 
 function createLinkElement(link) {

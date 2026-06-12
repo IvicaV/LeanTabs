@@ -1606,4 +1606,117 @@ kbd {
   border-color: var(--primary) !important;
 }
 
+/* --- FLOATING GLOBAL SELECTION BAR (PREMIUM GLASS) --- */
+.global-selection-bar {
+    position: fixed !important;
+    bottom: 24px !important;
+    left: calc(50% + 120px) !important; /* Offsets the 240px sidebar perfectly for centered symmetry! */
+    transform: translateX(-50%) translateY(0) !important;
+    z-index: 9999 !important;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    animation: lp-slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.global-selection-bar.hidden {
+    display: none !important;
+    transform: translateX(-50%) translateY(40px) !important;
+    opacity: 0 !important;
+}
+.selection-bar-content {
+    display: flex !important;
+    align-items: center !important;
+    gap: 16px !important;
+    background: rgba(18, 18, 22, 0.95) !important; /* Deeper obsidian black for rich contrast */
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(99, 102, 241, 0.35) !important; /* Premium subtle Indigo Glow-Border */
+    border-radius: 99px !important;
+    padding: 10px 20px 10px 24px !important; /* Slightly more breathable padding for visual balance */
+    
+    /* Multi-layered high-end shadow + subtle blue ambient glow */
+    box-shadow: 
+        0 20px 40px rgba(0, 0, 0, 0.5), 
+        0 0 25px rgba(59, 130, 246, 0.18) !important; 
+}
+[data-theme="light"] .selection-bar-content {
+    background: rgba(255, 255, 255, 0.98) !important;
+    border: 1px solid rgba(0, 0, 0, 0.12) !important; /* Clear, sharp border on light backgrounds */
+    
+    /* Premium soft, diffuse shadow (Notion-style ambient depth) */
+    box-shadow: 
+        0 15px 35px rgba(0, 0, 0, 0.12), 
+        0 3px 10px rgba(0, 0, 0, 0.05) !important;
+}
+.selection-count-text {
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    color: #f4f4f5 !important;
+    white-space: nowrap !important;
+}
+[data-theme="light"] .selection-count-text {
+    color: var(--text-strong) !important;
+}
+.selection-bar-divider {
+    width: 1px !important;
+    height: 18px !important;
+    background: rgba(255, 255, 255, 0.15) !important;
+}
+[data-theme="light"] .selection-bar-divider {
+    background: var(--border-color) !important;
+}
+.selection-bar-actions {
+    display: flex !important;
+    gap: 6px !important;
+}
+.btn-selection-action {
+    all: unset !important;
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 6px 14px !important;
+    border-radius: 99px !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+.btn-selection-action .icon-svg {
+    width: 14px !important;
+    height: 14px !important;
+    stroke-width: 2 !important;
+}
+.btn-selection-action.btn-open {
+    background: var(--primary-light) !important;
+    color: var(--primary) !important;
+    border: 1px solid rgba(59, 130, 246, 0.2) !important;
+}
+.btn-selection-action.btn-open:hover {
+    background: var(--primary) !important;
+    color: white !important;
+}
+.btn-selection-action.btn-move {
+    background: transparent !important;
+    color: var(--text-muted) !important;
+    border: 1px solid transparent !important;
+}
+.btn-selection-action.btn-move:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: #f4f4f5 !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+[data-theme="light"] .btn-selection-action.btn-move:hover {
+    background: var(--bg-hover) !important;
+    color: var(--text-strong) !important;
+    border-color: var(--border-color) !important;
+}
+.btn-selection-action.btn-delete-bulk {
+    background: var(--danger-bg) !important;
+    color: var(--danger) !important;
+    border: 1px solid rgba(239, 68, 68, 0.2) !important;
+}
+.btn-selection-action.btn-delete-bulk:hover {
+    background: var(--danger) !important;
+    color: white !important;
+}
+
 /* --- END OF styles.css --- */

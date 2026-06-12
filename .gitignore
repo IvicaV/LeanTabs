@@ -12,6 +12,7 @@ node_modules/
 
 # Build Output
 dist/
+*.zip
 
 # Development / AI Scratch Files
 project_context.txt

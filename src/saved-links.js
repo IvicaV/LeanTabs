@@ -1599,17 +1599,15 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
       return linkSessionId === sessionId;
     });
     
-    // --- DEFENSIRE HOCHLEISTUNGS-WARNUNG START ---
     const MAX_SAFE_TABS = 15;
     const isMassiveRestore = sessionLinks.length > MAX_SAFE_TABS;
     
     const actionText = isReplace ? 'REPLACE current tabs with' : 'Open';
     
-    let warningText = isReplace ? '\n\nTabs in THIS workspace will be closed!' : '';
+    let warningText = isReplace ? '\n\n⚠️ Tabs in THIS workspace will be closed!' : '';
     if (isMassiveRestore) {
-        warningText += `\n\nWARNING: You are about to open ${sessionLinks.length} tabs simultaneously. This might temporarily slow down your browser!`;
+        warningText += `\n\n⚠️ WARNING: You are about to open ${sessionLinks.length} tabs simultaneously. This might temporarily slow down your browser!`;
     }
-    // --- DEFENSIRE HOCHLEISTUNGS-WARNUNG END ---
 
     const confirmed = await showCustomModal(
         isReplace ? "Replace Session" : "Restore Session", 
@@ -1619,6 +1617,7 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
             { text: isReplace ? "Replace" : "Restore", value: true, class: isReplace ? "btn-modal-danger" : "btn-modal-confirm" }
         ]
     );
+
     if (confirmed) {
       allLinks = await getLinks();
       sessionLinks.forEach(sLink => {
@@ -1633,6 +1632,7 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
       const settings = await getSettings();
       const shouldRestoreStructure = (settings.restoreWindowStructure !== false) && !isReplace; 
       let oldTabsIds = [];
+      
       if (isReplace) {
           const currentWindowTabs = await chrome.tabs.query({ currentWindow: true });
           const activeTab = currentWindowTabs.find(t => t.active);
@@ -1642,25 +1642,70 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
              oldTabsIds = currentWindowTabs.map(t => t.id);
           }
       }
+
       if (shouldRestoreStructure) {
+          // --- CASE A: SYSTEMISCH GETRENNTE FENSTER-WIEDERHERSTELLUNG MIT GRUPPIERUNG ---
           const linksByWindow = {};
           sessionLinks.forEach(link => {
               const wId = link.windowId || 'default';
               if (!linksByWindow[wId]) linksByWindow[wId] = [];
               linksByWindow[wId].push(link.url);
           });
+          
           const windowIds = Object.keys(linksByWindow);
-          if (windowIds.length === 1) {
-             const urls = linksByWindow[windowIds[0]];
-             for (const url of urls) await chrome.tabs.create({ url, active: false });
-          } else {
-             for (const wId of windowIds) {
-                 const urls = linksByWindow[wId];
-                 if (urls.length > 0) await chrome.windows.create({ url: urls });
-             }
+          
+          for (const wId of windowIds) {
+              const urls = linksByWindow[wId];
+              if (urls.length > 0) {
+                  try {
+                      // 1. Erzeuge das neue Fenster
+                      const newWindow = await chrome.windows.create({ url: urls });
+                      
+                      // 2. Abfrage aller im neuen Fenster erzeugten Tabs zur sicheren Gruppierung
+                      if (newWindow && newWindow.id) {
+                          const tabsInNewWindow = await chrome.tabs.query({ windowId: newWindow.id });
+                          
+                          const windowTabsByGroup = {}; // groupOriginalId -> [tabId, tabId]
+                          const windowGroupMetadata = {};
+                          
+                          // Mappe die Tabs über den robusten Normalisierer zurück auf ihre originalen Gruppen
+                          for (const tab of tabsInNewWindow) {
+                              const matchedLink = sessionLinks.find(l => normalizeUrlForComparison(l.url) === normalizeUrlForComparison(tab.url));
+                              if (matchedLink && matchedLink.groupOriginalId !== undefined && matchedLink.groupOriginalId !== null && matchedLink.groupTitle) {
+                                  const gId = matchedLink.groupOriginalId;
+                                  if (!windowTabsByGroup[gId]) {
+                                      windowTabsByGroup[gId] = [];
+                                      windowGroupMetadata[gId] = { title: matchedLink.groupTitle, color: matchedLink.groupColor };
+                                  }
+                                  windowTabsByGroup[gId].push(tab.id);
+                              }
+                          }
+                          
+                          // Bündele die Gruppen im neuen Fenster
+                          for (const [gId, tabIds] of Object.entries(windowTabsByGroup)) {
+                              if (tabIds.length > 0) {
+                                  try {
+                                      const newGroupId = await chrome.tabs.group({ tabIds });
+                                      const meta = windowGroupMetadata[gId];
+                                      if (meta && chrome.tabGroups) {
+                                          await chrome.tabGroups.update(newGroupId, {
+                                              title: meta.title,
+                                              color: meta.color
+                                          });
+                                      }
+                                  } catch (e) { /* ignore */ }
+                              }
+                          }
+                      }
+                  } catch (winError) {
+                      console.error("[LeanTabs] Window restoration failed, opening in active window:", winError);
+                      // Fallback auf Standard-Tabs im aktiven Fenster bei Fehlern
+                      for (const url of urls) await chrome.tabs.create({ url, active: false });
+                  }
+              }
           }
       } else {
-          // --- UNFALLFREIE GRUPPEN-REKONSTRUKTION START ---
+          // --- CASE B: STANDARD-WIEDERHERSTELLUNG (APPEND) IN AKTIVEM WINDOW MIT GRUPPIERUNG ---
           const createdTabsByGroup = {}; // groupOriginalId -> [tabId, tabId]
           const groupMetadata = {};      // groupOriginalId -> { title, color }
 
@@ -1668,7 +1713,6 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
               try {
                   const createdTab = await chrome.tabs.create({ url: link.url, active: false });
                   
-                  // Hat der Link eine gespeicherte Gruppen-Zugehörigkeit?
                   if (link.groupOriginalId !== undefined && link.groupOriginalId !== null && link.groupTitle) {
                       const gId = link.groupOriginalId;
                       if (!createdTabsByGroup[gId]) {
@@ -1682,15 +1726,12 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
               }
           }
 
-          // Nach dem Öffnen alle Tabs gruppieren
+          // Gruppierung im aktuellen Fenster ausführen
           for (const [gId, tabIds] of Object.entries(createdTabsByGroup)) {
               if (tabIds.length > 0) {
                   try {
-                      // Bündele die Tabs im aktuellen Fenster zu einer neuen Gruppe
                       const newGroupId = await chrome.tabs.group({ tabIds });
                       const meta = groupMetadata[gId];
-                      
-                      // Titel und Farbe der Gruppe rekonstruieren
                       if (meta && chrome.tabGroups) {
                           await chrome.tabGroups.update(newGroupId, {
                               title: meta.title,
@@ -1698,13 +1739,12 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
                           });
                       }
                   } catch (groupError) {
-                      // Silent Fallback: Schützt Vivaldi/Opera vor Abstürzen, falls die Group-API blockiert
-                      console.log("Tab grouping not supported or failed on this window:", groupError.message);
+                      console.log("Tab grouping failed on restored window:", groupError.message);
                   }
               }
           }
-          // --- UNFALLFREIE GRUPPEN-REKONSTRUKTION ENDE ---
       }
+
       if (isReplace && oldTabsIds.length > 0) await chrome.tabs.remove(oldTabsIds);
       if (settings.deleteAfterRestore) {
         await deleteSession(sessionId);
@@ -2393,17 +2433,41 @@ function initSettingsLogic() {
 
             if (choice) {
                 const timestamp = new Date().toISOString();
-                const timeString = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                const sessionId = `restored-${timestamp}`;
-                const restoredLinks = backup.data.links.map(link => ({
-                    ...link,
-                    originalTimestamp: link.timestamp,
-                    sessionId,
-                    sessionLabel: `${timeString} - Restored Backup`,
-                    restoredAt: timestamp,
-                    timestamp
-                }));
-                const allLinks = [...restoredLinks, ...currentLinks];
+                
+                // --- STRUKTURTREUES BACKUP-MAPPING START (Kachel-Erhalt) ---
+                const importTimestampSuffix = Date.now();
+                const sessionIdMap = {}; // Maps old sessionID -> new unique restored sessionID
+
+                const restoredLinks = backup.data.links.map(link => {
+                    const oldSessionId = link.sessionId || 'unknown';
+                    
+                    // Erzeuge eine neue, kollisionsfreie Session-ID unter Beibehaltung der Trennung!
+                    if (!sessionIdMap[oldSessionId]) {
+                        sessionIdMap[oldSessionId] = `${oldSessionId}-restored-${importTimestampSuffix}`;
+                    }
+
+                    // Säubere das Label von alten Tab-Zählern und hänge ein edles (Restored) an
+                    const cleanLabel = (link.sessionLabel || "Restored Session")
+                        .replace(/^📅\s*/, '')
+                        .replace(/\s*\(\d+\s+Tabs\)$/, '');
+                    
+                    const finalLabel = cleanLabel.includes('(Restored)') ? cleanLabel : `${cleanLabel} (Restored)`;
+
+                    return {
+                        ...link,
+                        originalTimestamp: link.timestamp,
+                        sessionId: sessionIdMap[oldSessionId], // Erhält die Kachel-Trennung!
+                        sessionLabel: finalLabel,               // Erhält den Namen!
+                        uniqueId: `${link.url}-${timestamp}-${Math.random().toString(36).substr(2, 9)}`,
+                        restoredAt: timestamp,
+                        timestamp: timestamp
+                    };
+                });
+                // --- STRUKTURTREUES BACKUP-MAPPING ENDE ---
+
+                // Robust: Fetch fresh state after the async showCustomModal to prevent concurrent action overrides
+                const freshCurrentLinks = await getLinks();
+                const allLinks = [...restoredLinks, ...freshCurrentLinks];
                 await saveLinks(allLinks);
                 updateSettingsSaveStatus('Backup restored!', 'success');
                 loadSettingsViewData();

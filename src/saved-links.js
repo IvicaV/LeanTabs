@@ -1599,157 +1599,71 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
       return linkSessionId === sessionId;
     });
     
+    // --- CONTEXTUAL RESTORE ENGINE START (Absolute UX-Sovereignty) ---
     const MAX_SAFE_TABS = 15;
     const isMassiveRestore = sessionLinks.length > MAX_SAFE_TABS;
-    
-    const actionText = isReplace ? 'REPLACE current tabs with' : 'Open';
-    
-    let warningText = isReplace ? '\n\n⚠️ Tabs in THIS workspace will be closed!' : '';
-    if (isMassiveRestore) {
-        warningText += `\n\n⚠️ WARNING: You are about to open ${sessionLinks.length} tabs simultaneously. This might temporarily slow down your browser!`;
-    }
 
-    const confirmed = await showCustomModal(
-        isReplace ? "Replace Session" : "Restore Session", 
-        `${actionText} ${sessionLinks.length} link(s) from this session?${warningText}`, 
-        [
-            { text: "Cancel", value: false, class: "btn-modal-cancel" },
-            { text: isReplace ? "Replace" : "Restore", value: true, class: isReplace ? "btn-modal-danger" : "btn-modal-confirm" }
-        ]
-    );
+    // Wir analysieren die Fensterstruktur der Sitzung vorab
+    const linksByWindow = {};
+    sessionLinks.forEach(link => {
+        const wId = link.windowId || 'default';
+        if (!linksByWindow[wId]) linksByWindow[wId] = [];
+        linksByWindow[wId].push(link.url);
+    });
+    const windowIds = Object.keys(linksByWindow);
+    const isMultiWindow = windowIds.length > 1;
 
-    if (confirmed) {
-      allLinks = await getLinks();
-      sessionLinks.forEach(sLink => {
-        const sKey = getLinkKey(sLink);
-        const targetLink = allLinks.find(l => getLinkKey(l) === sKey);
-        if (targetLink) {
-          targetLink.openCount = (targetLink.openCount || 0) + 1;
+    if (isReplace) {
+        // FALL A: REPLACE (Das gelbe Blitz-Symbol) — Ersetzen ist immer fenstergebunden
+        let warningText = '\n\n⚠️ Tabs in THIS workspace will be closed!';
+        if (isMassiveRestore) {
+            warningText += `\n\n⚠️ WARNING: Opening ${sessionLinks.length} tabs simultaneously might temporarily slow down your browser!`;
         }
-      });
-      await saveLinks(allLinks);
 
-      const settings = await getSettings();
-      const shouldRestoreStructure = (settings.restoreWindowStructure !== false) && !isReplace; 
-      let oldTabsIds = [];
-      
-      if (isReplace) {
-          const currentWindowTabs = await chrome.tabs.query({ currentWindow: true });
-          const activeTab = currentWindowTabs.find(t => t.active);
-          if (activeTab && activeTab.workspaceId !== undefined) {
-             oldTabsIds = currentWindowTabs.filter(t => t.workspaceId === activeTab.workspaceId).map(t => t.id);
-          } else {
-             oldTabsIds = currentWindowTabs.map(t => t.id);
-          }
-      }
+        const confirmed = await showCustomModal(
+            "Replace Session",
+            `Replace all tabs in this workspace with these ${sessionLinks.length} link(s)?${warningText}`,
+            [
+                { text: "Cancel", value: false, class: "btn-modal-cancel" },
+                { text: "Replace Tabs", value: true, class: "btn-modal-danger" }
+            ]
+        );
 
-      if (shouldRestoreStructure) {
-          // --- CASE A: SYSTEMISCH GETRENNTE FENSTER-WIEDERHERSTELLUNG MIT GRUPPIERUNG ---
-          const linksByWindow = {};
-          sessionLinks.forEach(link => {
-              const wId = link.windowId || 'default';
-              if (!linksByWindow[wId]) linksByWindow[wId] = [];
-              linksByWindow[wId].push(link.url);
-          });
-          
-          const windowIds = Object.keys(linksByWindow);
-          
-          for (const wId of windowIds) {
-              const urls = linksByWindow[wId];
-              if (urls.length > 0) {
-                  try {
-                      // 1. Erzeuge das neue Fenster
-                      const newWindow = await chrome.windows.create({ url: urls });
-                      
-                      // 2. Abfrage aller im neuen Fenster erzeugten Tabs zur sicheren Gruppierung
-                      if (newWindow && newWindow.id) {
-                          const tabsInNewWindow = await chrome.tabs.query({ windowId: newWindow.id });
-                          
-                          const windowTabsByGroup = {}; // groupOriginalId -> [tabId, tabId]
-                          const windowGroupMetadata = {};
-                          
-                          // Mappe die Tabs über den robusten Normalisierer zurück auf ihre originalen Gruppen
-                          for (const tab of tabsInNewWindow) {
-                              const matchedLink = sessionLinks.find(l => normalizeUrlForComparison(l.url) === normalizeUrlForComparison(tab.url));
-                              if (matchedLink && matchedLink.groupOriginalId !== undefined && matchedLink.groupOriginalId !== null && matchedLink.groupTitle) {
-                                  const gId = matchedLink.groupOriginalId;
-                                  if (!windowTabsByGroup[gId]) {
-                                      windowTabsByGroup[gId] = [];
-                                      windowGroupMetadata[gId] = { title: matchedLink.groupTitle, color: matchedLink.groupColor };
-                                  }
-                                  windowTabsByGroup[gId].push(tab.id);
-                              }
-                          }
-                          
-                          // Bündele die Gruppen im neuen Fenster
-                          for (const [gId, tabIds] of Object.entries(windowTabsByGroup)) {
-                              if (tabIds.length > 0) {
-                                  try {
-                                      const newGroupId = await chrome.tabs.group({ tabIds });
-                                      const meta = windowGroupMetadata[gId];
-                                      if (meta && chrome.tabGroups) {
-                                          await chrome.tabGroups.update(newGroupId, {
-                                              title: meta.title,
-                                              color: meta.color
-                                          });
-                                      }
-                                  } catch (e) { /* ignore */ }
-                              }
-                          }
-                      }
-                  } catch (winError) {
-                      console.error("[LeanTabs] Window restoration failed, opening in active window:", winError);
-                      // Fallback auf Standard-Tabs im aktiven Fenster bei Fehlern
-                      for (const url of urls) await chrome.tabs.create({ url, active: false });
-                  }
-              }
-          }
-      } else {
-          // --- CASE B: STANDARD-WIEDERHERSTELLUNG (APPEND) IN AKTIVEM WINDOW MIT GRUPPIERUNG ---
-          const createdTabsByGroup = {}; // groupOriginalId -> [tabId, tabId]
-          const groupMetadata = {};      // groupOriginalId -> { title, color }
+        if (confirmed) {
+            await executeRestoreAction('replace', sessionLinks, linksByWindow, windowIds);
+        }
+    } else {
+        // FALL B: RESTORE (Das blaue Pfeil-Symbol) — Interaktive, kontextsensitive Weiche!
+        let title = isMultiWindow ? "Restore Multi-Window Session" : "Restore Session";
+        let msg = isMultiWindow
+            ? `This session was originally saved across ${windowIds.length} separate windows.\n\nHow do you want to restore them?`
+            : `How do you want to restore these ${sessionLinks.length} link(s)?`;
 
-          for (const link of sessionLinks) {
-              try {
-                  const createdTab = await chrome.tabs.create({ url: link.url, active: false });
-                  
-                  if (link.groupOriginalId !== undefined && link.groupOriginalId !== null && link.groupTitle) {
-                      const gId = link.groupOriginalId;
-                      if (!createdTabsByGroup[gId]) {
-                          createdTabsByGroup[gId] = [];
-                          groupMetadata[gId] = { title: link.groupTitle, color: link.groupColor };
-                      }
-                      createdTabsByGroup[gId].push(createdTab.id);
-                  }
-              } catch (tabCreateError) {
-                  console.error("Failed to restore single tab:", tabCreateError);
-              }
-          }
+        if (isMassiveRestore) {
+            msg += `\n\n⚠️ WARNING: Opening ${sessionLinks.length} tabs simultaneously might temporarily slow down your browser!`;
+        }
 
-          // Gruppierung im aktuellen Fenster ausführen
-          for (const [gId, tabIds] of Object.entries(createdTabsByGroup)) {
-              if (tabIds.length > 0) {
-                  try {
-                      const newGroupId = await chrome.tabs.group({ tabIds });
-                      const meta = groupMetadata[gId];
-                      if (meta && chrome.tabGroups) {
-                          await chrome.tabGroups.update(newGroupId, {
-                              title: meta.title,
-                              color: meta.color
-                          });
-                      }
-                  } catch (groupError) {
-                      console.log("Tab grouping failed on restored window:", groupError.message);
-                  }
-              }
-          }
-      }
+        let buttons = [];
+        if (isMultiWindow) {
+            // Auswahl bei echten Multi-Window Backups
+            buttons = [
+                { text: "Cancel", value: "cancel", class: "btn-modal-cancel" },
+                { text: "Merge into Current Window", value: "current_window", class: "btn-modal-secondary" },
+                { text: "Restore Window Structure", value: "restore_structure", class: "btn-modal-confirm" }
+            ];
+        } else {
+            // Auswahl bei Standard- oder einzelnen Workspace-Kacheln (Die ultimative Opera-Weiche!)
+            buttons = [
+                { text: "Cancel", value: "cancel", class: "btn-modal-cancel" },
+                { text: "Open in Current Window", value: "current_window", class: "btn-modal-secondary" },
+                { text: "Open in New Window", value: "new_window", class: "btn-modal-confirm" }
+            ];
+        }
 
-      if (isReplace && oldTabsIds.length > 0) await chrome.tabs.remove(oldTabsIds);
-      if (settings.deleteAfterRestore) {
-        await deleteSession(sessionId);
-        await loadLinks();
-      }
+        const choice = await showCustomModal(title, msg, buttons);
+        if (choice && choice !== 'cancel') {
+            await executeRestoreAction(choice, sessionLinks, linksByWindow, windowIds);
+        }
     }
     return;
   }
@@ -2278,7 +2192,6 @@ function syncSettingsToForm() {
         { id: 'deleteAfterRestoreCheck', key: 'deleteAfterRestore' },
         { id: 'cleanAllWorkspacesCheck', key: 'cleanAllWorkspaces' },
         { id: 'sessionsDefaultCollapsedCheck', key: 'sessionsDefaultCollapsed' },
-        { id: 'restoreWindowStructureCheck', key: 'restoreWindowStructure' },
         { id: 'smartImportCheck', key: 'smartImport' },
         { id: 'enableRatingsCheck', key: 'enableRatings' }
     ];
@@ -2399,7 +2312,6 @@ function initSettingsLogic() {
             localSettingsObj.deleteAfterRestore = document.getElementById('deleteAfterRestoreCheck').checked;
             localSettingsObj.cleanAllWorkspaces = document.getElementById('cleanAllWorkspacesCheck').checked;
             localSettingsObj.sessionsDefaultCollapsed = document.getElementById('sessionsDefaultCollapsedCheck').checked;
-            localSettingsObj.restoreWindowStructure = document.getElementById('restoreWindowStructureCheck').checked;
             localSettingsObj.smartImport = document.getElementById('smartImportCheck').checked;
             localSettingsObj.enableRatings = document.getElementById('enableRatingsCheck').checked;
 
@@ -2945,6 +2857,170 @@ function initFeedbackModal() {
             chrome.tabs.create({ url: isOpera ? OPERA_URL : CHROME_URL });
         });
     }
+}
+
+// --- HELPER: EXECUTE CONTEXTUAL RESTORE ACTION WITH NATIVE GROUP SERIALIZATION ---
+async function executeRestoreAction(action, sessionLinks, linksByWindow, windowIds) {
+    // 1. Inkrementiere den Open-Count im Speicher
+    allLinks = await getLinks();
+    sessionLinks.forEach(sLink => {
+        const sKey = getLinkKey(sLink);
+        const targetLink = allLinks.find(l => getLinkKey(l) === sKey);
+        if (targetLink) {
+            targetLink.openCount = (targetLink.openCount || 0) + 1;
+        }
+    });
+    await saveLinks(allLinks);
+
+    const settings = await getSettings();
+    let oldTabsIds = [];
+
+    // 2. Vorbereitung für den "Replace"-Modus
+    if (action === 'replace') {
+        const currentWindowTabs = await chrome.tabs.query({ currentWindow: true });
+        const activeTab = currentWindowTabs.find(t => t.active);
+        if (activeTab && activeTab.workspaceId !== undefined) {
+            oldTabsIds = currentWindowTabs.filter(t => t.workspaceId === activeTab.workspaceId).map(t => t.id);
+        } else {
+            oldTabsIds = currentWindowTabs.map(t => t.id);
+        }
+    }
+
+    // 3. Physikalische Ausführung der gewählten Aktion
+    if (action === 'restore_structure') {
+        // FENSTERSTRUKTUR WIEDERHERSTELLEN: Jedes ursprüngliche Fenster wird separat geöffnet
+        for (const wId of windowIds) {
+            const urls = linksByWindow[wId];
+            if (urls.length > 0) {
+                try {
+                    const newWindow = await chrome.windows.create({ url: urls });
+                    
+                    // Native Gruppen-Bündelung im neu erzeugten Fenster
+                    if (newWindow && newWindow.id) {
+                        const tabsInNewWindow = await chrome.tabs.query({ windowId: newWindow.id });
+                        const windowTabsByGroup = {};
+                        const windowGroupMetadata = {};
+
+                        for (const tab of tabsInNewWindow) {
+                            const matchedLink = sessionLinks.find(l => normalizeUrlForComparison(l.url) === normalizeUrlForComparison(tab.url));
+                            if (matchedLink && matchedLink.groupOriginalId !== undefined && matchedLink.groupOriginalId !== null && matchedLink.groupTitle) {
+                                const gId = matchedLink.groupOriginalId;
+                                if (!windowTabsByGroup[gId]) {
+                                    windowTabsByGroup[gId] = [];
+                                    windowGroupMetadata[gId] = { title: matchedLink.groupTitle, color: matchedLink.groupColor };
+                                }
+                                windowTabsByGroup[gId].push(tab.id);
+                            }
+                        }
+
+                        for (const [gId, tabIds] of Object.entries(windowTabsByGroup)) {
+                            if (tabIds.length > 0) {
+                                try {
+                                    const newGroupId = await chrome.tabs.group({ tabIds });
+                                    const meta = windowGroupMetadata[gId];
+                                    if (meta && chrome.tabGroups) {
+                                        await chrome.tabGroups.update(newGroupId, { title: meta.title, color: meta.color });
+                                    }
+                                } catch (e) { /* ignore */ }
+                            }
+                        }
+                    }
+                } catch (e) {
+                    // Fallback auf aktives Fenster bei Browser-Sperren
+                    for (const url of urls) await chrome.tabs.create({ url, active: false });
+                }
+            }
+        }
+    } 
+    else if (action === 'new_window') {
+        // IN NEUEM FENSTER ÖFFNEN: Alle Links in einem einzigen neuen Fenster öffnen
+        try {
+            const urls = sessionLinks.map(l => l.url);
+            const newWindow = await chrome.windows.create({ url: urls });
+            
+            if (newWindow && newWindow.id) {
+                const tabsInNewWindow = await chrome.tabs.query({ windowId: newWindow.id });
+                const windowTabsByGroup = {};
+                const windowGroupMetadata = {};
+
+                for (const tab of tabsInNewWindow) {
+                    const matchedLink = sessionLinks.find(l => normalizeUrlForComparison(l.url) === normalizeUrlForComparison(tab.url));
+                    if (matchedLink && matchedLink.groupOriginalId !== undefined && matchedLink.groupOriginalId !== null && matchedLink.groupTitle) {
+                        const gId = matchedLink.groupOriginalId;
+                        if (!windowTabsByGroup[gId]) {
+                            windowTabsByGroup[gId] = [];
+                            windowGroupMetadata[gId] = { title: matchedLink.groupTitle, color: matchedLink.groupColor };
+                        }
+                        windowTabsByGroup[gId].push(tab.id);
+                    }
+                }
+
+                for (const [gId, tabIds] of Object.entries(windowTabsByGroup)) {
+                    if (tabIds.length > 0) {
+                        try {
+                            const newGroupId = await chrome.tabs.group({ tabIds });
+                            const meta = windowGroupMetadata[gId];
+                            if (meta && chrome.tabGroups) {
+                                await chrome.tabGroups.update(newGroupId, { title: meta.title, color: meta.color });
+                            }
+                        } catch (e) { /* ignore */ }
+                    }
+                }
+            }
+        } catch (e) {
+            for (const link of sessionLinks) await chrome.tabs.create({ url: link.url, active: false });
+        }
+    } 
+    else {
+        // STANDARD APPEND & REPLACE: In aktuellem Fenster/Workspace öffnen
+        const createdTabsByGroup = {};
+        const groupMetadata = {};
+
+        for (const link of sessionLinks) {
+            try {
+                const createdTab = await chrome.tabs.create({ url: link.url, active: false });
+                
+                if (link.groupOriginalId !== undefined && link.groupOriginalId !== null && link.groupTitle) {
+                    const gId = link.groupOriginalId;
+                    if (!createdTabsByGroup[gId]) {
+                        createdTabsByGroup[gId] = [];
+                        groupMetadata[gId] = { title: link.groupTitle, color: link.groupColor };
+                    }
+                    createdTabsByGroup[gId].push(createdTab.id);
+                }
+            } catch (tabCreateError) {
+                console.error("Failed to restore single tab:", tabCreateError);
+            }
+        }
+
+        for (const [gId, tabIds] of Object.entries(createdTabsByGroup)) {
+            if (tabIds.length > 0) {
+                try {
+                    const newGroupId = await chrome.tabs.group({ tabIds });
+                    const meta = groupMetadata[gId];
+                    if (meta && chrome.tabGroups) {
+                        await chrome.tabGroups.update(newGroupId, { title: meta.title, color: meta.color });
+                    }
+                } catch (groupError) {
+                    console.log("Tab grouping failed on restored window:", groupError.message);
+                }
+            }
+        }
+    }
+
+    // 4. Alte Tabs bei "Replace" schließen
+    if (action === 'replace' && oldTabsIds.length > 0) {
+        await chrome.tabs.remove(oldTabsIds);
+    }
+
+    // 5. Auto-Delete nach Restore (falls in Settings aktiv)
+    if (settings.deleteAfterRestore && sessionLinks.length > 0) {
+        // Wir holen die Session ID des ersten Links für die Löschung
+        const sId = sessionLinks[0].sessionId || `${sessionLinks[0].dateGroup}-${sessionLinks[0].timestamp}`;
+        await deleteSession(sId);
+    }
+    
+    await loadLinks(); // UI Update
 }
 
 // 3. INITIALIZE BOTH VIEW ROUTER & SETTINGS LOGIC

@@ -479,6 +479,24 @@ header h1 {
     background: linear-gradient(to right, rgba(245, 158, 11, 0.1), var(--surface-bg));
 }
 
+/* --- SESSION CARD COLOR OVERRIDES --- */
+.session-section.color-blue {
+    border-color: rgba(59, 130, 246, 0.3) !important;
+    background: linear-gradient(to bottom, rgba(59, 130, 246, 0.03), transparent) !important;
+}
+.session-section.color-green {
+    border-color: rgba(16, 185, 129, 0.3) !important;
+    background: linear-gradient(to bottom, rgba(16, 185, 129, 0.03), transparent) !important;
+}
+.session-section.color-yellow {
+    border-color: rgba(245, 158, 11, 0.3) !important;
+    background: linear-gradient(to bottom, rgba(245, 158, 11, 0.03), transparent) !important;
+}
+.session-section.color-red {
+    border-color: rgba(239, 68, 68, 0.25) !important;
+    background: linear-gradient(to bottom, rgba(239, 68, 68, 0.02), transparent) !important;
+}
+
 .session-header { 
     background: var(--surface-bg); 
     padding: 16px; border-bottom: 1px solid var(--border-color); 

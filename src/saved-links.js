@@ -7,7 +7,7 @@
 
 // --- START OF saved-links.js (Final: Smart Import Refresh & UI State Sync) ---
 import { getLinks, saveLinks, getSettings, saveSettings, getWhitelist, saveWhitelist, getBackups, saveBackups } from './modules/storage.js';
-import { deleteSession, renameSession, togglePinSession, bumpSession, toggleLockSession } from './modules/sessions.js';
+import { deleteSession, renameSession, togglePinSession, bumpSession, toggleLockSession, setSessionColor } from './modules/sessions.js';
 import { extractDomain } from './modules/categorizer.js';
 import { setRating } from './modules/ratings.js';
 
@@ -450,7 +450,8 @@ function renderLinks() {
     const sessionSection = document.createElement('div');
     const isPinned = session.links[0].isPinned || false;
     const isLocked = session.links[0].isLocked || false;
-    sessionSection.className = `session-section ${isPinned ? 'pinned' : ''} ${isLocked ? 'is-locked-panel' : ''}`; 
+    const sessionColor = session.links[0]?.sessionColor || 'none';
+    sessionSection.className = `session-section ${isPinned ? 'pinned' : ''} ${isLocked ? 'is-locked-panel' : ''} ${sessionColor !== 'none' ? `color-${sessionColor}` : ''}`; 
     
     sessionSection.addEventListener('click', () => {
       sessionSection.classList.add('active');
@@ -643,6 +644,45 @@ function renderLinks() {
     // Dropdown menu list
     const dropdownMenu = document.createElement('div');
     dropdownMenu.className = 'session-dropdown-menu';
+
+    // COLOR PICKER ROW
+    const colorRow = document.createElement('div');
+    colorRow.style.cssText = 'display: flex; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--border-color); justify-content: space-between; align-items: center; box-sizing: border-box;';
+    
+    const colors = [
+        { name: 'none', value: 'transparent', border: 'var(--text-muted)', label: 'Default' },
+        { name: 'blue', value: '#3b82f6', border: 'transparent', label: 'Blue' },
+        { name: 'green', value: '#10b981', border: 'transparent', label: 'Green' },
+        { name: 'yellow', value: '#f59e0b', border: 'transparent', label: 'Yellow' },
+        { name: 'red', value: '#ef4444', border: 'transparent', label: 'Red' }
+    ];
+
+    colors.forEach(col => {
+        const dot = document.createElement('button');
+        dot.className = 'color-dot-btn';
+        dot.title = col.label;
+        dot.style.cssText = `
+            width: 14px; height: 14px; border-radius: 50%; border: 1px solid ${col.border}; 
+            background-color: ${col.value}; cursor: pointer; padding: 0; transition: transform 0.1s ease;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.2); box-sizing: border-box; outline: none;
+        `;
+        if (sessionColor === col.name) {
+            dot.style.transform = 'scale(1.3)';
+            dot.style.border = '2px solid var(--primary)';
+        }
+        
+        dot.addEventListener('mouseenter', () => { dot.style.transform = 'scale(1.3)'; });
+        dot.addEventListener('mouseleave', () => { if (sessionColor !== col.name) dot.style.transform = 'scale(1)'; });
+
+        dot.onclick = async (e) => {
+            e.stopPropagation();
+            await setSessionColor(sessionId, col.name);
+            await loadLinks();
+        };
+        colorRow.appendChild(dot);
+    });
+
+    dropdownMenu.appendChild(colorRow);
 
     // Replace action inside dropdown
     const replaceSessionBtn = document.createElement('button');

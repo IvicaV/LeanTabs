@@ -110,3 +110,25 @@ export async function toggleLockSession(sessionId) {
   }
   return false;
 }
+
+/**
+ * Sets the color of a specific session across all its constituent links.
+ * @param {string} sessionId - The ID of the session.
+ * @param {string} colorName - The name of the color ('none', 'blue', 'green', 'yellow', 'red').
+ * @returns {Promise<void>}
+ */
+export async function setSessionColor(sessionId, colorName) {
+  const allLinks = await getLinks();
+  allLinks.forEach(link => {
+    const linkSessionId = link.sessionId || `${link.dateGroup}-${link.timestamp}`;
+    if (linkSessionId === sessionId) {
+      if (colorName === 'none') {
+        delete link.sessionColor;
+      } else {
+        link.sessionColor = colorName;
+      }
+    }
+  });
+  await saveLinks(allLinks);
+}
+

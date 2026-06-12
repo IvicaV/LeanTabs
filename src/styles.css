@@ -1462,4 +1462,52 @@ kbd {
   flex-shrink: 0 !important;
 }
 
+/* --- FEEDBACK PRIVACY NOTE --- */
+.feedback-privacy-note {
+  font-size: 10px !important;
+  color: var(--text-faint) !important;
+  text-align: center !important;
+  margin-top: 12px !important;
+  user-select: none !important;
+}
+.feedback-privacy-note a {
+  color: var(--text-muted) !important;
+  text-decoration: underline !important;
+  transition: color 0.2s !important;
+}
+.feedback-privacy-note a:hover {
+  color: var(--primary) !important;
+}
+
+/* --- CSP-COMPLIANT HOVER EFFECTS & SOCIAL-GLOW --- */
+
+/* 1. CSP-konformer Hover-Effekt für das Schließen-X im Feedback-Header */
+#feedbackCloseBtn:hover {
+  background-color: var(--surface-bg) !important;
+  color: var(--text-strong) !important;
+}
+
+/* 2. Unifiziertes Highlighting für alle Social-Media-Sharing-Knöpfe (Glow-Parität) */
+.feedback-rating-box .sidebar-link-btn {
+  border: 1px solid var(--border-color) !important; /* Standardmäßig dezent eingraviert */
+  background-color: var(--surface-bg) !important;
+  transition: all 0.2s ease-in-out !important;
+}
+
+.feedback-rating-box .sidebar-link-btn:hover {
+  border-color: var(--primary) !important;
+  color: var(--primary) !important;
+  background: var(--primary-light) !important; /* Zarte Primär-Tönung bei Hover */
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.15) !important; /* Eleganter Ambient-Glow */
+}
+
+[data-theme="dark"] .feedback-rating-box .sidebar-link-btn:hover {
+  background: rgba(59, 130, 246, 0.1) !important;
+}
+
+/* Sorgt dafür, dass auch das Icon im Button bei Hover die Primärfarbe annimmt */
+.feedback-rating-box .sidebar-link-btn:hover .icon-svg {
+  color: var(--primary) !important;
+}
+
 /* --- END OF styles.css --- */

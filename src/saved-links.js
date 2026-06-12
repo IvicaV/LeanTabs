@@ -2730,6 +2730,38 @@ function initSidebarThemeToggle() {
     }
 }
 
+// --- HELPER: SUBMIT FEEDBACK TO GOOGLE APPS SCRIPT WEBHOOK ---
+// Uses text/plain to completely bypass CORS preflight requests for high speed
+async function submitFeedback(formData) {
+  const ENDPOINT = "https://script.google.com/macros/s/AKfycbz8HslKS6wgyOqrpVtE33WyYVHRO9iBNEmj6mRe5Jb_b3Gk6vLjCidYKCpVz8RbJsuZ/exec";
+
+  const payload = {
+    type: formData.type || 'Question',
+    message: formData.message,
+    email: formData.email || 'Anonymous',
+    version: chrome.runtime?.getManifest()?.version || '1.1.5',
+    os: window.navigator.platform,
+    browser: "Chromium" // Einheitliche Plattform-Kennung
+  };
+
+  try {
+    const response = await fetch(ENDPOINT, {
+      method: "POST",
+      redirect: "follow", // Wichtig: Apps Script nutzt 302-Weiterleitungen
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+    return data.status === "success";
+  } catch (error) {
+    console.error("[LeanTabs] Feedback submission failed:", error);
+    return false;
+  }
+}
+
 // --- DIRECT FEEDBACK PIPELINE (LEANPROMPTS PARITY) ---
 function initFeedbackModal() {
     const feedbackModal = document.getElementById('feedbackModal');
@@ -2786,6 +2818,24 @@ function initFeedbackModal() {
 
     cancelBtn?.addEventListener('click', cleanup);
     closeBtn?.addEventListener('click', cleanup);
+
+    // --- VIRALE SOCIAL MEDIA SHARING PIPELINE (Inklusive & Webstore-Targeting) ---
+    const shareX = document.getElementById('shareXBtn');
+    const shareLinkedin = document.getElementById('shareLinkedinBtn');
+
+    const textX = "My browser just lost 4GB of RAM-clutter. If you use any Chromium-based browser (Chrome, Edge, Brave, Opera, Vivaldi, Arc...) daily, you know the pain of 50 open tabs. I found the perfect local-first cure: LeanTabs. It instantly converts open tabs into organized session links. 100% private. Free. Reclaim your focus!\nhttps://chromewebstore.google.com/detail/leantabs-smart-tab-manage/pkihcnafoidoclfhhiaikgcnpanfddko";
+    
+    const textLinkedin = "If you use any Chromium-based browser (Chrome, Edge, Brave, Opera, Vivaldi, Arc...) daily, you know the pain: 50 open tabs eating your RAM, slowing your computer, and cluttering your focus.\n\nI just found the perfect local-first cure: LeanTabs.\n\nIt’s a browser extension that instantly converts open tabs into organized lists of links. No cloud, 100% private, and completely free. Reclaim your RAM and own your data!\n\nCheck out the extension here:\nhttps://chromewebstore.google.com/detail/leantabs-smart-tab-manage/pkihcnafoidoclfhhiaikgcnpanfddko";
+
+    shareX?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(textX)}`, '_blank');
+    });
+
+    shareLinkedin?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        window.open(`https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(textLinkedin)}`, '_blank');
+    });
     
     // Close modal when clicking outside content
     feedbackModal?.addEventListener('click', (e) => {
@@ -2812,30 +2862,20 @@ function initFeedbackModal() {
             statusEl.style.display = "block";
         }
 
-        const ENDPOINT = "https://script.google.com/macros/s/AKfycbykF1Z-6vfnY9FRhfqnYzwQVZQcXwVMXDl9eVfCeQCe2ptP43w4BU_uHTrMBe8hQvt_/exec";
-        const payload = {
-            type: activeFeedbackType, // Sendet den echten ausgewählten Typen!
-            message: `[LeanTabs] ${message}`,
-            email: email,
-            version: "1.1.5",
-            os: window.navigator.platform,
-            browser: "Chromium"
-        };
+        // --- AUFRUF DER NEUEN MODULAREN API ---
+        const success = await submitFeedback({
+            type: activeFeedbackType,
+            message: message,
+            email: email
+        });
 
-        try {
-            await fetch(ENDPOINT, {
-                method: "POST",
-                redirect: "follow",
-                headers: { "Content-Type": "text/plain;charset=utf-8" },
-                body: JSON.stringify(payload)
-            });
-
+        if (success) {
             if (statusEl) {
                 statusEl.textContent = "Thank you! Message sent.";
                 statusEl.style.color = "var(--success)";
             }
             setTimeout(cleanup, 2000);
-        } catch (err) {
+        } else {
             if (statusEl) {
                 statusEl.textContent = "Server busy. Please try again later.";
                 statusEl.style.color = "var(--danger)";

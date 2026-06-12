@@ -11,7 +11,8 @@
   <meta name="author" content="Ivica Vrgoc">
   <title>Tab Library - LeanTabs</title>
   <link rel="stylesheet" href="styles.css">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z'/%3E%3C/svg%3E">
+  <!-- Offizielles LeanTabs Marken-Logo als Tab-Favicon -->
+  <link rel="icon" type="image/png" href="icon16.png">
   <script src="theme.js"></script>
 </head>
 <body class="page">
@@ -320,7 +321,10 @@
             <span style="font-size: 11px; color: var(--text-muted); margin-top: 4px; display: block;">I'd love to hear from you!</span>
           </div>
         </div>
-        <button id="feedbackCloseBtn" style="all: unset; cursor: pointer; padding: 6px; border-radius: 99px; color: var(--text-muted); transition: background-color 0.2s;" onmouseenter="this.style.backgroundColor='var(--surface-bg)'" onmouseleave="this.style.backgroundColor='transparent'"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+        <!-- Defensiv gereinigter Button ohne unsichere Inline-Event-Listener -->
+        <button id="feedbackCloseBtn" style="all: unset; cursor: pointer; padding: 6px; border-radius: 99px; color: var(--text-muted); transition: background-color 0.2s;">
+            <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
       </div>
 
       <!-- 3-Spalten Weiche für Feedback-Typen -->
@@ -346,6 +350,18 @@
           </div>
           <span>Support a Solo-Dev: Rate on Web Store</span>
         </button>
+
+        <!-- NEU: Symmetrische, farblose Sharing-Knöpfe (Vercel-Style) -->
+        <div style="display: flex !important; gap: 8px !important; justify-content: center !important; margin-top: 10px !important;">
+          <button id="shareXBtn" class="sidebar-link-btn" style="all: unset !important; box-sizing: border-box !important; cursor: pointer !important; padding: 6px 12px !important; border-radius: 8px !important; font-size: 11px !important; font-weight: 700 !important; color: var(--text-muted) !important; border: 1px solid var(--border-color) !important; display: inline-flex !important; align-items: center !important; gap: 6px !important; transition: all 0.2s !important;">
+            <svg class="icon-svg" style="width: 12px; height: 12px;" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932L18.901 1.153zM17.61 20.644h2.039L6.486 3.24H4.298L17.61 20.644z"/></svg>
+            <span>Share on X</span>
+          </button>
+          <button id="shareLinkedinBtn" class="sidebar-link-btn" style="all: unset !important; box-sizing: border-box !important; cursor: pointer !important; padding: 6px 12px !important; border-radius: 8px !important; font-size: 11px !important; font-weight: 700 !important; color: var(--text-muted) !important; border: 1px solid var(--border-color) !important; display: inline-flex !important; align-items: center !important; gap: 6px !important; transition: all 0.2s !important;">
+            <svg class="icon-svg" style="width: 12px; height: 12px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg>
+            <span>Share on LinkedIn</span>
+          </button>
+        </div>
       </div>
 
       <div id="feedbackStatus" style="font-size: 11px; font-weight: bold; margin-bottom: 12px; display: none;"></div>
@@ -354,6 +370,9 @@
         <button id="feedbackCancelBtn" class="btn-modal btn-modal-cancel">Cancel</button>
         <button id="feedbackSendBtn" class="btn-modal btn-modal-confirm">Send Message</button>
       </div>
+
+      <!-- NEU: Dezentere Datenschutzerklärung (Baut Vertrauen bei Email-Eingabe auf) -->
+      <p class="feedback-privacy-note">Your privacy matters. All data is kept strictly confidential. <a href="https://github.com/IvicaV/LeanTabs/blob/main/PRIVACY.md" target="_blank">Privacy Policy</a></p>
     </div>
   </div>
 

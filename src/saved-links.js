@@ -2702,15 +2702,20 @@ function checkShortcuts() {
   }
 }
 
-// --- SIDEBAR THEME TOGGLE & FEEDBACK LOGIC ---
+// --- SIDEBAR THEME TOGGLE LOGIC (Synchronized SVGs) ---
 function initSidebarThemeToggle() {
     const themeBtn = document.getElementById('sidebarThemeToggleBtn');
     const themeText = document.getElementById('sidebarThemeText');
     const dmCheck = document.getElementById('darkModeCheck');
     
     if (themeBtn && themeText) {
+        // EXAKT dieselben SVG-Pfade wie im Popup zur Wahrung der visuellen Konsistenz
+        const sunIcon = '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>';
+        const moonIcon = '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke-linecap="round" stroke-linejoin="round"></path></svg>';
+
         const updateThemeLabel = (isDark) => {
-            themeText.textContent = isDark ? "Light Mode" : "Dark Mode";
+            // Tauscht das innere HTML (SVG) und den Text dynamisch aus
+            themeBtn.innerHTML = (isDark ? sunIcon : moonIcon) + ` <span id="sidebarThemeText">${isDark ? "Light Mode" : "Dark Mode"}</span>`;
             themeBtn.title = isDark ? "Switch to Light Mode" : "Switch to Dark Mode";
         };
         
@@ -2730,9 +2735,9 @@ function initSidebarThemeToggle() {
             
             const saveStatus = document.getElementById('saveStatus');
             if (saveStatus) {
-                saveStatus.textContent = "Theme updated!";
+                saveStatus.textContent = "✅ Theme updated!";
                 saveStatus.style.color = "var(--success)";
-                setTimeout(() => { saveStatus.textContent = ""; }, 1500);
+                setTimeout(() => saveStatus.textContent = "", 1500);
             }
         });
 
@@ -2745,102 +2750,131 @@ function initSidebarThemeToggle() {
     }
 }
 
+// --- DIRECT FEEDBACK PIPELINE (LEANPROMPTS PARITY) ---
 function initFeedbackModal() {
-    const feedbackBtn = document.getElementById('feedbackLink');
     const feedbackModal = document.getElementById('feedbackModal');
     const cancelBtn = document.getElementById('feedbackCancelBtn');
+    const closeBtn = document.getElementById('feedbackCloseBtn');
     const sendBtn = document.getElementById('feedbackSendBtn');
     const messageInput = document.getElementById('feedbackMessage');
     const emailInput = document.getElementById('feedbackEmail');
     const statusEl = document.getElementById('feedbackStatus');
+    const typeButtons = document.querySelectorAll('.feedback-type-btn');
 
-    if (feedbackBtn && feedbackModal) {
+    let activeFeedbackType = 'Question';
+    const placeholders = {
+        'Question': "Got a question or stuck on something? Type it here and I'll jump in to help!",
+        'Bug': "Oops, did something break? Tell me what happened so I can squish that bug for you!",
+        'Feature': "Have a brilliant idea for a new feature? I'd love to hear how I can make LeanTabs even more powerful for you!"
+    };
+
+    // Binde das Öffnen an das "Feedback & Support"-Link-Ereignis im Footer der Sidebar
+    const feedbackBtn = document.getElementById('feedbackLink');
+    if (feedbackBtn) {
         feedbackBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            feedbackModal.classList.remove('hidden');
+            feedbackModal?.classList.remove('hidden');
             messageInput?.focus();
         });
+    }
 
-        const cleanup = () => {
-            feedbackModal.classList.add('hidden');
-            if (messageInput) messageInput.value = '';
-            if (emailInput) emailInput.value = '';
-            if (statusEl) statusEl.style.display = 'none';
-        };
-
-        cancelBtn?.addEventListener('click', cleanup);
-
-        // --- BROWSER-ADAPTIVE WEBSTORE BEWERTUNG ---
-        const rateBtn = document.getElementById('feedbackRateBtn');
-        if (rateBtn) {
-            rateBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const ua = window.navigator.userAgent;
-                const isOpera = ua.includes("Opera") || ua.includes("OPR/");
-                
-                const CHROME_URL = 'https://chromewebstore.google.com/detail/leantabs-smart-tab-manage/pkihcnafoidoclfhhiaikgcnpanfddko';
-                const OPERA_URL = 'https://addons.opera.com/de/extensions/details/leantabs-smart-tab-workspace-manager/';
-                
-                chrome.tabs.create({ url: isOpera ? OPERA_URL : CHROME_URL });
-            });
-        }
-        
-        // Close modal when clicking outside content
-        feedbackModal.addEventListener('click', (e) => {
-            if (e.target === feedbackModal) {
-                cleanup();
+    // Typen-Switcher Logik (Mit dynamischem Platzhalter-Wechsel)
+    typeButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            typeButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            activeFeedbackType = btn.dataset.type;
+            if (messageInput) {
+                messageInput.placeholder = placeholders[activeFeedbackType];
             }
         });
+    });
 
-        sendBtn?.addEventListener('click', async () => {
-            const message = messageInput?.value.trim();
-            const email = emailInput?.value.trim() || "Anonymous";
-            if (!message) {
-                if (statusEl) {
-                    statusEl.textContent = "Please enter a message.";
-                    statusEl.style.color = "var(--danger)";
-                    statusEl.style.display = "block";
-                }
-                return;
-            }
+    const cleanup = () => {
+        feedbackModal?.classList.add('hidden');
+        if (messageInput) messageInput.value = '';
+        if (emailInput) emailInput.value = '';
+        if (statusEl) statusEl.style.display = 'none';
+        // Zurücksetzen auf Standard-Tab 'Question'
+        typeButtons.forEach(b => b.classList.remove('active'));
+        typeButtons[0]?.classList.add('active');
+        activeFeedbackType = 'Question';
+        if (messageInput) messageInput.placeholder = placeholders['Question'];
+    };
 
+    cancelBtn?.addEventListener('click', cleanup);
+    closeBtn?.addEventListener('click', cleanup);
+    
+    // Close modal when clicking outside content
+    feedbackModal?.addEventListener('click', (e) => {
+        if (e.target === feedbackModal) {
+            cleanup();
+        }
+    });
+
+    sendBtn?.addEventListener('click', async () => {
+        const message = messageInput?.value.trim();
+        const email = emailInput?.value.trim() || "Anonymous";
+        if (!message) {
             if (statusEl) {
-                statusEl.textContent = "Sending message...";
-                statusEl.style.color = "var(--primary)";
+                statusEl.textContent = "Please enter a message.";
+                statusEl.style.color = "var(--danger)";
                 statusEl.style.display = "block";
             }
+            return;
+        }
 
-            const ENDPOINT = "https://script.google.com/macros/s/AKfycbykF1Z-6vfnY9FRhfqnYzwQVZQcXwVMXDl9eVfCeQCe2ptP43w4BU_uHTrMBe8hQvt_/...";
-            const cleanEndpoint = "https://script.google.com/macros/s/AKfycbykF1Z-6vfnY9FRhfqnYzwQVZQcXwVMXDl9eVfCeQCe2ptP43w4BU_uHTrMBe8hQvt_/exec";
-            const payload = {
-                type: "Question",
-                message: `[LeanTabs] ${message}`,
-                email: email,
-                version: "1.1.5",
-                os: window.navigator.platform,
-                browser: "Chromium"
-            };
+        if (statusEl) {
+            statusEl.textContent = "Sending message...";
+            statusEl.style.color = "var(--primary)";
+            statusEl.style.display = "block";
+        }
 
-            try {
-                await fetch(cleanEndpoint, {
-                    method: "POST",
-                    redirect: "follow",
-                    headers: { "Content-Type": "text/plain;charset=utf-8" },
-                    body: JSON.stringify(payload)
-                });
+        const ENDPOINT = "https://script.google.com/macros/s/AKfycbykF1Z-6vfnY9FRhfqnYzwQVZQcXwVMXDl9eVfCeQCe2ptP43w4BU_uHTrMBe8hQvt_/exec";
+        const payload = {
+            type: activeFeedbackType, // Sendet den echten ausgewählten Typen!
+            message: `[LeanTabs] ${message}`,
+            email: email,
+            version: "1.1.5",
+            os: window.navigator.platform,
+            browser: "Chromium"
+        };
 
-                if (statusEl) {
-                    statusEl.textContent = "Thank you! Message sent.";
-                    statusEl.style.color = "var(--success)";
-                }
-                setTimeout(cleanup, 2000);
-            } catch (err) {
-                if (statusEl) {
-                    statusEl.textContent = "Server busy. Please try again later.";
-                    statusEl.style.color = "var(--danger)";
-                }
+        try {
+            await fetch(ENDPOINT, {
+                method: "POST",
+                redirect: "follow",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify(payload)
+            });
+
+            if (statusEl) {
+                statusEl.textContent = "Thank you! Message sent.";
+                statusEl.style.color = "var(--success)";
             }
+            setTimeout(cleanup, 2000);
+        } catch (err) {
+            if (statusEl) {
+                statusEl.textContent = "Server busy. Please try again later.";
+                statusEl.style.color = "var(--danger)";
+            }
+        }
+    });
+
+    // BROWSER-ADAPTIVE WEBSTORE BEWERTUNG
+    const rateBtn = document.getElementById('feedbackRateBtn');
+    if (rateBtn) {
+        rateBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const ua = window.navigator.userAgent;
+            const isOpera = ua.includes("Opera") || ua.includes("OPR/");
+            
+            const CHROME_URL = 'https://chromewebstore.google.com/detail/leantabs-smart-tab-manage/pkihcnafoidoclfhhiaikgcnpanfddko';
+            const OPERA_URL = 'https://addons.opera.com/de/extensions/details/leantabs-smart-tab-workspace-manager/';
+            
+            chrome.tabs.create({ url: isOpera ? OPERA_URL : CHROME_URL });
         });
     }
 }

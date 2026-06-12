@@ -297,27 +297,54 @@
     <button id="lp-undo-btn" style="all: unset !important; cursor: pointer !important; font-weight: 700 !important; color: var(--primary) !important; font-size: 13px !important; text-transform: uppercase !important; letter-spacing: 0.5px !important;">Undo</button>
   </div>
 
-  <!-- DIRECT FEEDBACK MODAL OVERLAY -->
+  <!-- DIRECT FEEDBACK MODAL OVERLAY (LEANPROMPTS PARITY) -->
   <div id="feedbackModal" class="modal-overlay hidden">
-    <div class="modal-content" style="max-width: 380px !important;">
-      <h3 class="modal-title">Feedback & Support</h3>
-      <p class="modal-text" style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">I'd love to hear from you! Bug report, feature request, or just a quick question.</p>
+    <div class="modal-content" style="max-width: 400px !important; border-radius: 20px !important; padding: 24px !important; text-align: left !important;">
       
-      <textarea id="feedbackMessage" class="feedback-textarea" placeholder="Your message here..."></textarea>
-      <input type="email" id="feedbackEmail" class="feedback-input" placeholder="Your Email (Optional)" />
+      <!-- Dekorative obere Zieh-Leiste -->
+      <div style="width: 48px; height: 5px; background: var(--border-color); border-radius: 99px; margin: 0 auto 20px auto; opacity: 0.5;"></div>
+
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="width: 40px; height: 40px; border-radius: 12px; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);">
+            <svg class="icon-svg" style="width: 20px; height: 20px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          </div>
+          <div>
+            <h3 style="font-size: 16px; font-weight: 800; color: var(--text-strong); margin: 0; line-height: 1;">Feedback & Support</h3>
+            <span style="font-size: 11px; color: var(--text-muted); margin-top: 4px; display: block;">I'd love to hear from you!</span>
+          </div>
+        </div>
+        <button id="feedbackCloseBtn" style="all: unset; cursor: pointer; padding: 6px; border-radius: 99px; color: var(--text-muted); transition: background-color 0.2s;" onmouseenter="this.style.backgroundColor='var(--surface-bg)'" onmouseleave="this.style.backgroundColor='transparent'"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+      </div>
+
+      <!-- 3-Spalten Weiche für Feedback-Typen -->
+      <div class="feedback-type-grid">
+        <button type="button" class="feedback-type-btn active" data-type="Question">Question</button>
+        <button type="button" class="feedback-type-btn" data-type="Bug">Bug</button>
+        <button type="button" class="feedback-type-btn" data-type="Feature">Feature</button>
+      </div>
       
-      <!-- NEU: Browser-adaptiver Bewertungs-Button -->
-      <div style="margin-top: 4px; border-top: 1px solid var(--border-color); padding-top: 12px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 4px; text-align: left;">
-        <span style="font-size: 10px; font-weight: bold; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Enjoying LeanTabs?</span>
-        <button id="feedbackRateBtn" class="nav-btn" style="background: rgba(99, 102, 241, 0.1) !important; color: var(--primary) !important; justify-content: center !important; font-weight: 700 !important;">
-          <svg class="icon-svg" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="width: 12px; height: 12px; color: #f59e0b; margin-right: 6px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-          Rate on Web Store
+      <textarea id="feedbackMessage" class="feedback-textarea" placeholder="Got a question or stuck on something? Type it here and I'll jump in to help!"></textarea>
+      <input type="email" id="feedbackEmail" class="feedback-input" placeholder="Email (Optional)" />
+      
+      <!-- Engraved-Glow Support-Box -->
+      <div class="feedback-rating-box">
+        <span class="feedback-rating-label">Love LeanTabs?</span>
+        <button id="feedbackRateBtn" class="feedback-rating-btn">
+          <div style="display: flex; gap: 2px;">
+            <svg class="star-svg" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            <svg class="star-svg" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            <svg class="star-svg" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            <svg class="star-svg" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            <svg class="star-svg" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+          </div>
+          <span>Support a Solo-Dev: Rate on Web Store</span>
         </button>
       </div>
 
       <div id="feedbackStatus" style="font-size: 11px; font-weight: bold; margin-bottom: 12px; display: none;"></div>
 
-      <div class="modal-actions">
+      <div class="modal-actions" style="margin-top: 16px; justify-content: flex-end !important; gap: 8px !important;">
         <button id="feedbackCancelBtn" class="btn-modal btn-modal-cancel">Cancel</button>
         <button id="feedbackSendBtn" class="btn-modal btn-modal-confirm">Send Message</button>
       </div>

@@ -1162,8 +1162,9 @@ kbd {
   flex-shrink: 0 !important;    /* Verhindert das Stauchen der Sterne */
 }
 
-/* 2. Vereinheitlicht die visuelle Gewichtung der Theme-Symbole (Statisch & Stabil) */
-.btn-theme-toggle svg {
+/* 2. Vereinheitlicht die visuelle Gewichtung der Theme-Symbole (Statisch, Stabil & Synchronisiert) */
+.btn-theme-toggle svg,
+#sidebarThemeToggleBtn svg { /* NEU: Gilt nun exakt identisch für Popup und Sidebar! */
   width: 18px !important;
   height: 18px !important;
   display: block !important;
@@ -1287,6 +1288,115 @@ kbd {
 }
 .feedback-input:focus {
   border-color: var(--primary) !important;
+}
+
+/* Schiebt den Theme-Button in der Sidebar nach unten (direkt über den Fußzeilen-Strich) */
+#sidebarThemeToggleBtn {
+  margin-top: auto !important;
+}
+
+/* --- LEANPROMPTS UNIFIED FEEDBACK-UI CLASSES --- */
+
+/* 1. Die interaktiven Typen-Schaltflächen (Question, Bug, Feature) */
+.feedback-type-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 8px !important;
+  margin-bottom: 16px !important;
+}
+
+.feedback-type-btn {
+  all: unset !important;
+  padding: 8px 4px !important;
+  border-radius: 8px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-align: center !important;
+  color: var(--text-muted) !important;
+  background-color: var(--surface-bg) !important;
+  border: 2px solid transparent !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease-in-out !important;
+  box-sizing: border-box !important;
+}
+
+.feedback-type-btn:hover {
+  background-color: var(--bg-hover) !important;
+  color: var(--text-strong) !important;
+}
+
+.feedback-type-btn.active {
+  border-color: var(--primary) !important;
+  background-color: var(--primary-light) !important;
+  color: var(--primary) !important;
+}
+
+[data-theme="dark"] .feedback-type-btn.active {
+  background-color: rgba(96, 165, 250, 0.1) !important;
+}
+
+/* 2. Das "Engraved-Glow" Support-Modul */
+.feedback-rating-box {
+  margin-top: 16px !important;
+  border-top: 1px solid var(--border-color) !important;
+  padding-top: 16px !important;
+  text-align: center !important;
+}
+
+.feedback-rating-label {
+  display: block !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+  color: var(--text-muted) !important;
+  margin-bottom: 8px !important;
+}
+
+.feedback-rating-btn {
+  all: unset !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  padding: 12px 16px !important;
+  border-radius: 12px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease-in-out !important;
+  
+  /* Engraved Style: Standardmäßig edel in den Hintergrund eingraviert */
+  background: var(--surface-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-muted) !important;
+}
+
+.feedback-rating-btn:hover {
+  border-color: var(--primary) !important;
+  color: var(--primary) !important;
+  background: var(--primary-light) !important;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.1) !important;
+}
+
+[data-theme="dark"] .feedback-rating-btn:hover {
+  background: rgba(96, 165, 250, 0.1) !important;
+}
+
+/* Die 5 Sterne */
+.star-svg {
+  width: 12px !important;
+  height: 12px !important;
+  color: var(--text-muted) !important;
+  fill: currentColor !important;
+  transition: color 0.2s, transform 0.2s !important;
+}
+
+.feedback-rating-btn:hover .star-svg {
+  color: #f59e0b !important; /* Sterne leuchten brillant in Gold bei Hover! */
+  transform: scale(1.15) !important;
 }
 
 /* --- END OF styles.css --- */

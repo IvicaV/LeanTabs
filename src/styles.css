@@ -1376,11 +1376,7 @@ kbd {
   border-color: var(--primary) !important;
   color: var(--primary) !important;
   background: var(--primary-light) !important;
-  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.1) !important;
-}
-
-[data-theme="dark"] .feedback-rating-btn:hover {
-  background: rgba(96, 165, 250, 0.1) !important;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.15) !important;
 }
 
 /* Die 5 Sterne */

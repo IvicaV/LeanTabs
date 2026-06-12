@@ -18,6 +18,8 @@ project_context.txt
 Ursprüngliche project_context.txt
 leantabs_code.txt
 bundle_code.js
+SCRATCHPAD.md
+.agent/
 
 # Environment Files
 .env

@@ -46,7 +46,7 @@ async function updateStats() {
       const tabs = await chrome.tabs.query({});
       const savedLinks = await getLinks();
       const rawSettings = await getSettings();
-      const settings = Object.keys(rawSettings).length > 0 ? rawSettings : { keepLastTabs: 3 }; 
+      const settings = { keepLastTabs: 1, ...rawSettings }; 
       
       const tabCountEl = document.getElementById('tabCount');
       const savedCountEl = document.getElementById('savedCount');
@@ -86,7 +86,7 @@ async function initScopeDropdown() {
 
     scopeSelect.addEventListener('change', async () => {
         const currentSettings = await getSettings();
-        const keepCount = currentSettings.keepLastTabs || 3;
+        const keepCount = currentSettings.keepLastTabs || 1;
         updateSubtext(keepCount);
         currentSettings.cleanAllWorkspaces = (scopeSelect.value === 'global');
         await saveSettings(currentSettings);
@@ -134,8 +134,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // --- INLINE RANGE SLIDER LOGIK START ---
     const rawSettings = await getSettings();
-    const settingsObj = Object.keys(rawSettings).length > 0 ? rawSettings : { keepLastTabs: 3 };
-    let keepCount = settingsObj.keepLastTabs || 3;
+    const settingsObj = { keepLastTabs: 1, ...rawSettings };
+    let keepCount = settingsObj.keepLastTabs;
 
     const countEl = document.getElementById('popupKeepCount');
     const sliderEl = document.getElementById('popupKeepSlider');
@@ -203,37 +203,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         showStatus(`${newTheme === 'dark' ? 'Dark' : 'Light'} Mode enabled as default`);
     });
 
-    const resetBtn = document.getElementById('resetBtn');
-    if (resetBtn) {
-        resetBtn.addEventListener('click', async () => {
-          const confirmed = await showCustomConfirm(
-            "⚠️ EMERGENCY RESET\n\nThis will close ALL tabs immediately.\nNothing will be saved.\n\nAre you sure?"
-          );
-          
-          if (!confirmed) return;
 
-          try {
-            const currentWindowTabs = await chrome.tabs.query({ currentWindow: true });
-            const activeTab = currentWindowTabs.find(t => t.active);
-            let tabsToDelete = [];
-            
-            if (activeTab && activeTab.workspaceId !== undefined) {
-                tabsToDelete = currentWindowTabs.filter(t => t.workspaceId === activeTab.workspaceId);
-            } else {
-                tabsToDelete = currentWindowTabs;
-            }
-            
-            const idsToRemove = tabsToDelete.map(t => t.id);
-
-            if (idsToRemove.length > 0) {
-                await chrome.tabs.create({ active: false });
-                await chrome.tabs.remove(idsToRemove);
-            } 
-          } catch (error) {
-            console.error("Reset failed:", error);
-          }
-        });
-    }
 
     const cleanBtn = document.getElementById('cleanBtn');
     if (cleanBtn) {
@@ -245,10 +215,11 @@ document.addEventListener('DOMContentLoaded', async () => {
           try {
             // ONLY READ SETTINGS/WHITELIST HERE
             const rawSettings = await getSettings();
-            const settings = Object.keys(rawSettings).length > 0 ? rawSettings : { 
-              keepLastTabs: 3, 
+            const settings = { 
+              keepLastTabs: 1, 
               confirmBeforeClose: true, 
-              autoBackup: true 
+              autoBackup: true, 
+              ...rawSettings 
             };
             const whitelist = await getWhitelist();
             
@@ -330,7 +301,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             timestamp, 
                             dateGroup,
                             category: extractDomain(tab.url), 
-                            favicon: tab.favIconUrl || '',
+                            favicon: (tab.favIconUrl && !tab.favIconUrl.startsWith('chrome-extension://')) ? tab.favIconUrl : '',
                             windowId: tab.windowId,
                             workspaceId: tab.workspaceId,
                             sessionId,
@@ -381,8 +352,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             // --- WAIT FOR USER CONFIRMATION ---
             if (settings.confirmBeforeClose) {
                 let msg = `SUMMARY (${isGlobal ? 'Global' : 'Current Window'}):\n\n`;
-                msg += `💾 Saving: ${globalTabsToBackup.length} tabs\n`;
-                msg += `🧹 Closing: ${globalTabsToClose.length} tabs\n`;
+                msg += `Saving: ${globalTabsToBackup.length} tabs\n`;
+                msg += `Closing: ${globalTabsToClose.length} tabs\n`;
                 
                 const totalContexts = Object.keys(tabsByContext).length;
                 const createdSessions = sessionsToCreate.length;
@@ -413,16 +384,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (globalTabsToClose.length > 0) {
                 await chrome.tabs.remove(globalTabsToClose.map(t => t.id));
-                showStatus(`✅ Cleaned & Saved!`, 'success');
+                showStatus(`Cleaned & Saved!`, 'success');
             } else {
-                showStatus(`✅ Saved!`, 'success');
+                showStatus(`Saved!`, 'success');
             }
             
             setTimeout(updateStats, 500);
 
           } catch (error) {
             console.error('Error during Tab Clean:', error);
-            showStatus('❌ Error processing tabs', 'error');
+            showStatus('Error processing tabs', 'error');
           } finally {
             setTimeout(() => {
                 cleanBtn.disabled = false;

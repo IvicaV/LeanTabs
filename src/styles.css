@@ -122,11 +122,10 @@ h1, h2, h3 {
 
 .header-actions { display: flex; gap: 8px; align-items: center; }
 
-.btn-reset, .btn-theme-toggle {
+.btn-theme-toggle {
   background: transparent; border: 1px solid transparent; color: var(--text-muted); width: 32px; height: 32px;
   border-radius: var(--radius-sm); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;
 }
-.btn-reset:hover { background: var(--danger-bg); color: var(--danger); border-color: var(--danger-border); }
 .btn-theme-toggle:hover { background: var(--surface-bg); color: var(--primary); border-color: var(--border-color); }
 
 /* --- BUTTONS --- */

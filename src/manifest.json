@@ -51,7 +51,13 @@
         "default": "Ctrl+Shift+K",
         "mac": "Command+Shift+K"
       },
-      "description": "⚠️ RESET Window (Delete all)"
+      "description": "RESET Window (Delete all)"
     }
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["icon16.png", "icon48.png", "icon128.png"],
+      "matches": ["http://*/*", "https://*/*", "chrome-extension://*/*"]
+    }
+  ]
 }

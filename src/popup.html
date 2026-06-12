@@ -22,10 +22,6 @@
       </h1>
       <div class="header-actions">
         <button id="themeToggleBtn" class="btn-theme-toggle" title="Switch Theme">
-          </button>
-        
-        <button id="resetBtn" class="btn-reset" title="EMERGENCY RESET: This will close ALL tabs immediately. NO TABS WILL BE SAVED.">
-          <svg class="icon-svg" viewBox="0 0 24 24"><path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
       </div>
     </div>
@@ -53,9 +49,9 @@
     <div class="scope-control" style="margin-top: 12px; display: flex; flex-direction: column; gap: 6px;">
       <div style="display: flex; justify-content: space-between; align-items: center;" title="Specify how many of your most recently active tabs will remain open in your active window. All older background tabs will be safely cleared and converted to lightweight links inside your dashboard.">
         <span style="font-size: 12px; font-weight: 600; color: var(--text-muted); cursor: help;">Keep Active Tabs</span>
-        <span id="popupKeepCount" style="font-size: 13px; font-weight: 700; color: var(--primary);">3</span>
+        <span id="popupKeepCount" style="font-size: 13px; font-weight: 700; color: var(--primary);">1</span>
       </div>
-      <input type="range" id="popupKeepSlider" min="1" max="20" value="3" class="popup-slider" title="Drag to adjust open tab limit">
+      <input type="range" id="popupKeepSlider" min="1" max="20" value="1" class="popup-slider" title="Drag to adjust open tab limit">
     </div>
 
     <div class="action-stack">

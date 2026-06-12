@@ -829,7 +829,10 @@ function createLinkElement(link) {
   const linkHeader = document.createElement('div');
   linkHeader.className = 'link-header';
 
-  if (link.favicon) {
+  // Sicherheits-Weiche: Absolute Extension-Favicons abfangen und auf Vektor-Fallback umleiten
+  const isExtensionFavicon = link.favicon && link.favicon.startsWith('chrome-extension://');
+
+  if (link.favicon && !isExtensionFavicon) {
       const img = document.createElement('img');
       img.src = link.favicon;
       img.className = 'favicon';
@@ -1288,7 +1291,7 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
         } else {
             whitelist.push(domain);
             await saveWhitelist(whitelist);
-            await showCustomModal("Whitelisted", `✅ Domain "${domain}" added to Whitelist!`, [{ text: "OK", value: true, class: "btn-modal-confirm" }]);
+            await showCustomModal("Whitelisted", `Domain "${domain}" added to Whitelist!`, [{ text: "OK", value: true, class: "btn-modal-confirm" }]);
         }
     } catch (error) { 
         console.error(error); 
@@ -1602,9 +1605,9 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
     
     const actionText = isReplace ? 'REPLACE current tabs with' : 'Open';
     
-    let warningText = isReplace ? '\n\n⚠️ Tabs in THIS workspace will be closed!' : '';
+    let warningText = isReplace ? '\n\nTabs in THIS workspace will be closed!' : '';
     if (isMassiveRestore) {
-        warningText += `\n\n⚠️ WARNING: You are about to open ${sessionLinks.length} tabs simultaneously. This might temporarily slow down your browser!`;
+        warningText += `\n\nWARNING: You are about to open ${sessionLinks.length} tabs simultaneously. This might temporarily slow down your browser!`;
     }
     // --- DEFENSIRE HOCHLEISTUNGS-WARNUNG END ---
 
@@ -2184,15 +2187,16 @@ async function loadSettingsViewData() {
     try {
         settingsWhitelist = await getWhitelist();
         const rawSettings = await getSettings();
-        localSettingsObj = Object.keys(rawSettings).length > 0 ? rawSettings : { 
-            keepLastTabs: 3, 
+        localSettingsObj = { 
+            keepLastTabs: 1, 
             autoBackup: true, 
             confirmBeforeClose: true, 
             deleteAfterRestore: false,
             cleanAllWorkspaces: false,
             sessionsDefaultCollapsed: false,
             restoreWindowStructure: true,
-            smartImport: true 
+            smartImport: true,
+            ...rawSettings
         };
         const backups = await getBackups();
         
@@ -2360,9 +2364,9 @@ function initSettingsLogic() {
             localSettingsObj.enableRatings = document.getElementById('enableRatingsCheck').checked;
 
             await saveSettings(localSettingsObj);
-            updateSettingsSaveStatus("✅ Settings saved!", "success");
+            updateSettingsSaveStatus("Settings saved!", "success");
         } catch (err) {
-            updateSettingsSaveStatus("❌ Error saving!", "error");
+            updateSettingsSaveStatus("Error saving!", "error");
         }
     });
 
@@ -2401,7 +2405,7 @@ function initSettingsLogic() {
                 }));
                 const allLinks = [...restoredLinks, ...currentLinks];
                 await saveLinks(allLinks);
-                updateSettingsSaveStatus('✅ Backup restored!', 'success');
+                updateSettingsSaveStatus('Backup restored!', 'success');
                 loadSettingsViewData();
             }
         }
@@ -2419,7 +2423,7 @@ function initSettingsLogic() {
             a.download = `leantabs-backup-${timestamp}.json`;
             a.click();
             URL.revokeObjectURL(url);
-            updateSettingsSaveStatus('✅ Downloaded!', 'success');
+            updateSettingsSaveStatus('Downloaded!', 'success');
         }
 
         if (deleteBtn) {
@@ -2456,7 +2460,7 @@ function initSettingsLogic() {
         a.download = `leantabs-full-backup-${timestamp}.json`;
         a.click();
         URL.revokeObjectURL(url);
-        updateSettingsSaveStatus('✅ Export complete!', 'success');
+        updateSettingsSaveStatus('Export complete!', 'success');
     });
 
     const fileInput = document.getElementById('importFileInput');
@@ -2500,7 +2504,7 @@ function initSettingsLogic() {
                         settingsWhitelist = data.whitelist;
                         await saveWhitelist(data.whitelist);
                     }
-                    updateSettingsSaveStatus("✅ Settings & Whitelist restored!");
+                    updateSettingsSaveStatus("Settings & Whitelist restored!");
                 }
             }
 
@@ -2521,7 +2525,7 @@ function initSettingsLogic() {
                     loadSettingsViewData();
                     return;
                 }
-                updateSettingsSaveStatus('❌ No valid links found!', 'error');
+                updateSettingsSaveStatus('No valid links found!', 'error');
                 return;
             }
 
@@ -2599,7 +2603,7 @@ function initSettingsLogic() {
                     if (duplicateLinks.length > 0) {
                         const choice = await showCustomModal(
                             "Duplicates Found",
-                            `Found ${linksToImport.length} links.\n⚠️ ${duplicateLinks.length} duplicates.\n✅ ${cleanLinks.length} unique.\n\nProceed?`,
+                            `Found ${linksToImport.length} links.\n${duplicateLinks.length} duplicates.\n${cleanLinks.length} unique.\n\nProceed?`,
                             [
                                 { text: "Cancel", value: "cancel", class: "btn-modal-cancel" },
                                 { text: "Import All", value: "all", class: "btn-modal-secondary" },
@@ -2646,7 +2650,7 @@ function initSettingsLogic() {
                             importedAt: timestamp
                         };
                     });
-                    updateSettingsSaveStatus(`✅ Restored ${preparedLinks.length} links & sessions!`, 'success');
+                    updateSettingsSaveStatus(`Restored ${preparedLinks.length} links & sessions!`, 'success');
                 } else {
                     const sessionId = `imported-${timestamp}`;
                     preparedLinks = finalImportList.map(link => ({
@@ -2657,18 +2661,18 @@ function initSettingsLogic() {
                         importedAt: timestamp,
                         timestamp
                     }));
-                    updateSettingsSaveStatus(`✅ Imported ${preparedLinks.length} links!`, 'success');
+                    updateSettingsSaveStatus(`Imported ${preparedLinks.length} links!`, 'success');
                 }
 
                 const allLinks = [...preparedLinks, ...currentLinks];
                 await saveLinks(allLinks);
             } else if (shouldImport && finalImportList.length === 0) {
-                updateSettingsSaveStatus('⚠️ No links selected to import.', 'error');
+                updateSettingsSaveStatus('No links selected to import.', 'error');
             }
 
             loadSettingsViewData();
         } catch (err) {
-            updateSettingsSaveStatus('❌ Import error!', 'error');
+            updateSettingsSaveStatus('Import error!', 'error');
             console.error("Import error:", err);
         }
         e.target.value = '';
@@ -2691,7 +2695,7 @@ function checkShortcuts() {
       if (missingShortcuts.length > 0) {
         const tipDesc = document.querySelector('.tip-desc');
         if (tipDesc) {
-          tipDesc.innerHTML = `💡 Note: If these shortcuts aren't working, your browser might not have assigned them automatically. You can check and configure them in your browser's <a href="#" id="shortcutsLink" style="color:var(--primary); text-decoration:underline; font-weight:bold; cursor:pointer;">extension settings</a>.`;
+          tipDesc.innerHTML = `Note: If these shortcuts aren't working, your browser might not have assigned them automatically. You can check and configure them in your browser's <a href="#" id="shortcutsLink" style="color:var(--primary); text-decoration:underline; font-weight:bold; cursor:pointer;">extension settings</a>.`;
           document.getElementById('shortcutsLink')?.addEventListener('click', (e) => {
             e.preventDefault();
             chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
@@ -2735,7 +2739,7 @@ function initSidebarThemeToggle() {
             
             const saveStatus = document.getElementById('saveStatus');
             if (saveStatus) {
-                saveStatus.textContent = "✅ Theme updated!";
+                saveStatus.textContent = "Theme updated!";
                 saveStatus.style.color = "var(--success)";
                 setTimeout(() => saveStatus.textContent = "", 1500);
             }

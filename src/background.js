@@ -41,7 +41,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   // ----------------------------
 
   let targetTitle = info.linkUrl ? (info.selectionText || targetUrl) : tab.title;
-  const favIconUrl = tab.favIconUrl;
+  const favIconUrl = (tab.favIconUrl && !tab.favIconUrl.startsWith('chrome-extension://')) ? tab.favIconUrl : '';
 
   if (info.menuItemId === "action-new-session") {
      await saveSingleLink(targetUrl, targetTitle, favIconUrl, "NEW_SESSION");
@@ -130,7 +130,7 @@ async function initializeDefaults() {
   if (!data.savedLinks) await saveLinks([]);
   if (!data.whitelist) await saveWhitelist(['gmail.com', 'docs.google.com']);
   if (!data.settings) await saveSettings({
-    keepLastTabs: 3, 
+    keepLastTabs: 1, 
     autoBackup: true, 
     confirmBeforeClose: true, 
     cleanAllWorkspaces: false,
@@ -401,7 +401,7 @@ async function performBackgroundClean() {
 
     // Initial read for settings
     const rawSettings = await getSettings();
-    const settings = Object.keys(rawSettings).length > 0 ? rawSettings : { keepLastTabs: 3, cleanAllWorkspaces: false, autoBackup: true };
+    const settings = { keepLastTabs: 1, cleanAllWorkspaces: false, autoBackup: true, ...rawSettings };
     const whitelist = await getWhitelist();
     
     let tabsToProcess = [];
@@ -478,7 +478,7 @@ async function performBackgroundClean() {
                     timestamp,
                     dateGroup,
                     category: extractDomain(tab.url),
-                    favicon: tab.favIconUrl || '',
+                    favicon: (tab.favIconUrl && !tab.favIconUrl.startsWith('chrome-extension://')) ? tab.favIconUrl : '',
                     sessionId,
                     sessionLabel: `${timeString} - Background Clean`,
                     // --- METADATEN-SERIALISIERUNG ---

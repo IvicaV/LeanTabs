@@ -7,7 +7,7 @@
 
 // --- START OF saved-links.js (Final: Smart Import Refresh & UI State Sync) ---
 import { getLinks, saveLinks, getSettings, saveSettings, getWhitelist, saveWhitelist, getBackups, saveBackups } from './modules/storage.js';
-import { deleteSession, renameSession, togglePinSession, bumpSession, toggleLockSession, setSessionColor } from './modules/sessions.js';
+import { deleteSession, renameSession, togglePinSession, bumpSession, toggleLockSession, setSessionColor, setSessionNote } from './modules/sessions.js';
 import { extractDomain } from './modules/categorizer.js';
 import { setRating } from './modules/ratings.js';
 
@@ -451,6 +451,7 @@ function renderLinks() {
     const isPinned = session.links[0].isPinned || false;
     const isLocked = session.links[0].isLocked || false;
     const sessionColor = session.links[0]?.sessionColor || 'none';
+    const sessionNoteText = session.links[0]?.sessionNote || "";
     sessionSection.className = `session-section ${isPinned ? 'pinned' : ''} ${isLocked ? 'is-locked-panel' : ''} ${sessionColor !== 'none' ? `color-${sessionColor}` : ''}`; 
     
     sessionSection.addEventListener('click', () => {
@@ -502,6 +503,15 @@ function renderLinks() {
     topRow.appendChild(collapseIndicator);
     topRow.appendChild(masterCheckbox);
     topRow.appendChild(dateBadge);
+
+    if (sessionNoteText) {
+        const noteIndicator = document.createElement('span');
+        noteIndicator.className = 'session-note-header-indicator';
+        noteIndicator.style.cssText = 'color: var(--text-muted); display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px;';
+        noteIndicator.innerHTML = ICONS.note;
+        noteIndicator.title = sessionNoteText; // Show full note preview on hover
+        topRow.appendChild(noteIndicator);
+    }
 
     const headerText = document.createElement('h2');
     headerText.className = 'session-title';
@@ -586,6 +596,32 @@ function renderLinks() {
     sessionLeft.appendChild(topRow);
     sessionLeft.appendChild(headerText);
     sessionLeft.appendChild(subText);
+
+    if (sessionNoteText) {
+        const notePreview = document.createElement('div');
+        notePreview.className = 'session-note-preview-capsule';
+        
+        notePreview.style.cssText = `
+            font-size: 11px !important;
+            line-height: 1.5 !important;
+            color: var(--text-muted) !important;
+            font-style: italic !important;
+            opacity: 0.8 !important;
+            margin: 8px 12px 6px 20px !important;
+            padding-left: 10px !important;
+            border-left: 2px solid var(--primary) !important;
+            background-color: transparent !important; /* No heavy gray box background */
+            max-height: 55px !important; /* Strictly limit height to prevent link displacement */
+            overflow-y: auto !important; /* Enable thin scrollbar for long notes */
+            white-space: pre-wrap !important;
+            word-break: break-word !important;
+        `;
+        
+        notePreview.textContent = sessionNoteText;
+        notePreview.title = "Global Session Note (Scroll to read)";
+        sessionLeft.insertBefore(notePreview, subText);
+    }
+
     sessionLeft.appendChild(selectionActions); // <--- MOVED HERE
 
     // --- RIGHT SIDE BUTTONS ---
@@ -716,6 +752,42 @@ function renderLinks() {
     pinSessionBtn.dataset.action = 'togglePin';
     pinSessionBtn.title = isPinned ? 'Unpin Session' : 'Pin Session';
 
+    // Edit Session Note action inside dropdown
+    const noteSessionBtn = document.createElement('button');
+    noteSessionBtn.className = 'session-dropdown-item';
+    noteSessionBtn.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24" style="width: 14px; height: 14px; color: var(--primary);"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> <span>Edit Session Note</span>';
+    noteSessionBtn.dataset.sessionId = sessionId;
+    noteSessionBtn.title = 'Add, edit, or clear notes for this entire session';
+    if (isLocked) {
+        noteSessionBtn.disabled = true;
+        noteSessionBtn.style.opacity = '0.4';
+        noteSessionBtn.style.cursor = 'not-allowed';
+        noteSessionBtn.title = "Session is locked";
+    }
+
+    noteSessionBtn.onclick = async (e) => {
+        e.stopPropagation();
+        closeAllDropdowns();
+        
+        const currentNote = session.links[0]?.sessionNote || "";
+        
+        // Trigger the expanded yellow Post-it textarea modal
+        const newNote = await showCustomModal(
+            "Session Notes", 
+            "Add, edit, or clear global notes for this entire session:", 
+            [
+                { text: "Cancel", value: null, class: "btn-modal-cancel" },
+                { text: "Save Note", value: true, class: "btn-modal-confirm" }
+            ],
+            { type: 'textarea', defaultValue: currentNote, placeholder: "Type your session notes or tasks here..." }
+        );
+        
+        if (newNote !== null) {
+            await setSessionNote(sessionId, newNote.trim());
+            await loadLinks(); // UI Refresh
+        }
+    };
+
     // Delete action inside dropdown
     const deleteSessionBtn = document.createElement('button');
     deleteSessionBtn.className = 'session-dropdown-item btn-session btn-delete';
@@ -733,6 +805,7 @@ function renderLinks() {
     dropdownMenu.appendChild(downloadSessionBtn);
     dropdownMenu.appendChild(bumpSessionBtn);
     dropdownMenu.appendChild(pinSessionBtn);
+    dropdownMenu.appendChild(noteSessionBtn);
     dropdownMenu.appendChild(deleteSessionBtn);
 
     dropdownDiv.appendChild(dropdownToggleBtn);

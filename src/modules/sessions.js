@@ -132,3 +132,25 @@ export async function setSessionColor(sessionId, colorName) {
   await saveLinks(allLinks);
 }
 
+/**
+ * Sets the note of a specific session across all its constituent links.
+ * @param {string} sessionId - The ID of the session.
+ * @param {string} noteText - The note text to save.
+ * @returns {Promise<void>}
+ */
+export async function setSessionNote(sessionId, noteText) {
+  const allLinks = await getLinks();
+  allLinks.forEach(link => {
+    const linkSessionId = link.sessionId || `${link.dateGroup}-${link.timestamp}`;
+    if (linkSessionId === sessionId) {
+      if (!noteText) {
+        delete link.sessionNote;
+      } else {
+        link.sessionNote = noteText;
+      }
+    }
+  });
+  await saveLinks(allLinks);
+}
+
+

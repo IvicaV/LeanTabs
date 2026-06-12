@@ -6,7 +6,7 @@
   <h3>Declutter Your Browser, Not Your Brain.</h3>
   
   <p>
-    <strong>The Smart Tab & Workspace Manager That Turns Tab Chaos into Your Personal Library.</strong><br>
+    <strong>The Professional, Local-First Tab & Workspace Manager That Turns Tab Chaos into Your Personal Library.</strong><br>
     Reclaim your RAM. Master your Workspaces. Own your data.
   </p>
 
@@ -17,12 +17,13 @@
   </p>
 
   <p>
-    <strong>Compatible with:</strong><br>
+    <strong>Compatible with all Chromium-based browsers:</strong><br>
     <img src="https://raw.githubusercontent.com/alrra/browser-logos/main/src/chrome/chrome_16x16.png" width="16" height="16"> Chrome | 
     <img src="https://raw.githubusercontent.com/alrra/browser-logos/main/src/opera/opera_16x16.png" width="16" height="16"> Opera | 
     <img src="https://raw.githubusercontent.com/alrra/browser-logos/main/src/edge/edge_16x16.png" width="16" height="16"> Edge | 
     <img src="https://raw.githubusercontent.com/alrra/browser-logos/main/src/brave/brave_16x16.png" width="16" height="16"> Brave | 
-    <img src="https://raw.githubusercontent.com/alrra/browser-logos/main/src/vivaldi/vivaldi_16x16.png" width="16" height="16"> Vivaldi
+    <img src="https://raw.githubusercontent.com/alrra/browser-logos/main/src/vivaldi/vivaldi_16x16.png" width="16" height="16"> Vivaldi |
+    <img src="https://raw.githubusercontent.com/alrra/browser-logos/main/src/archive/archive_16x16.png" width="16" height="16"> Arc
   </p>
 </div>
 
@@ -32,52 +33,61 @@
 
 ![Hero Image](assets/LeanTabs_Saved_Links.png)
 
-**LeanTabs** transforms your browser from a resource-hogging mess into a streamlined productivity machine.
+**LeanTabs** transforms your browser from a resource-hogging mess into a streamlined, high-performance productivity machine.
 
 ### ⛔ The Problem with other tools
-*   **Tab Suspenders:** They freeze tabs to save RAM, but your tab bar remains a chaotic mess of 50 tiny icons. You still carry the cognitive load.
-*   **Simple Cleaners:** They ruthlessly close everything. You are left digging through a flat Browser History, losing the grouping and the context of which tabs belonged together.
+*   **Tab Suspenders:** They freeze tabs to save RAM, but your tab bar remains a chaotic mess of 50 tiny, unreadable icons. You still carry the entire cognitive load.
+*   **Simple Cleaners:** They ruthlessly close everything. You are left digging through a flat, unorganized Browser History, losing the grouping, window structure, and context of which tabs belonged together.
 
 ### ✅ The LeanTabs Solution
 LeanTabs is based on a simple philosophy: **Tabs eat RAM. Links don't.**
 
 **A browser with hundreds of open tabs isn't a sign of disorganization; it's a defense mechanism against losing a valuable thought.**
 
-I built LeanTabs to break this cycle. It acts as a **Smart Converter**. Instead of keeping resource-heavy tabs open, it instantly converts them into organized, lightweight **Lists of Links** ("Sessions"). It secures your data first, then selectively clears memory, giving you the performance of a fresh browser with the safety of a full backup.
+I built LeanTabs to break this cycle. It acts as an **Intelligent Converter**. Instead of keeping resource-heavy tabs open, it instantly converts them into organized, lightweight **Lists of Links** ("Sessions"). It secures your data first, then selectively clears memory, giving you the performance of a fresh browser with the safety of a full local backup.
 
-✨ **Advanced Workspace Support:** LeanTabs is designed for multitaskers. It features native detection for multiple windows and deep integration for things like **Opera Workspaces**, ensuring that your separate project areas remain isolated. Cleaning one project workspace won't kill the tabs in your other active projects.
+✨ **Advanced Workspace & Tab Group Support:** LeanTabs is designed for multitaskers. It features native detection for multiple windows, deep integration for **Opera Workspaces**, and securely serializes your native **colored and titled Tab Groups**, ensuring your visual structures remain fully preserved upon restoration.
 
 ---
 
 ### ⚡ How it works in 3 seconds:
-1.  **Select Scope** 🎯 → Choose your cleanup level: Clean just the **Current Window** to tidy up, or perform a **Global Clean** across all screens to reset your workday.
+1.  **Select Scope** 🎯 → Choose your cleanup level in the popup: Clean just the **Current Window** to tidy up, or perform a **Global Clean** across all screens to reset your workday.
 2.  **Click "Clean"** 🧹 → **Instant Zen.** Background clutter vanishes. RAM is freed instantly. Your browser speeds up immediately.
-3.  **Tabs become Links** 💾 → **Zero RAM.** LeanTabs converts every single tab (even the ones kept open) into a secure link within a named session.
-4.  **Restore Precision** ↩️ → **Resume Flow.** Turn any link back into a live tab. Restore a specific window or an entire workspace setup with one click.
+3.  **Tabs become Links** 💾 → **Zero RAM.** LeanTabs converts every single tab (even the ones kept open) into a secure link within a named, organized session card.
+4.  **Restore with Precision** ↩️ → **Resume Flow.** Turn any link back into a live tab. Restore a specific window layout or an entire workspace setup with a single click.
 
 ---
 
-## 🎛️ The Interface: Quick Guide
+## 🎛️ The Interface: Sidebar Workspace Guide
 
-In the **Saved Links** Dashboard, you have full control over your sessions. Here is exactly what the buttons do:
+LeanTabs unifies your entire workflow into a cohesive, two-column workspace. Accessible via the left sidebar, the interface is split into two dedicated sections:
 
-### Session Controls (Top Right of each Card)
+### 1. Tab Library (Dashboard)
+Manage your saved sessions, organize lists, and restore work environments.
+
+#### Session Controls (Top Right of each Card)
 | Icon | Tooltip Name | Function |
 | :--- | :--- | :--- |
+| 🔐 | **Lock / Freeze** | **Card Protector.** Freezes the state of the session card, completely blocking accidental deletes, link additions, or drag-and-drop actions on critical project archives. |
 | ⚡ | **Replace** | **Context Switcher.** Closes all current tabs in your active window and instantly replaces them with this session. |
-| ↩️ | **Restore** | **Append.** Opens the tabs from this session *next* to your currently open tabs (adds them). |
-| ⬇️ | **Export** | Downloads this specific session as a JSON file (great for sharing with colleagues). |
-| ⬆️ | **Push to Top** | Moves an old session to the top of the list and updates its timestamp to "Now". |
+| ↩️ | **Restore** | **Restore Engine.** Prompts you on-the-fly whether to open the session in a clean new window or append all tabs directly into your current window/workspace. |
+| ⬇️ | **Export** | Downloads this specific session as an isolated JSON file (perfect for sharing with colleagues). |
+| ⬆ | **Push to Top** | Moves an old session to the top of the list and updates its timestamp to "Now". |
 | 📌 | **Pin** | Pins the session to the top of your dashboard so it's always accessible. |
 | 🗑️ | **Delete** | Permanently deletes this session (don't worry, the global Auto-Backup still has a copy). |
 
-### Link Controls (Inside the List)
+#### Link Controls (Inside the List)
 | Icon | Tooltip Name | Function |
 | :--- | :--- | :--- |
+| 📝 | **Edit Note** | **Context Clues.** Opens a yellow-tinted, multi-line "Post-It" style input window to add custom notes/context. Represented on-screen by a subtle, colorless document icon with instant hover-previews. |
+| ✏️ | **Rename Title** | **Customise Title.** Allows you to manually rename the auto-generated page title of any saved link to fit your exact context. |
 | 🛡️ | **Add to Whitelist** | Adds this domain to the Whitelist. Future cleans will keep this site open. |
 | 🏷️ | **Edit Category** | Rename the auto-generated tag (e.g., change "Docs" to "Project Alpha"). |
 | 🔗 | **Open Tab** | Opens just this single link in a new tab. |
 | 🗑️ | **Delete** | Removes this single link from the session. |
+
+### 2. Settings & Whitelist
+Configure your clean preferences, manage whitelisted domains, and restore backups directly inside the dashboard tab.
 
 ---
 
@@ -95,14 +105,14 @@ Found a site you never want to close (Spotify, CRM, WhatsApp)?
 ![Context Menu](assets/LeanTabs_Right_Click.png)
 
 ### 🗂️ The Dashboard: A Living Database
-![Clean Button](assets/LeanTabs_Clean_Button.png)
-The "Saved Links" dashboard turns your browsing history into an organized asset.
-*   **Granular Restoration:** Even after a global clean, every window and workspace is saved as a separate tile. You have the freedom to restore specific projects individually, exactly when you need them.
+*   **Unified Left Sidebar Workspace:** Access your library, whitelists, settings, and backups under a single, cohesive, zero-friction workspace.
+*   **Jitter-Free Cross-Card Drag & Drop:** Move links between different session cards smoothly to reorganize your projects. Dragging is automatically stabilized using pointer-events masking.
+*   **Smart Duplicate Warnings:** When manually adding a link to a session card, LeanTabs automatically scans your database and warns you with a confirm-modal if the URL is already saved elsewhere, preventing redundant entries.
+*   **Native Tab-Group Serialization:** Securely saves your Chrome/Edge/Brave colored and titled tab groups and automatically recreates them on restore.
 *   **Live Search:** Stop digging through history. Find any link by title, URL, or category instantly.
-*   **Drag & Drop:** Reorder links within a session to prioritize your tasks or group related links together.
 *   **Smart Organization:** Manage hundreds of sessions easily with collapsible lists and the global "Collapse/Expand" controls.
 *   **Smart Categorization:** Automatically identifies the source of **any link** (e.g., 'YouTube', 'Notion', 'Jira') and applies a clean, readable tag.
-*   **Dark Mode:** A beautifully crafted UI that respects your system settings.
+*   **Dark Mode:** A beautifully crafted, high-contrast dark UI that respects your system settings and matches the premium developer look-and-feel.
 ![Dark Mode](assets/LeanTabs_Light_Dark.png)
 
 ### ➕ Research Assistant
@@ -112,10 +122,11 @@ You can also add links with a Right-Click or manually to your sessions! Save a U
 Chaos is the enemy. LeanTabs **automatically detects the source** of every link (e.g., "YouTube", "GitHub", "Amazon") and applies a clean category tag. Want custom organization? You can rename any category tag manually to fit your project needs (e.g., change "Google Docs" to "Thesis Sources").
 
 ### 🔒 The "Triple Safety" Net
-I engineered LeanTabs to make data loss impossible.
+I engineered LeanTabs to make data loss impossible:
 1.  **Session Archives:** Every cleanup creates a visible, editable list of links in your dashboard.
-2.  **Unified Auto-Backup:** A fail-safe background mechanism that creates a full backup file of *everything* you cleaned. Even if you delete a session by mistake, the global backup has you covered.
-3.  **Privacy First:** Your data belongs to you. LeanTabs stores all your sessions and links **locally on your device** (`chrome.storage`). I do not track you, have no analytics, and do not upload your data to any cloud servers.
+2.  **The In-Memory Undo Puffer (Trash Rollback):** Accidentally deleted a link or session? A high-contrast glassmorphic toast appears at the bottom, letting you reverse the deletion instantly with a single click.
+3.  **Unified Auto-Backup:** A fail-safe background mechanism that creates a full backup file of *everything* you cleaned. Even if you delete a session by mistake, the global backup has you covered.
+4.  **Privacy First:** Your data belongs to you. LeanTabs stores all your sessions and links **locally on your device** (`chrome.storage.local`). I do not track you, have no analytics, and do not upload your data to any cloud servers.
 ![Settings Menu](assets/LeanTabs_Settings.png)
 
 > *Note: The extension only connects to the internet when you manually add a link (to fetch the title) or to load website icons (favicons).*
@@ -152,12 +163,12 @@ Every day starts with the same 5 tools: Email, Calendar, Jira, Analytics, and Sl
 ### 6. The "Context Freeze" (For Developers & Researchers) ❄️
 You have 20 tabs open for a specific bug fix or thesis chapter. You're done for today, but you can't afford to lose the arrangement of your windows (Code on the left, Docs on the right).
 *   **Others:** Save a flat list of URLs. Context is lost.
-*   **LeanTabs:** Saves the session *and* the window structure (enable "Restore Window Structure" in settings). One click next week restores the exact window layout, so your mental map stays intact.
+*   **LeanTabs:** Saves the session *and* the window structure. Our new **Contextual Restore Engine** asks you on-the-fly whether to recreate the separate windows or append them to your current active window, keeping your mental map intact.
 
 ### 7. The "Panic" Screen Share (Privacy) 🎥
 You are in a meeting and need to share your screen immediately. But you have 40 tabs open—some work, some private (Amazon, Reddit), and it looks chaotic.
 *   **The LeanTabs Move:** Click **Global Clean**.
-*   **The Result:** In 1 second, your browser is pristine. Only your 3 active work tabs remain. Your private tabs aren't lost—they are safely converted to links in the dashboard, ready to be reopened later.
+*   **The Result:** In 1 second, your browser is pristine. Only your active work tabs remain. Your private tabs aren't lost—they are safely converted to links in the dashboard, ready to be reopened later.
 
 ### 8. The "FPS Hunter" (Performance) 🎮
 You want to launch a heavy game (Cyberpunk) or render a 4K video. Chrome is running in the background, consuming resources even when minimized.
@@ -178,7 +189,6 @@ You want to launch a heavy game (Cyberpunk) or render a 4K video. Chrome is runn
     You hate bloat. You want your browser to consume 200MB of RAM, not 8GB, so your gaming or rendering performance doesn't suffer.
 *   **The "Tab Hoarders" (ADHD friendly):**
     You keep tabs open because "out of sight, out of mind". LeanTabs solves the object permanence issue by giving you a visual, searchable dashboard instead of hidden bookmarks.
-
 
 ---
 
@@ -204,7 +214,6 @@ A: No. LeanTabs is workspace-aware. If you choose "Current Window Scope", it wil
 
 **Q: Can I recover tabs if I accidentally deleted a session?**
 A: **Yes.** LeanTabs has an automatic backup system running in the background. Go to **Settings > Data Management**, and you will find auto-backups of your last 50 cleaning operations.
-
 
 ---
 
@@ -252,3 +261,4 @@ If you use AI tools daily and are tired of constant copy-pasting, managing templ
 <br>
 
 ### Take back control now and experience a clean, fast, and organized browser. Install LeanTabs! 🚀
+

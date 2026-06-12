@@ -44,7 +44,7 @@
         "default": "Ctrl+Shift+L",
         "mac": "Command+Shift+L"
       },
-      "description": "Open Saved Links Dashboard"
+      "description": "Open Tab Library Dashboard"
     },
     "run-reset": {
       "suggested_key": {

@@ -1291,9 +1291,7 @@ kbd {
 }
 
 /* Schiebt den Theme-Button in der Sidebar nach unten (direkt über den Fußzeilen-Strich) */
-#sidebarThemeToggleBtn {
-  margin-top: auto !important;
-}
+
 
 /* --- LEANPROMPTS UNIFIED FEEDBACK-UI CLASSES --- */
 
@@ -1397,6 +1395,76 @@ kbd {
 .feedback-rating-btn:hover .star-svg {
   color: #f59e0b !important; /* Sterne leuchten brillant in Gold bei Hover! */
   transform: scale(1.15) !important;
+}
+
+/* --- PRO-IDE SIDEBAR WORKSPACE FINISHING (Symmetry Grid) --- */
+
+/* Nav-Buttons der oberen Gruppe dehnen */
+.sidebar-nav {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  flex-grow: 1 !important; /* Nimmt den verbleibenden Platz ein und schiebt den Footer nach unten */
+}
+
+/* Die Footer-Struktur */
+.sidebar-footer {
+  margin-top: auto !important; /* Drückt die Gruppen flüssig an den unteren Rand */
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  border-top: none !important; /* Entfernt den alten Strich */
+  padding-top: 0 !important;
+}
+
+/* Untere App-Steuerungsgruppe (Sonne/Mond & Settings) */
+.footer-group-app {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  margin-bottom: 12px !important;
+}
+
+/* Externe Linkgruppe (Unter dem Strich) */
+.footer-group-external {
+  border-top: 1px solid var(--border-color) !important; /* Der neue Strich sitzt JETZT sauber unter den Settings! */
+  padding-top: 12px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+}
+
+/* Standardisiertes Format für die externen Sidebar-Links (Identisch zu den Nav-Buttons!) */
+.sidebar-link-btn {
+  all: unset !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important; /* Exakt gleicher Abstand zum Text wie obere Buttons */
+  padding: 10px 16px !important; /* Exakt gleiche Einrückung wie obere Buttons */
+  border-radius: 8px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--text-muted) !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease-in-out !important;
+  box-sizing: border-box !important;
+}
+
+.sidebar-link-btn:hover {
+  color: var(--primary) !important;
+  background-color: var(--surface-bg) !important;
+}
+
+.sidebar-link-btn.kofi-link:hover {
+  color: var(--kofi-color) !important;
+}
+
+/* EISERNE REGEL: Alle Icons in der Sidebar MÜSSEN absolut einheitlich groß & filigran sein */
+.sidebar-panel .icon-svg {
+  width: 18px !important;
+  height: 18px !important;
+  stroke-width: 2 !important; /* Knackiger, einheitlicher Stroke-Wert (Pro-IDE Look) */
+  flex-shrink: 0 !important;
 }
 
 /* --- END OF styles.css --- */

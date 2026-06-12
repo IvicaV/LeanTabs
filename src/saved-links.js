@@ -16,6 +16,7 @@ let filteredLinks = [];
 let selectedLinks = new Set();
 let collapsedSessions = new Set(); 
 let sessionsDefaultCollapsed = false; 
+let dragExpandTimeout = null;
 let isUpdatingMasterCheckbox = false;
 let visibleLimit = 100; 
 
@@ -466,6 +467,11 @@ function renderLinks() {
     sessionHeader.className = 'session-header';
     sessionHeader.dataset.sessionId = sessionId;
     
+    sessionHeader.addEventListener('dragenter', handleHeaderDragEnter);
+    sessionHeader.addEventListener('dragover', handleHeaderDragOver);
+    sessionHeader.addEventListener('dragleave', handleHeaderDragLeave);
+    sessionHeader.addEventListener('drop', handleHeaderDrop);
+    
     let isCollapsed;
     if (collapsedSessions.has(`collapsed-${sessionId}`)) {
       isCollapsed = true;
@@ -828,8 +834,8 @@ function renderLinks() {
     sessionSection.appendChild(sessionHeader);
     
     const linksList = document.createElement('div');
-    // Weiche: Nur bei mehr als 5 Links wird die Kachel scrollbar (verhindert Dropdown-Clipping)
-    linksList.className = `links-list ${session.links.length > 5 ? 'has-scrollbar' : ''}`;
+    // Weiche: Nur bei mehr als 4 Links wird die Kachel scrollbar (verhindert Dropdown-Clipping)
+    linksList.className = `links-list ${session.links.length > 4 ? 'has-scrollbar' : ''}`;
     linksList.dataset.sessionId = sessionId;
     
     if (isCollapsed) {
@@ -2038,6 +2044,100 @@ function handleDragEnd(e) {
   document.querySelectorAll('.link-item').forEach(item => {
     item.classList.remove('drag-over');
   });
+  document.querySelectorAll('.session-header').forEach(header => {
+    header.classList.remove('drag-over-header');
+  });
+  if (dragExpandTimeout) {
+    clearTimeout(dragExpandTimeout);
+    dragExpandTimeout = null;
+  }
+}
+
+function handleHeaderDragEnter(e) {
+  e.preventDefault();
+  const header = this;
+  const targetSessionId = header.dataset.sessionId;
+  
+  // Check if target is locked
+  const targetLink = allLinks.find(l => (l.sessionId || `${l.dateGroup}-${l.timestamp}`) === targetSessionId);
+  if (targetLink?.isLocked) return;
+
+  header.classList.add('drag-over-header');
+  
+  // If target session is collapsed, start the 700ms auto-expand timer
+  const isCollapsed = collapsedSessions.has(`collapsed-${targetSessionId}`) || 
+                      (!collapsedSessions.has(`expanded-${targetSessionId}`) && sessionsDefaultCollapsed);
+  
+  if (isCollapsed) {
+      if (dragExpandTimeout) clearTimeout(dragExpandTimeout);
+      dragExpandTimeout = setTimeout(() => {
+          toggleSessionCollapse(targetSessionId);
+          header.classList.remove('drag-over-header');
+      }, 700);
+  }
+}
+
+function handleHeaderDragOver(e) {
+  if (e.preventDefault) e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  return false;
+}
+
+function handleHeaderDragLeave(e) {
+  // Guard: Prevent premature cleanup when hovering over text children
+  if (e.currentTarget.contains(e.relatedTarget)) return;
+
+  this.classList.remove('drag-over-header');
+  if (dragExpandTimeout) {
+      clearTimeout(dragExpandTimeout);
+      dragExpandTimeout = null;
+  }
+}
+
+async function handleHeaderDrop(e) {
+  e.stopPropagation();
+  this.classList.remove('drag-over-header');
+  if (dragExpandTimeout) {
+      clearTimeout(dragExpandTimeout);
+      dragExpandTimeout = null;
+  }
+
+  const targetSessionId = this.dataset.sessionId;
+  
+  // Safety Check: Is target session locked?
+  const targetLinkSample = allLinks.find(l => (l.sessionId || `${l.dateGroup}-${l.timestamp}`) === targetSessionId);
+  if (targetLinkSample?.isLocked) return false;
+
+  if (dragSourceEl && dragSourceKey && dragSessionId !== targetSessionId) {
+      // Find and extract link index in global array
+      const sourceIndex = allLinks.findIndex(l => getLinkKey(l) === dragSourceKey);
+      if (sourceIndex > -1) {
+          const [movedItem] = allLinks.splice(sourceIndex, 1);
+          
+          // Re-route session bindings to target card
+          movedItem.sessionId = targetSessionId;
+          movedItem.sessionLabel = targetLinkSample ? targetLinkSample.sessionLabel : "Restored Session";
+          movedItem.isPinned = targetLinkSample ? (targetLinkSample.isPinned || false) : false;
+
+          // Append to the END of the target session. 
+          // To do this, find the index of the last link in the target session, and insert after it.
+          let insertIndex = allLinks.length;
+          for (let i = allLinks.length - 1; i >= 0; i--) {
+              const sId = allLinks[i].sessionId || `${allLinks[i].dateGroup}-${allLinks[i].timestamp}`;
+              if (sId === targetSessionId) {
+                  insertIndex = i + 1;
+                  break;
+              }
+          }
+
+          allLinks.splice(insertIndex, 0, movedItem);
+          sessionSortStates[targetSessionId] = 'date'; // Reset sort to preserve position
+          
+          await saveLinks(allLinks);
+          await loadLinks();
+      }
+  }
+  return false;
 }
 
 const createSessionBtn = document.getElementById('createSessionBtn');

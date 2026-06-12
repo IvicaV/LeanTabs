@@ -1330,7 +1330,8 @@ kbd {
 
 /* --- DRAG-AND-DROP GRAPHIC STABILIZER (ZERO-JITTER) --- */
 /* Verhindert, dass verschachtelte Kind-Elemente Drag-Events abfangen und Flimmern verursachen */
-.dragging-active .link-item * {
+.dragging-active .link-item *,
+.dragging-active .session-header * {
   pointer-events: none !important;
 }
 
@@ -1591,6 +1592,18 @@ kbd {
 /* Sorgt dafür, dass auch das Icon im Button bei Hover die Primärfarbe annimmt */
 .feedback-rating-box .sidebar-link-btn:hover .icon-svg {
   color: var(--primary) !important;
+}
+
+/* --- DRAG & DROP ON COLLAPSED SESSION CARDS FEEDBACK --- */
+.session-header.drag-over-header {
+  border-color: var(--primary) !important;
+  background-color: var(--primary-light) !important;
+  box-shadow: inset 0 0 10px rgba(59, 130, 246, 0.15) !important;
+  transition: all 0.2s ease;
+}
+[data-theme="dark"] .session-header.drag-over-header {
+  background-color: rgba(59, 130, 246, 0.1) !important;
+  border-color: var(--primary) !important;
 }
 
 /* --- END OF styles.css --- */

@@ -127,15 +127,73 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 async function initializeDefaults() {
   const data = await chrome.storage.local.get(['savedLinks', 'whitelist', 'settings']);
-  if (!data.savedLinks) await saveLinks([]);
-  if (!data.whitelist) await saveWhitelist(['gmail.com', 'docs.google.com']);
-  if (!data.settings) await saveSettings({
-    keepLastTabs: 1, 
-    autoBackup: true, 
-    confirmBeforeClose: true, 
-    cleanAllWorkspaces: false,
-    enableRatings: true // Standardmäßig aktiv!
-  });
+  
+  if (!data.whitelist) {
+      await saveWhitelist(['gmail.com', 'docs.google.com']);
+  }
+  
+  if (!data.settings) {
+      await saveSettings({
+        keepLastTabs: 1, 
+        autoBackup: true, 
+        confirmBeforeClose: true, 
+        cleanAllWorkspaces: false,
+        enableRatings: true
+      });
+  }
+
+  // Seeding the Welcome Session only if savedLinks is completely missing or empty
+  if (!data.savedLinks || data.savedLinks.length === 0) {
+      const timestamp = new Date().toISOString();
+      const dateGroup = new Date().toLocaleDateString('en-US');
+      const welcomeSessionId = `welcome-session-${Date.now()}`;
+
+      const welcomeLinks = [
+          {
+              url: "https://github.com/IvicaV/LeanTabs#readme",
+              title: "1. Philosophy: Why tabs eat your RAM and how LeanTabs saves it",
+              timestamp: timestamp,
+              dateGroup: dateGroup,
+              category: "Philosophy",
+              favicon: "https://github.com/favicon.ico",
+              sessionId: welcomeSessionId,
+              sessionLabel: "Welcome to LeanTabs (Quickstart Guide)",
+              uniqueId: `welcome-link-1-${Date.now()}`,
+              isPinned: false,
+              rating: 0,
+              note: "Tabs keep active memory state. Links consume zero RAM. LeanTabs is your intelligent converter to keep your browser fast as lightning."
+          },
+          {
+              url: "chrome://extensions/shortcuts",
+              title: "2. Hotkeys: Press Ctrl+Shift+S to clean your active window",
+              timestamp: timestamp,
+              dateGroup: dateGroup,
+              category: "Shortcuts",
+              favicon: "",
+              sessionId: welcomeSessionId,
+              sessionLabel: "Welcome to LeanTabs (Quickstart Guide)",
+              uniqueId: `welcome-link-2-${Date.now()}`,
+              isPinned: false,
+              rating: 0,
+              note: "Toggle this dashboard at any time with Ctrl+Shift+L. Press Ctrl+Shift+K to perform an emergency reset (kills active window tabs without saving)."
+          },
+          {
+              url: chrome.runtime.getURL("saved-links.html#settings"),
+              title: "3. Safety: Recover your last 50 cleanups under Data & Backups",
+              timestamp: timestamp,
+              dateGroup: dateGroup,
+              category: "Backup",
+              favicon: "icon16.png",
+              sessionId: welcomeSessionId,
+              sessionLabel: "Welcome to LeanTabs (Quickstart Guide)",
+              uniqueId: `welcome-link-3-${Date.now()}`,
+              isPinned: false,
+              rating: 3, // Pre-rated to show the star rating system in action!
+              note: "LeanTabs runs a silent background backup engine. If you ever delete a session by mistake, you can recover it instantly in Settings > Data Management & Backups."
+          }
+      ];
+      await saveLinks(welcomeLinks);
+  }
 }
 
 // --- HELPER: ADD TO WHITELIST (New) ---

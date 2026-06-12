@@ -1615,22 +1615,23 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
 
     if (isReplace) {
         // FALL A: REPLACE (Das gelbe Blitz-Symbol) — Ersetzen ist immer fenstergebunden
-        let warningText = '\n\n⚠️ Tabs in THIS workspace will be closed!';
+        let warningText = '';
         if (isMassiveRestore) {
             warningText += `\n\n⚠️ WARNING: Opening ${sessionLinks.length} tabs simultaneously might temporarily slow down your browser!`;
         }
 
-        const confirmed = await showCustomModal(
-            "Replace Session",
-            `Replace all tabs in this workspace with these ${sessionLinks.length} link(s)?${warningText}`,
+        const choice = await showCustomModal(
+            "Replace Workspace",
+            `You are about to replace your active workspace with this session (${sessionLinks.length} tabs).\n\nHow would you like to handle your currently open tabs?${warningText}`,
             [
-                { text: "Cancel", value: false, class: "btn-modal-cancel" },
-                { text: "Replace Tabs", value: true, class: "btn-modal-danger" }
+                { text: "Cancel", value: "cancel", class: "btn-modal-cancel" },
+                { text: "Replace (Discard Current)", value: "discard_replace", class: "btn-modal-danger" },
+                { text: "Save Current & Replace", value: "save_replace", class: "btn-modal-confirm" }
             ]
         );
 
-        if (confirmed) {
-            await executeRestoreAction('replace', sessionLinks, linksByWindow, windowIds);
+        if (choice && choice !== "cancel") {
+            await executeRestoreAction(choice, sessionLinks, linksByWindow, windowIds);
         }
     } else {
         // FALL B: RESTORE (Das blaue Pfeil-Symbol) — Interaktive, kontextsensitive Weiche!
@@ -2899,6 +2900,19 @@ function initFeedbackModal() {
     }
 }
 
+// Robust, isolated system-tab checker inside saved-links.js
+const isSystemTab = (url) => {
+    if (!url) return true;
+    if (url.startsWith(chrome.runtime.getURL(''))) return true;
+    return url.startsWith('chrome://') ||
+           url.startsWith('edge://') ||
+           url.startsWith('opera://') ||
+           url.startsWith('vivaldi://') ||
+           url.startsWith('brave://') ||
+           url.startsWith('about:') ||
+           url === 'about:blank';
+};
+
 // --- HELPER: EXECUTE CONTEXTUAL RESTORE ACTION WITH NATIVE GROUP SERIALIZATION ---
 async function executeRestoreAction(action, sessionLinks, linksByWindow, windowIds) {
     // 1. Inkrementiere den Open-Count im Speicher
@@ -2915,14 +2929,49 @@ async function executeRestoreAction(action, sessionLinks, linksByWindow, windowI
     const settings = await getSettings();
     let oldTabsIds = [];
 
-    // 2. Vorbereitung für den "Replace"-Modus
-    if (action === 'replace') {
+    // 2. Vorbereitung für den "Replace"-Modus & Auto-Save
+    if (action === 'replace' || action === 'discard_replace' || action === 'save_replace') {
         const currentWindowTabs = await chrome.tabs.query({ currentWindow: true });
         const activeTab = currentWindowTabs.find(t => t.active);
+        let targetWindowTabs = currentWindowTabs;
         if (activeTab && activeTab.workspaceId !== undefined) {
-            oldTabsIds = currentWindowTabs.filter(t => t.workspaceId === activeTab.workspaceId).map(t => t.id);
-        } else {
-            oldTabsIds = currentWindowTabs.map(t => t.id);
+            targetWindowTabs = currentWindowTabs.filter(t => t.workspaceId === activeTab.workspaceId);
+        }
+        oldTabsIds = targetWindowTabs.map(t => t.id);
+
+        if (action === 'save_replace') {
+            try {
+                const tabsToSave = targetWindowTabs.filter(tab => !isSystemTab(tab.url) && !tab.pinned);
+
+                if (tabsToSave.length > 0) {
+                    const timestamp = new Date().toISOString();
+                    const dateGroup = new Date().toLocaleDateString('en-US');
+                    const backupSessionId = `replace-recovery-${Date.now()}`;
+                    const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+                    const savedStates = tabsToSave.map(tab => {
+                        let domain = "Other";
+                        try { domain = new URL(tab.url).hostname.replace(/^www\./, ''); } catch(e){}
+                        return {
+                            url: tab.url,
+                            title: tab.title || tab.url,
+                            timestamp: timestamp,
+                            dateGroup: dateGroup,
+                            category: extractDomain(tab.url),
+                            favicon: (tab.favIconUrl && !tab.favIconUrl.startsWith('chrome-extension://')) ? tab.favIconUrl : `https://www.google.com/s2/favicons?domain=${domain}&sz=32`,
+                            sessionId: backupSessionId,
+                            sessionLabel: `Auto-Save (before Replace - ${timeStr})`,
+                            uniqueId: `${tab.url}-${timestamp}-${Math.random().toString(36).substr(2, 9)}`
+                        };
+                    });
+
+                    // Fresh state read to prevent concurrency issues (Double-Read Pattern)
+                    const freshLinks = await getLinks();
+                    await saveLinks([...savedStates, ...freshLinks]);
+                }
+            } catch (err) {
+                console.error("Defensive auto-save failed, replacing tabs anyway:", err);
+            }
         }
     }
 
@@ -3049,7 +3098,7 @@ async function executeRestoreAction(action, sessionLinks, linksByWindow, windowI
     }
 
     // 4. Alte Tabs bei "Replace" schließen
-    if (action === 'replace' && oldTabsIds.length > 0) {
+    if ((action === 'replace' || action === 'discard_replace' || action === 'save_replace') && oldTabsIds.length > 0) {
         await chrome.tabs.remove(oldTabsIds);
     }
 

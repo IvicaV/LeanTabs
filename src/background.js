@@ -18,9 +18,20 @@ let pendingRebuild = false; // Neuer Zustandshalter für ausstehende Updates
 buildContextMenu();
 
 // 1. INITIALIZATION & LISTENERS
-chrome.runtime.onInstalled.addListener(async () => {
+chrome.runtime.onInstalled.addListener(async (details) => {
   console.log('LeanTabs Extension installed/updated!');
+  
+  // 1. Sichere asynchrone Initialisierung der Standarddaten (Seed) abwarten
   await initializeDefaults();
+  
+  // 2. Onboarding-Dashboard erst nach erfolgreichem Seed und nur bei Erstinstallation öffnen
+  if (details && details.reason === "install") {
+    try {
+      await chrome.tabs.create({ url: chrome.runtime.getURL('saved-links.html') });
+    } catch (e) {
+      console.error("[LeanTabs] Failed to open onboarding dashboard tab safely:", e);
+    }
+  }
 });
 
 // Re-build menu when storage changes (Debounced to prevent API congestion)

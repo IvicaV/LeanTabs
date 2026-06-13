@@ -426,6 +426,74 @@ function normalizeUrlForComparison(urlStr) {
   }
 }
 
+// --- ROBUSTER IMPORT-VALIDATOR (ZERO-TRUST SCHEMA) ---
+function sanitizeAndValidateImportedLinks(rawList) {
+    if (!Array.isArray(rawList)) return [];
+
+    const validatedList = [];
+
+    rawList.forEach(rawLink => {
+        if (!rawLink || typeof rawLink !== 'object') return;
+
+        // 1. Minimum schema criteria
+        if (!rawLink.url || typeof rawLink.url !== 'string') return;
+        if (!rawLink.title || typeof rawLink.title !== 'string') return;
+
+        // 2. Protocol check (Strict http, https and extension internal only)
+        let cleanUrl;
+        try {
+            const parsed = new URL(rawLink.url);
+            if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:' && parsed.protocol !== 'chrome-extension:') {
+                return; // Discard dangerous protocols like javascript: or data:
+            }
+            cleanUrl = parsed.href;
+        } catch (e) {
+            return; // Discard invalid URLs
+        }
+
+        // 3. Rebuild object strictly to avoid prototype pollution
+        const safeLink = {
+            url: cleanUrl,
+            title: rawLink.title.substring(0, 500), // Prevent buffer overflow/DoS
+            timestamp: (typeof rawLink.timestamp === 'string') ? rawLink.timestamp : new Date().toISOString(),
+            dateGroup: (typeof rawLink.dateGroup === 'string') ? rawLink.dateGroup : new Date().toLocaleDateString('en-US'),
+            category: (typeof rawLink.category === 'string') ? rawLink.category.substring(0, 50) : 'Other',
+            favicon: (typeof rawLink.favicon === 'string' && rawLink.favicon.startsWith('http')) ? rawLink.favicon : '',
+            sessionId: (typeof rawLink.sessionId === 'string') ? rawLink.sessionId.replace(/[^\w-]/g, '') : `imported-session-${Date.now()}`,
+            sessionLabel: (typeof rawLink.sessionLabel === 'string') ? rawLink.sessionLabel.substring(0, 100) : 'Restored Session',
+            uniqueId: (typeof rawLink.uniqueId === 'string') ? rawLink.uniqueId.replace(/[^\w-]/g, '') : `link-${Math.random().toString(36).substr(2, 9)}`,
+            isPinned: !!rawLink.isPinned,
+            isLocked: !!rawLink.isLocked,
+            rating: (typeof rawLink.rating === 'number' && rawLink.rating >= 0 && rawLink.rating <= 3) ? rawLink.rating : 0,
+            openCount: (typeof rawLink.openCount === 'number' && rawLink.openCount > 0) ? Math.min(rawLink.openCount, 99999) : 0
+        };
+
+        // 4. Safely attach optional metadata fields
+        if (typeof rawLink.sessionColor === 'string' && ['none', 'blue', 'green', 'yellow', 'red'].includes(rawLink.sessionColor)) {
+            safeLink.sessionColor = rawLink.sessionColor;
+        }
+        if (typeof rawLink.sessionNote === 'string') {
+            safeLink.sessionNote = rawLink.sessionNote.substring(0, 2000);
+        }
+        if (typeof rawLink.note === 'string') {
+            safeLink.note = rawLink.note.substring(0, 2000);
+        }
+        if (typeof rawLink.groupTitle === 'string') {
+            safeLink.groupTitle = rawLink.groupTitle.substring(0, 100);
+        }
+        if (typeof rawLink.groupColor === 'string') {
+            safeLink.groupColor = rawLink.groupColor.substring(0, 30);
+        }
+        if (typeof rawLink.groupOriginalId === 'number') {
+            safeLink.groupOriginalId = rawLink.groupOriginalId;
+        }
+
+        validatedList.push(safeLink);
+    });
+
+    return validatedList;
+}
+
 async function openLinkAndIncrement(linkKey, active = true) {
   allLinks = await getLinks();
   const targetLink = allLinks.find(l => getLinkKey(l) === linkKey);
@@ -875,11 +943,16 @@ function renderLinks() {
       linksList.style.display = 'none';
     }
 
+    const safeSessionId = escapeHTML(sessionId);
+    const placeholderText = isLocked ? 'Session is locked...' : 'Paste URL to add...';
+    const disabledAttr = isLocked ? 'disabled' : '';
+    const btnDisabledAttr = isLocked ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '';
+
     const addLinkArea = document.createElement('div');
     addLinkArea.className = 'add-link-area';
     addLinkArea.innerHTML = `
-        <input type="text" class="add-link-input" placeholder="${isLocked ? 'Session is locked...' : 'Paste URL to add...'}" data-session-id="${sessionId}" ${isLocked ? 'disabled' : ''}>
-        <button class="btn btn-primary btn-sm btn-add-link" data-session-id="${sessionId}" ${isLocked ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>Add Link</button>
+        <input type="text" class="add-link-input" placeholder="${placeholderText}" data-session-id="${safeSessionId}" ${disabledAttr}>
+        <button class="btn btn-primary btn-sm btn-add-link" data-session-id="${safeSessionId}" ${btnDisabledAttr}>Add Link</button>
     `;
     linksList.appendChild(addLinkArea);
     
@@ -3047,7 +3120,8 @@ function initSettingsLogic() {
                 rawLinks = data;
             }
 
-            const linksToImport = rawLinks.filter(l => l && typeof l === 'object' && l.url);
+            // --- SCHEMAKONTROLLE & SANITIZING (APPSEC-GUARD) ---
+            const linksToImport = sanitizeAndValidateImportedLinks(rawLinks);
 
             if (linksToImport.length === 0) {
                 if (data.settings || data.whitelist) {

@@ -1,6 +1,6 @@
 {
   "name": "leantabs-extension",
-  "version": "1.1.5",
+  "version": "1.2.0",
   "description": "Vite environment for LeanTabs extension",
   "type": "module",
   "scripts": {

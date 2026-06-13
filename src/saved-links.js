@@ -3652,7 +3652,7 @@ async function submitFeedback(formData) {
     type: formData.type || 'Question',
     message: formData.message,
     email: formData.email || 'Anonymous',
-    version: chrome.runtime?.getManifest()?.version || '1.1.5',
+    version: chrome.runtime?.getManifest()?.version || '1.2.0',
     os: window.navigator.platform,
     browser: "Chromium" // Einheitliche Plattform-Kennung
   };

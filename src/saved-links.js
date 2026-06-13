@@ -2281,16 +2281,20 @@ document.getElementById('exportBtn').addEventListener('click', async () => {
 });
 
 document.getElementById('clearAllBtn').addEventListener('click', async () => {
-  const confirm1 = await showCustomModal("Delete All Links", `Really delete ALL ${allLinks.length} links?\n\nThis action cannot be undone!`, [{ text: "Cancel", value: false, class: "btn-modal-cancel" }, { text: "Delete All", value: true, class: "btn-modal-danger" }]);
-  if (confirm1) {
-    const confirm2 = await showCustomModal("Final Confirmation", "Are you ABSOLUTELY sure?", [{ text: "Cancel", value: false, class: "btn-modal-cancel" }, { text: "Yes, Wipe Everything", value: true, class: "btn-modal-danger" }]);
-    if (confirm2) {
-      // Keep locked sessions intact
-      allLinks = await getLinks();
-      const lockedLinks = allLinks.filter(link => link.isLocked);
-      await saveLinks(lockedLinks);
-      await loadLinks();
-    }
+  const confirmed = await showCustomModal(
+    "Delete All Unlocked Sessions", 
+    `Are you sure you want to delete ALL ${allLinks.length} saved links?\n\nThis will clear your library. Locked/frozen sessions will remain protected. This action cannot be undone.`, 
+    [
+      { text: "Cancel", value: false, class: "btn-modal-cancel" },
+      { text: "Yes, Delete All", value: true, class: "btn-modal-danger" }
+    ]
+  );
+  
+  if (confirmed) {
+    allLinks = await getLinks();
+    const lockedLinks = allLinks.filter(link => link.isLocked);
+    await saveLinks(lockedLinks);
+    await loadLinks();
   }
 });
 

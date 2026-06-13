@@ -206,7 +206,7 @@ async function initializeDefaults() {
           },
           {
               url: chrome.runtime.getURL("saved-links.html#settings"),
-              title: "Step 3: Try out our safety net. Delete this single link by clicking the Trash Icon on its hover-state.",
+              title: "Step 3: Try out the safety net. Delete this single link by clicking the Trash Icon on its hover-state.",
               timestamp: timestamp,
               dateGroup: dateGroup,
               category: "Safety Net",

@@ -2145,78 +2145,76 @@ async function handleDrop(e) {
   e.stopPropagation(); 
   const targetSession = this.closest('.links-list').dataset.sessionId;
   
-  // Sicherheits-Check: Ist der Ziel-Ordner gesperrt?
-  const targetSessionLink = allLinks.find(l => {
+  // 1. Frischen Datenbankzustand abfragen
+  const freshLinks = await getLinks();
+  
+  const targetSessionLink = freshLinks.find(l => {
       const sId = l.sessionId || `${l.dateGroup}-${l.timestamp}`;
       return sId === targetSession;
   });
   const isTargetLocked = targetSessionLink?.isLocked || false;
   if (isTargetLocked) {
-      return false; // Hart abbrechen bei gesperrter Ziel-Session
+      return false; 
   }
 
   const targetKey = this.querySelector('.link-checkbox').dataset.linkKey;
-  const targetIndex = allLinks.findIndex(l => getLinkKey(l) === targetKey);
+  const targetIndex = freshLinks.findIndex(l => getLinkKey(l) === targetKey);
 
   if (targetIndex > -1) {
       if (draggedSelection && draggedSelection.length > 0) {
-          // Guard: If dropping the selection onto itself, do nothing
           if (draggedSelection.includes(targetKey)) {
               return false;
           }
 
-          // --- MULTI-DROP LOGIC WITH TIMESTAMP SYNC ---
-          // 1. Filter out all dragged items from their current positions
           const itemsToMove = [];
-          allLinks = allLinks.filter(l => {
+          // Modifikationen auf freshLinks statt allLinks ausführen
+          const remainingLinks = freshLinks.filter(l => {
               const key = getLinkKey(l);
               if (draggedSelection.includes(key)) {
-                  // Re-bind to target session metadata
                   l.sessionId = targetSession;
                   l.sessionLabel = targetSessionLink ? targetSessionLink.sessionLabel : "Restored Session";
                   l.isPinned = targetSessionLink ? (targetSessionLink.isPinned || false) : false;
-                  
-                  // SYNC TIMESTAMPS: Freeze sorting position completely!
                   l.timestamp = targetSessionLink ? targetSessionLink.timestamp : l.timestamp;
                   l.dateGroup = targetSessionLink ? targetSessionLink.dateGroup : l.dateGroup;
                   
                   itemsToMove.push(l);
-                  return false; // Remove from old position
+                  return false; 
               }
               return true;
           });
 
-          // 2. Find new insertion index (targetIndex might have shifted after filtering)
-          let adjustedTargetIndex = allLinks.findIndex(l => getLinkKey(l) === targetKey);
-          if (adjustedTargetIndex === -1) adjustedTargetIndex = allLinks.length;
+          let adjustedTargetIndex = remainingLinks.findIndex(l => getLinkKey(l) === targetKey);
+          if (adjustedTargetIndex === -1) adjustedTargetIndex = remainingLinks.length;
 
-          // 3. Insert the entire block at the target index
-          allLinks.splice(adjustedTargetIndex, 0, ...itemsToMove);
-          selectedLinks.clear(); // Clear selection bar
+          remainingLinks.splice(adjustedTargetIndex, 0, ...itemsToMove);
+          
+          // Zuweisung an die globale Referenz kurz vor dem Speichern
+          allLinks = remainingLinks;
+          selectedLinks.clear(); 
       } 
       else if (dragSourceEl && dragSourceKey && dragSourceEl !== this) {
-          // --- STANDARD SINGLE-DROP FALLBACK WITH TIMESTAMP SYNC ---
-          const sourceIndex = allLinks.findIndex(l => getLinkKey(l) === dragSourceKey);
+          const sourceIndex = freshLinks.findIndex(l => getLinkKey(l) === dragSourceKey);
           if (sourceIndex > -1) {
-              const [movedItem] = allLinks.splice(sourceIndex, 1);
+              const [movedItem] = freshLinks.splice(sourceIndex, 1);
               if (dragSessionId !== targetSession) {
                   movedItem.sessionId = targetSession;
                   movedItem.sessionLabel = targetSessionLink ? targetSessionLink.sessionLabel : "Restored Session";
                   movedItem.isPinned = targetSessionLink ? (targetSessionLink.isPinned || false) : false;
-                  
-                  // SYNC TIMESTAMPS
                   movedItem.timestamp = targetSessionLink ? targetSessionLink.timestamp : movedItem.timestamp;
                   movedItem.dateGroup = targetSessionLink ? targetSessionLink.dateGroup : movedItem.dateGroup;
               }
-              let adjustedTargetIndex = allLinks.findIndex(l => getLinkKey(l) === targetKey);
-              if (adjustedTargetIndex === -1) adjustedTargetIndex = allLinks.length;
-              allLinks.splice(adjustedTargetIndex, 0, movedItem);
+              let adjustedTargetIndex = freshLinks.findIndex(l => getLinkKey(l) === targetKey);
+              if (adjustedTargetIndex === -1) adjustedTargetIndex = freshLinks.length;
+              freshLinks.splice(adjustedTargetIndex, 0, movedItem);
+              
+              // Zuweisung an die globale Referenz kurz vor dem Speichern
+              allLinks = freshLinks;
           }
       }
       
       sessionSortStates[targetSession] = 'date';
       await saveLinks(allLinks);
-      await loadLinks(); // UI neu rendern zur Aktivierung des neuen Zustands
+      await loadLinks(); 
   }
   return false;
 }
@@ -2292,14 +2290,17 @@ async function handleHeaderDrop(e) {
 
   const targetSessionId = this.dataset.sessionId;
   
+  // 1. Frischen Datenbankzustand abfragen
+  const freshLinks = await getLinks();
+  
   // Safety Check: Is target session locked?
-  const targetLinkSample = allLinks.find(l => (l.sessionId || `${l.dateGroup}-${l.timestamp}`) === targetSessionId);
+  const targetLinkSample = freshLinks.find(l => (l.sessionId || `${l.dateGroup}-${l.timestamp}`) === targetSessionId);
   if (targetLinkSample?.isLocked) return false;
 
   if (draggedSelection && draggedSelection.length > 0) {
       // --- MULTI-DROP ON COLLAPSED HEADER WITH TIMESTAMP SYNC ---
       const itemsToMove = [];
-      allLinks = allLinks.filter(l => {
+      const remainingLinks = freshLinks.filter(l => {
           const key = getLinkKey(l);
           if (draggedSelection.includes(key)) {
               l.sessionId = targetSessionId;
@@ -2316,16 +2317,17 @@ async function handleHeaderDrop(e) {
           return true;
       });
 
-      let insertIndex = allLinks.length;
-      for (let i = allLinks.length - 1; i >= 0; i--) {
-          const sId = allLinks[i].sessionId || `${allLinks[i].dateGroup}-${allLinks[i].timestamp}`;
+      let insertIndex = remainingLinks.length;
+      for (let i = remainingLinks.length - 1; i >= 0; i--) {
+          const sId = remainingLinks[i].sessionId || `${remainingLinks[i].dateGroup}-${remainingLinks[i].timestamp}`;
           if (sId === targetSessionId) {
               insertIndex = i + 1;
               break;
           }
       }
 
-      allLinks.splice(insertIndex, 0, ...itemsToMove);
+      remainingLinks.splice(insertIndex, 0, ...itemsToMove);
+      allLinks = remainingLinks;
       selectedLinks.clear();
       sessionSortStates[targetSessionId] = 'date';
       
@@ -2334,9 +2336,9 @@ async function handleHeaderDrop(e) {
   } 
   else if (dragSourceEl && dragSourceKey && dragSessionId !== targetSessionId) {
       // --- STANDARD SINGLE-DROP FALLBACK WITH TIMESTAMP SYNC ---
-      const sourceIndex = allLinks.findIndex(l => getLinkKey(l) === dragSourceKey);
+      const sourceIndex = freshLinks.findIndex(l => getLinkKey(l) === dragSourceKey);
       if (sourceIndex > -1) {
-          const [movedItem] = allLinks.splice(sourceIndex, 1);
+          const [movedItem] = freshLinks.splice(sourceIndex, 1);
           movedItem.sessionId = targetSessionId;
           movedItem.sessionLabel = targetLinkSample ? targetLinkSample.sessionLabel : "Restored Session";
           movedItem.isPinned = targetLinkSample ? (targetLinkSample.isPinned || false) : false;
@@ -2345,16 +2347,17 @@ async function handleHeaderDrop(e) {
           movedItem.timestamp = targetLinkSample ? targetLinkSample.timestamp : movedItem.timestamp;
           movedItem.dateGroup = targetLinkSample ? targetLinkSample.dateGroup : movedItem.dateGroup;
 
-          let insertIndex = allLinks.length;
-          for (let i = allLinks.length - 1; i >= 0; i--) {
-              const sId = allLinks[i].sessionId || `${allLinks[i].dateGroup}-${allLinks[i].timestamp}`;
+          let insertIndex = freshLinks.length;
+          for (let i = freshLinks.length - 1; i >= 0; i--) {
+              const sId = freshLinks[i].sessionId || `${freshLinks[i].dateGroup}-${freshLinks[i].timestamp}`;
               if (sId === targetSessionId) {
                   insertIndex = i + 1;
                   break;
               }
           }
 
-          allLinks.splice(insertIndex, 0, movedItem);
+          freshLinks.splice(insertIndex, 0, movedItem);
+          allLinks = freshLinks;
           sessionSortStates[targetSessionId] = 'date';
           
           await saveLinks(allLinks);

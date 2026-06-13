@@ -1436,13 +1436,20 @@ function createLinkElement(link) {
 
   linkActions.appendChild(createBtn(ICONS.link, 'btn-link-open', 'Open Tab', { action: 'open', url: link.url }));
   
-  const trashBtn = createBtn(ICONS.trash, 'btn-link-delete', isSessionLocked ? 'Session is locked' : 'Delete', { action: 'delete', url: link.url, timestamp: link.timestamp });
   if (isSessionLocked) {
-      trashBtn.disabled = true;
-      trashBtn.style.opacity = '0.3';
-      trashBtn.style.cursor = 'not-allowed';
+      // Premium Polish: If the session is frozen, swap out the disabled trash icon 
+      // with a static padlock symbol to visually explain why deletion is disabled.
+      const lockIconHtml = '<svg class="icon-svg" viewBox="0 0 24 24" style="width: 14px; height: 14px; opacity: 0.4;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
+      const lockIndicatorBtn = createBtn(lockIconHtml, 'btn-link-locked', 'This session is locked/frozen', {});
+      lockIndicatorBtn.style.cursor = 'default';
+      lockIndicatorBtn.style.pointerEvents = 'none';
+      linkActions.appendChild(lockIndicatorBtn);
+  } else {
+      // Otherwise, render the standard active delete button
+      const trashBtn = createBtn(ICONS.trash, 'btn-link-delete', 'Delete', { action: 'delete', url: link.url, timestamp: link.timestamp });
+      linkActions.appendChild(trashBtn);
   }
-  linkActions.appendChild(trashBtn);
+  
   linkActions.appendChild(dropdownDiv);
 
   div.appendChild(checkbox);

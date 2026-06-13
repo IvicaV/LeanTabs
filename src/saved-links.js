@@ -53,6 +53,7 @@ let sessionSortStates = {};
 
 let lpActiveUndoData = null; // In-Memory Puffer
 let lpUndoTimeout = null;
+let activeModalResolve = null; // Neuer globaler Zustand für das aktive Modal
 
 // Track background updates to refresh UI upon visibility
 let hasPendingUpdate = false;
@@ -108,7 +109,14 @@ document.addEventListener('visibilitychange', () => {
 
 // --- CUSTOM MODAL HELPER ---
 function showCustomModal(title, message, buttons, inputConfig = null) {
+  // Beende eventuell verwaiste Modals im Speicher kontrolliert mit null
+  if (activeModalResolve) {
+      activeModalResolve(null);
+  }
+
   return new Promise((resolve) => {
+    activeModalResolve = resolve; // Registriere das neue resolve-Callback
+    
     const modal = document.getElementById('customModal');
     const titleEl = document.getElementById('modalTitle');
     const msgEl = document.getElementById('modalMessage');
@@ -201,6 +209,7 @@ function showCustomModal(title, message, buttons, inputConfig = null) {
         }
         
         modal.classList.add('hidden');
+        activeModalResolve = null; // Lösche die Referenz vor dem Auflösen
         resolve(valueToReturn);
       };
       actionsEl.appendChild(btn);
@@ -213,6 +222,7 @@ function showCustomModal(title, message, buttons, inputConfig = null) {
                  const confirmBtn = buttons.find(b => b.value === true);
                  if (confirmBtn) {
                      modal.classList.add('hidden');
+                     activeModalResolve = null; // Lösche die Referenz vor dem Auflösen
                      resolve(inputEl.value);
                  }
             }

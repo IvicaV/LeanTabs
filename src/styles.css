@@ -1754,24 +1754,24 @@ kbd {
    CHIRURGISCHE LUXUS-POLISH-REGELN (AESTHETIC-AUDIT)
    ========================================================================== */
 
-/* 1. Behebt M-01: Verhindert Dropdown-Clipping durch Upward-Opening bei den letzten Elementen */
-.links-list.has-scrollbar .link-item:last-child .link-dropdown-menu,
-.links-list.has-scrollbar .link-item:nth-last-child(2) .link-dropdown-menu {
+/* Behebt M-01: Dynamische Ausrichtung der Menüs nach oben */
+.session-dropdown-menu.open-upward,
+.link-dropdown-menu.open-upward {
   top: auto !important;
   bottom: 100% !important;
   margin-top: 0 !important;
   margin-bottom: 4px !important;
 }
 
-/* 2. Behebt M-02: Eliminiert den Drag-and-Drop Layout-Shift vollständig (nur Box-Shadow, kein Border-Wechsel) */
+/* Behebt M-02: Eliminiert Drag-and-Drop Layout-Shift durch Box-Shadow statt Border-Einfügung */
 .link-item.drag-over {
-  border-top: none !important; /* Verhindert jegliche Höhenänderung im Box-Modell */
-  box-shadow: inset 0 2px 0 var(--primary) !important; /* Rein visuelle Platzierung des Drop-Indicators */
+  border-top: none !important; /* Verhindert physischen Höhen-Shift im Grid */
+  box-shadow: inset 0 2px 0 var(--primary) !important; /* Visueller Indikator ohne Layout-Reflow */
   background-color: var(--primary-light) !important;
   transition: background-color 0.15s ease, box-shadow 0.15s ease !important;
 }
 
-/* 3. Behebt M-04: Verhindert Kachel-Zerstörung bei sehr langen Titeln im Editier-Modus */
+/* Behebt M-04: Verhindert Kachel-Ausbrüche bei sehr langen Zeichenketten während des Umbenennens */
 .session-title[contenteditable="true"] {
   white-space: normal !important;
   word-break: break-all !important;
@@ -1783,7 +1783,7 @@ kbd {
   border-radius: 4px !important;
 }
 
-/* 4. Behebt M-05: Tastatur-Barrierefreiheit (Fokus-Indikator für barrierefreie Navigation) */
+/* Behebt M-05: Tastatur-Barrierefreiheit (Fokus-Indikatoren für barrierefreie Navigation) */
 .btn-icon:focus-visible,
 .btn:focus-visible,
 .nav-btn:focus-visible,

@@ -2717,6 +2717,17 @@ document.addEventListener('click', (e) => {
     if (!isShown) {
       dropdown.classList.add('show');
       toggle.setAttribute('aria-expanded', 'true');
+      
+      // --- DYNAMISCHE VIEWPORT-MESSUNG (ZERO-REGRESSION) ---
+      const rect = dropdown.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      
+      // Falls das Menü unten aus dem Bildschirm ragt, nach oben klappen
+      if (rect.bottom > viewportHeight) {
+        dropdown.classList.add('open-upward');
+      } else {
+        dropdown.classList.remove('open-upward');
+      }
     }
   }
 });
@@ -2724,6 +2735,7 @@ document.addEventListener('click', (e) => {
 function closeAllDropdowns() {
   document.querySelectorAll('.session-dropdown-menu.show, .link-dropdown-menu.show').forEach(menu => {
     menu.classList.remove('show');
+    menu.classList.remove('open-upward'); // Zustand beim Schließen zurücksetzen
     const toggle = menu.previousElementSibling;
     if (toggle) toggle.setAttribute('aria-expanded', 'false');
   });

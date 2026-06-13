@@ -23,10 +23,18 @@ chrome.runtime.onInstalled.addListener(async () => {
   await initializeDefaults();
 });
 
-// Re-build menu when storage changes
+// Re-build menu when storage changes (Debounced to prevent API congestion)
+let menuRebuildTimeout = null;
+
 chrome.storage.onChanged.addListener((changes, namespace) => {
   if (namespace === 'local' && (changes.savedLinks || changes.settings)) {
-    setTimeout(() => buildContextMenu(), 100);
+    if (menuRebuildTimeout) {
+      clearTimeout(menuRebuildTimeout);
+    }
+    menuRebuildTimeout = setTimeout(() => {
+      buildContextMenu();
+      menuRebuildTimeout = null;
+    }, 200);
   }
 });
 

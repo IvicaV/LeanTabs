@@ -1968,7 +1968,25 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
   }
 });
 
-document.getElementById('searchInput').addEventListener('input', applyFilters);
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+const debouncedApplyFilters = debounce(applyFilters, 150);
+
+const searchInputEl = document.getElementById('searchInput');
+if (searchInputEl) {
+  searchInputEl.addEventListener('input', debouncedApplyFilters);
+}
+
 document.getElementById('categoryFilter').addEventListener('change', applyFilters);
 document.getElementById('windowFilter').addEventListener('change', applyFilters);
 

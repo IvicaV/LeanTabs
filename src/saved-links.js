@@ -58,6 +58,9 @@ let activeModalResolve = null; // Neuer globaler Zustand für das aktive Modal
 // Track background updates to refresh UI upon visibility
 let hasPendingUpdate = false;
 
+// Sync-Lock flag to ignore self-triggered storage events (e.g. rating updates)
+let ignoreNextStorageChange = false;
+
 // SVG Icons Constants
 const ICONS = {
   check: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -89,6 +92,10 @@ window.addEventListener('storage', (e) => {
 // UPDATED LOGIC: Handles updates even if tab is in background (via Pending Flag)
 chrome.storage.onChanged.addListener((changes, namespace) => {
   if (namespace === 'local' && (changes.savedLinks || changes.settings)) {
+    if (ignoreNextStorageChange) {
+      ignoreNextStorageChange = false;
+      return;
+    }
     if (!document.hidden) {
        loadLinks(); 
        hasPendingUpdate = false;
@@ -1133,6 +1140,7 @@ function createLinkElement(link) {
     ratingContainer.appendChild(star);
   }
   
+  // 1. Mouseover-Effekt (Sterne füllen sich beim Drüberfahren)
   ratingContainer.addEventListener('mouseover', (e) => {
     const star = e.target.closest('.star');
     if (!star) return;
@@ -1144,26 +1152,43 @@ function createLinkElement(link) {
     });
   });
   
+  // 2. Mouseleave-Effekt (Sterne fallen sauber auf den AKTUELLEN Objekt-Zustand zurück)
   ratingContainer.addEventListener('mouseleave', () => {
+    const currentRating = link.rating || 0; // Dynamischer Lese-Zugriff
     ratingContainer.querySelectorAll('.star').forEach(s => {
       const val = parseInt(s.dataset.value, 10);
-      s.textContent = val <= rating ? '★' : '☆';
+      s.textContent = val <= currentRating ? '★' : '☆';
       s.classList.remove('hovered');
     });
   });
   
+  // 3. Klick-Interaktion (Optimistisches Update mit dynamischer Zustandsberechnung)
   ratingContainer.addEventListener('click', async (e) => {
     e.stopPropagation();
     e.preventDefault();
     const star = e.target.closest('.star');
     if (!star) return;
     const clickedValue = parseInt(star.dataset.value, 10);
-    const newRating = rating === clickedValue ? 0 : clickedValue;
+    
+    const currentRating = link.rating || 0; // Dynamischer Lese-Zugriff
+    const newRating = currentRating === clickedValue ? 0 : clickedValue;
+    
+    // Optimistic UI Update: Lokalen Objektzustand und DOM sofort synchron umschalten
+    link.rating = newRating; 
+    ratingContainer.querySelectorAll('.star').forEach(s => {
+      const val = parseInt(s.dataset.value, 10);
+      s.textContent = val <= newRating ? '★' : '☆';
+    });
+    ratingContainer.className = `link-rating-container ${newRating > 0 ? 'rated' : 'unrated'}`;
+    
     try {
+      // Synchronisations-Lock setzen und persistent speichern
+      ignoreNextStorageChange = true;
       await setRating(linkKey, newRating);
-      await loadLinks();
     } catch (err) {
       console.error("Failed to set rating:", err);
+      ignoreNextStorageChange = false;
+      await loadLinks(); // Rollback bei unerwartetem Fehler
     }
   });
   

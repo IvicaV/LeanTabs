@@ -2878,7 +2878,21 @@ function renderWhitelistUI() {
     const container = document.getElementById('whitelistContainer');
     if (!container) return;
     if (settingsWhitelist.length === 0) {
-        container.innerHTML = '<p class="empty-state" style="padding:15px; font-size:12px;">No protected domains. Add some!</p>';
+        container.innerHTML = `
+            <p class="empty-state" style="padding:20px; font-size:12px; border-style: dashed;">
+                No protected domains yet. 
+                <a href="#" id="focusWhitelistInputBtn" style="color: var(--primary); text-decoration: underline; cursor: pointer; display: block; margin-top: 6px;">Add your first domain now</a>
+            </p>
+        `;
+        
+        document.getElementById('focusWhitelistInputBtn')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            const input = document.getElementById('whitelistInput');
+            if (input) {
+                input.focus();
+                input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
         return;
     }
     const ICONS_SHIELD = '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke-linecap="round" stroke-linejoin="round"/></svg>';

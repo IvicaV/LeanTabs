@@ -538,6 +538,30 @@ async function openLinkAndIncrement(linkKey, active = true) {
   if (targetLink) {
     targetLink.openCount = (targetLink.openCount || 0) + 1;
     await saveLinks(allLinks);
+
+    // --- START: DEFENSIVES INTERNES ROUTING (REDUNDANZ-SCHUTZ) ---
+    const extensionOrigin = chrome.runtime.getURL('');
+    if (targetLink.url && targetLink.url.startsWith(extensionOrigin)) {
+        try {
+            const urlObj = new URL(targetLink.url);
+            const currentUrlObj = new URL(window.location.href);
+            
+            // Wenn wir uns bereits auf saved-links.html befinden und das Ziel ebenfalls saved-links.html ist
+            if (urlObj.pathname === currentUrlObj.pathname) {
+                if (urlObj.hash) {
+                    window.location.hash = urlObj.hash.substring(1); // Setzt den Hash (z. B. 'settings')
+                } else {
+                    window.location.hash = 'links'; // Standard zurück zur Library
+                }
+                await loadLinks();
+                return; // Beendet die Funktion vorzeitig -> Verhindert das Erzeugen eines neuen Tabs!
+            }
+        } catch (err) {
+            console.error("[LeanTabs] Internal redirect check failed, falling back to standard tab creation:", err);
+        }
+    }
+    // --- ENDE: DEFENSIVES INTERNES ROUTING ---
+
     await chrome.tabs.create({ url: targetLink.url, active: active });
     await loadLinks();
   }

@@ -47,10 +47,6 @@
       "description": "Open Tab Library Dashboard"
     },
     "run-reset": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+K",
-        "mac": "Command+Shift+K"
-      },
       "description": "RESET Window (Delete all)"
     }
   },

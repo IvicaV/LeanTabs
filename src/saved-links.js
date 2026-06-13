@@ -958,7 +958,16 @@ function renderLinks() {
     
     const lockSessionBtn = document.createElement('button');
     lockSessionBtn.className = `btn-session btn-lock ${isLocked ? 'active' : ''}`;
-    lockSessionBtn.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
+    
+    // Dynamic physical lock toggle (Zero-Emoji-Sovereignty conforming SVGs)
+    if (isLocked) {
+        // Locked/Closed State
+        lockSessionBtn.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
+    } else {
+        // Unlocked/Open State (Subtle unlatched shackle path)
+        lockSessionBtn.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>';
+    }
+    
     lockSessionBtn.dataset.sessionId = sessionId;
     lockSessionBtn.dataset.action = 'toggleLock';
     lockSessionBtn.title = isLocked ? 'Unlock Session' : 'Lock/Freeze Session';

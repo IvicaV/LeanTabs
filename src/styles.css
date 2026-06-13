@@ -609,6 +609,21 @@ header h1 {
 .btn-session.btn-pin:hover { color: var(--pin-color); background: var(--pin-bg); }
 .btn-session.btn-pin.active { color: var(--pin-color); fill: currentColor; }
 
+/* --- LOCK BUTTON --- */
+.btn-session.btn-lock {
+    color: var(--text-muted);
+    transition: all 0.2s ease-in-out;
+}
+.btn-session.btn-lock:hover {
+    color: var(--primary);
+    background: var(--primary-light);
+}
+.btn-session.btn-lock.active {
+    color: var(--pin-color) !important;
+    background: var(--pin-bg) !important;
+    border: 1px solid var(--pin-border) !important;
+}
+
 /* --- ACTION BUTTON HIGHLIGHTS --- */
 .selection-actions {
     display: flex;

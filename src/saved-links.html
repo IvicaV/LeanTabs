@@ -25,6 +25,17 @@
         <span class="sidebar-title">LeanTabs</span>
       </div>
 
+      <!-- Trust-Indicator: 100% Local-First (Strictly Encapsulated Inline Styles) -->
+      <div class="sidebar-trust-box" style="margin: 0 8px 24px 8px; padding: 12px; background: rgba(59, 130, 246, 0.06); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 8px; display: flex; align-items: center; gap: 10px; box-sizing: border-box;">
+        <svg style="width: 18px; height: 18px; color: var(--primary); fill: none; stroke: currentColor; stroke-width: 2; flex-shrink: 0;" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+        </svg>
+        <div style="display: flex; flex-direction: column; min-width: 0;">
+          <span style="font-size: 11px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.2; display: block;">100% Local-First</span>
+          <span style="font-size: 11px; color: var(--text-muted); line-height: 1.2; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="No cloud, no tracking.">No cloud, no tracking.</span>
+        </div>
+      </div>
+
       <!-- Obere Navigations-Gruppe -->
       <nav class="sidebar-nav">
         <button id="nav-links-btn" class="nav-btn active">
@@ -75,6 +86,27 @@
       
       <!-- ANSICHT 1: SAVED SESSIONS (Das originale Dashboard) -->
       <div id="linksViewContainer" class="view-panel">
+        
+        <!-- PIN-BANNER (Nur Onboarding Tag 1 - Standardmäßig ausgeblendet via hidden) -->
+        <div id="onboardingPinBanner" class="hidden" style="margin-bottom: 24px; padding: 14px 20px; background: var(--pin-bg); border: 1px solid var(--pin-border); border-radius: var(--radius); display: flex; align-items: center; justify-content: space-between; gap: 16px; box-shadow: var(--shadow-sm); transition: opacity 0.2s ease, transform 0.2s ease; box-sizing: border-box;">
+          <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+            <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--card-bg); display: flex; align-items: center; justify-content: center; color: var(--pin-color); flex-shrink: 0; border: 1px solid var(--pin-border);">
+              <svg style="width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2;" viewBox="0 0 24 24">
+                <path d="M21.4 14.6L17 10.2V4h2V2H5v2h2v6.2l-4.4 4.4v2h8v6l1 2 1-2v-6h8v-2z"></path>
+              </svg>
+            </div>
+            <p style="font-size: 13px; font-weight: 500; color: var(--text-strong); margin: 0; line-height: 1.4; white-space: normal; overflow: hidden; text-overflow: ellipsis;">
+              <strong>Keep LeanTabs close:</strong> Click the puzzle icon in your browser toolbar and pin <strong>LeanTabs</strong> for 1-click access and RAM monitoring.
+            </p>
+          </div>
+          <button id="closePinBannerBtn" class="btn-icon" style="color: var(--text-muted); cursor: pointer; flex-shrink: 0;" title="Dismiss">
+            <svg style="width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2;" viewBox="0 0 24 24">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+
         <header>
           <h1>Tab Library</h1>
           <div class="header-controls">

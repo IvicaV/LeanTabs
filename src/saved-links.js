@@ -3857,4 +3857,40 @@ initSettingsLogic();
 initSidebarThemeToggle();
 initFeedbackModal();
 
+// =============================================================================
+// --- ONBOARDING PIN BANNER CONTROLLER ---
+// =============================================================================
+async function initOnboardingBanner() {
+    const banner = document.getElementById('onboardingPinBanner');
+    const closeBtn = document.getElementById('closePinBannerBtn');
+    if (!banner || !closeBtn) return;
+
+    try {
+        const data = await chrome.storage.local.get(['pinBannerDismissed']);
+        if (!data.pinBannerDismissed) {
+            banner.classList.remove('hidden');
+            
+            closeBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                banner.style.opacity = '0';
+                banner.style.transform = 'translateY(-10px)';
+                
+                setTimeout(async () => {
+                    banner.classList.add('hidden');
+                    await chrome.storage.local.set({ pinBannerDismissed: true });
+                }, 200);
+            });
+        }
+    } catch (e) {
+        console.error("[LeanTabs] Onboarding banner check failed safely:", e);
+    }
+}
+
+// Sichere Initialisierung nach dem Laden des DOMs
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initOnboardingBanner);
+} else {
+    initOnboardingBanner();
+}
+
 // --- END OF saved-links.js ---

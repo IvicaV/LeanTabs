@@ -11,6 +11,34 @@ import { deleteSession, renameSession, togglePinSession, bumpSession, toggleLock
 import { extractDomain } from './modules/categorizer.js';
 import { setRating } from './modules/ratings.js';
 
+// --- SICHERHEITS-ROUTINEN (XSS-SCHUTZ) ---
+function escapeHTML(str) {
+  if (!str) return '';
+  return str.toString().replace(/[&<>'"]/g, (tag) => {
+    const chars = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      "'": '&#39;',
+      '"': '&quot;'
+    };
+    return chars[tag] || tag;
+  });
+}
+
+function sanitizeURL(urlStr) {
+  if (!urlStr) return 'about:blank';
+  try {
+    const parsed = new URL(urlStr);
+    // Erlaube ausschließlich http, https und interne Extension-Assets
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:' || parsed.protocol === 'chrome-extension:') {
+      return parsed.href;
+    }
+  } catch (e) {}
+  // Fallback bei unzulässigen Protokollen wie javascript: oder data:
+  return 'about:blank';
+}
+
 let allLinks = [];
 let filteredLinks = [];
 let selectedLinks = new Set();
@@ -1058,7 +1086,7 @@ function createLinkElement(link) {
   }
 
   const linkTitle = document.createElement('a');
-  linkTitle.href = link.url;
+  linkTitle.href = sanitizeURL(link.url); // Schutz vor javascript: Injektionen
   linkTitle.target = "_blank";
   linkTitle.className = 'link-title';
   linkTitle.textContent = link.title || link.url; 
@@ -2580,14 +2608,17 @@ function renderWhitelistUI() {
     const ICONS_SHIELD = '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     const ICONS_TRASH = '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-    container.innerHTML = settingsWhitelist.map((domain, index) => `
-        <div class="whitelist-item">
-          <span style="display:flex; align-items:center; gap:8px;">${ICONS_SHIELD} ${domain}</span>
-          <button class="btn-icon-danger btn-delete-whitelist" data-index="${index}" title="Delete Domain">
-            ${ICONS_TRASH}
-          </button>
-        </div>
-    `).join('');
+    container.innerHTML = settingsWhitelist.map((domain, index) => {
+        const safeDomain = escapeHTML(domain); // Maskiere Domain gegen XSS
+        return `
+            <div class="whitelist-item">
+              <span style="display:flex; align-items:center; gap:8px;">${ICONS_SHIELD} ${safeDomain}</span>
+              <button class="btn-icon-danger btn-delete-whitelist" data-index="${index}" title="Delete Domain">
+                ${ICONS_TRASH}
+              </button>
+            </div>
+        `;
+    }).join('');
 }
 
 function syncSettingsToForm() {
@@ -2633,15 +2664,20 @@ function renderBackupsUI(backups) {
     container.innerHTML = sortedBackups.map((backup, displayIndex) => {
         const originalIndex = backups.length - 1 - displayIndex;
         const displayTitle = backup.label ? `Auto-Backup: ${backup.label}` : `Backup #${backups.length - displayIndex}`;
+        
+        const safeTitle = escapeHTML(displayTitle); // Maskiere Backup-Label
+        const safeTime = escapeHTML(backup.readableTime); // Maskiere Zeitstempel
+        const safeCount = parseInt(backup.count, 10) || 0;
+        const safeClosed = parseInt(backup.tabsClosed, 10) || 0;
 
         return `
           <div class="backup-item">
             <div style="display:flex; flex-direction:column; overflow:hidden; text-align: left;">
-              <strong style="color:var(--primary); display:flex; align-items:center; gap:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${displayTitle}">
-                ${ICONS_BOX} ${displayTitle}
+              <strong style="color:var(--primary); display:flex; align-items:center; gap:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${safeTitle}">
+                ${ICONS_BOX} ${safeTitle}
               </strong>
-              <span style="font-size:11px; color:var(--text-muted); margin-left: 22px;">${backup.readableTime}</span>
-              <span style="font-size:11px; color:var(--text-muted); margin-left: 22px;">${backup.count} links saved, ${backup.tabsClosed || 0} closed</span>
+              <span style="font-size:11px; color:var(--text-muted); margin-left: 22px;">${safeTime}</span>
+              <span style="font-size:11px; color:var(--text-muted); margin-left: 22px;">${safeCount} links saved, ${safeClosed} closed</span>
             </div>
             <div style="display:flex; gap:6px; flex-shrink:0;">
               <button class="btn btn-secondary btn-sm" data-backup-index="${originalIndex}" title="Restore">${ICONS_RESTORE}</button>

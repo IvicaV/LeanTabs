@@ -413,9 +413,9 @@ document.addEventListener('DOMContentLoaded', async () => {
              const currentActiveTab = activeTabs[0];
 
              if (currentActiveTab) {
-                 // --- WILDCARD FIX START (Erkennt geöffnete Dashboards mit Hashtags) ---
-                 const existingTabs = await chrome.tabs.query({ url: targetUrl + '*', windowId: currentActiveTab.windowId });
-                 // --- WILDCARD FIX END ---
+                 // Defensiver Ansatz: Alle Tabs des aktuellen Fensters holen und via JS filtern
+                 const windowTabs = await chrome.tabs.query({ windowId: currentActiveTab.windowId });
+                 const existingTabs = windowTabs.filter(t => t.url && t.url.startsWith(targetUrl));
                  
                  // SMART FILTER: Check if it's in the SAME Workspace
                  const tabInSameWorkspace = existingTabs.find(t => t.workspaceId === currentActiveTab.workspaceId);
@@ -442,7 +442,9 @@ document.addEventListener('DOMContentLoaded', async () => {
              const currentActiveTab = activeTabs[0];
 
              if (currentActiveTab) {
-                 const existingTabs = await chrome.tabs.query({ url: targetUrl + '*', windowId: currentActiveTab.windowId });
+                 // Defensiver Ansatz: Alle Tabs des aktuellen Fensters holen und via JS filtern
+                 const windowTabs = await chrome.tabs.query({ windowId: currentActiveTab.windowId });
+                 const existingTabs = windowTabs.filter(t => t.url && t.url.startsWith(targetUrl));
                  const tabInSameWorkspace = existingTabs.find(t => t.workspaceId === currentActiveTab.workspaceId);
                  
                  if (tabInSameWorkspace) {

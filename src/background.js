@@ -127,6 +127,13 @@ chrome.commands.onCommand.addListener(async (command) => {
 
 // 4. MESSAGE LISTENER
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  // --- DEFENSIRE HERKUNFTS-VERIFIZIERUNG (APPSEC-GUARD) ---
+  const extensionOrigin = chrome.runtime.getURL('');
+  if (!sender.url || !sender.url.startsWith(extensionOrigin)) {
+    console.warn("[AppSec-Guard] Abgeblockte Runtime-Nachricht aus unautorisierter Quelle:", sender.url);
+    return;
+  }
+
   if (request.action === 'createBackup') {
     createBackup(request.links, request.tabsClosed);
   }
@@ -234,8 +241,47 @@ async function addToWhitelist(url) {
     }
 }
 
-// --- HELPER: FETCH TITLE IN BACKGROUND ---
+// --- DEFENSIRE NETZWERK-VALIDIERUNG (SSRF-SCHUTZ) ---
+function isSafeUrlToFetch(urlStr) {
+  try {
+    const url = new URL(urlStr);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return false;
+    }
+    
+    const host = url.hostname.toLowerCase().trim();
+    
+    // 1. Loopback and local name resolution blocking
+    if (host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || host.endsWith('.local')) {
+      return false;
+    }
+    
+    // 2. Private IPv4 spaces (RFC 1918) blocking
+    if (/^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)/.test(host)) {
+      return false;
+    }
+    
+    // 3. Link-Local addresses (RFC 3927) blocking
+    if (/^169\.254\./.test(host)) {
+      return false;
+    }
+    
+    // 4. Shared Address Space (RFC 6598) blocking
+    if (/^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\./.test(host)) {
+      return false;
+    }
+    
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 async function fetchPageTitle(url) {
+    if (!isSafeUrlToFetch(url)) {
+        console.warn("[AppSec-Guard] Fetch aborted - disallowed IP/Host target destination:", url);
+        return url;
+    }
     try {
         const response = await fetch(url);
         if (!response.ok) return url; 
@@ -253,6 +299,7 @@ async function fetchPageTitle(url) {
     } catch (e) { }
     return url;
 }
+
 
 // --- DYNAMIC MENU BUILDER ---
 async function buildContextMenu() {

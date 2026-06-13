@@ -240,7 +240,27 @@ function showCustomModal(title, message, buttons, inputConfig = null) {
   });
 }
 
+// --- DEFENSIRE NETZWERK-VALIDIERUNG (SSRF-SCHUTZ) ---
+function isSafeUrlToFetch(urlStr) {
+  try {
+    const url = new URL(urlStr);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+    const host = url.hostname.toLowerCase().trim();
+    if (host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || host.endsWith('.local')) return false;
+    if (/^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)/.test(host)) return false;
+    if (/^169\.254\./.test(host)) return false;
+    if (/^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\./.test(host)) return false;
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 async function fetchTitleFromUrl(url) {
+  if (!isSafeUrlToFetch(url)) {
+    console.warn("[AppSec-Guard] Fetch aborted - disallowed IP/Host target destination:", url);
+    return url;
+  }
   try {
     const response = await fetch(url);
     if (!response.ok) throw new Error('Network response was not ok');
@@ -253,6 +273,7 @@ async function fetchTitleFromUrl(url) {
     return url; 
   } catch (error) { return url; }
 }
+
 
 
 

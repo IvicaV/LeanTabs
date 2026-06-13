@@ -426,6 +426,41 @@ function normalizeUrlForComparison(urlStr) {
   }
 }
 
+// --- RATE-LIMITING & VALIDIERUNG FÜR FEEDBACK PIPELINE (APPSEC-GUARD) ---
+function validateAndRateLimitFeedback(type, message, email) {
+    // 1. Client-side rate-limiting (Max. 1 message per 60 seconds)
+    const lastSent = localStorage.getItem('last_feedback_timestamp');
+    const now = Date.now();
+    if (lastSent && (now - parseInt(lastSent, 10) < 60000)) {
+        const remaining = Math.ceil((60000 - (now - parseInt(lastSent, 10))) / 1000);
+        return { valid: false, error: `Please wait ${remaining}s before sending another message.` };
+    }
+
+    // 2. Structural data types verification
+    const allowedTypes = ['Question', 'Bug', 'Feature'];
+    if (!allowedTypes.includes(type)) {
+        return { valid: false, error: "Invalid feedback type." };
+    }
+
+    if (!message || typeof message !== 'string' || message.trim().length < 5) {
+        return { valid: false, error: "Message must be at least 5 characters long." };
+    }
+
+    if (message.length > 5000) {
+        return { valid: false, error: "Message exceeds maximum length of 5000 characters." };
+    }
+
+    // 3. Syntax checks for optional email field
+    if (email && email !== "Anonymous") {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email) || email.length > 254) {
+            return { valid: false, error: "Invalid email format." };
+        }
+    }
+
+    return { valid: true };
+}
+
 // --- ROBUSTER IMPORT-VALIDATOR (ZERO-TRUST SCHEMA) ---
 function sanitizeAndValidateImportedLinks(rawList) {
     if (!Array.isArray(rawList)) return [];
@@ -3475,9 +3510,12 @@ function initFeedbackModal() {
     sendBtn?.addEventListener('click', async () => {
         const message = messageInput?.value.trim();
         const email = emailInput?.value.trim() || "Anonymous";
-        if (!message) {
+        
+        // --- APPSEC-GUARD VALIDATION ---
+        const validation = validateAndRateLimitFeedback(activeFeedbackType, message, email);
+        if (!validation.valid) {
             if (statusEl) {
-                statusEl.textContent = "Please enter a message.";
+                statusEl.textContent = validation.error;
                 statusEl.style.color = "var(--danger)";
                 statusEl.style.display = "block";
             }
@@ -3490,7 +3528,6 @@ function initFeedbackModal() {
             statusEl.style.display = "block";
         }
 
-        // --- AUFRUF DER NEUEN MODULAREN API ---
         const success = await submitFeedback({
             type: activeFeedbackType,
             message: message,
@@ -3498,6 +3535,8 @@ function initFeedbackModal() {
         });
 
         if (success) {
+            // Set rate-limit timestamp upon successful execution
+            localStorage.setItem('last_feedback_timestamp', Date.now().toString());
             if (statusEl) {
                 statusEl.textContent = "Thank you! Message sent.";
                 statusEl.style.color = "var(--success)";

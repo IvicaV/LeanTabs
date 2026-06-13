@@ -21,15 +21,17 @@ export async function getLinks() {
  */
 export async function saveLinks(links) {
   return new Promise((resolve, reject) => {
-    storageWriteQueue = storageWriteQueue.then(async () => {
-      try {
-        await chrome.storage.local.set({ savedLinks: links });
-        resolve();
-      } catch (err) {
-        console.error("LeanTabs Persistent Write Failure:", err);
-        reject(err);
-      }
-    });
+    storageWriteQueue = storageWriteQueue
+      .catch(() => {})
+      .then(async () => {
+        try {
+          await chrome.storage.local.set({ savedLinks: links });
+          resolve();
+        } catch (err) {
+          console.error("LeanTabs Persistent Write Failure:", err);
+          reject(err);
+        }
+      });
   });
 }
 
@@ -85,14 +87,16 @@ export async function getBackups() {
  */
 export async function saveBackups(backups) {
   return new Promise((resolve, reject) => {
-    storageWriteQueue = storageWriteQueue.then(async () => {
-      try {
-        await chrome.storage.local.set({ backups });
-        resolve();
-      } catch (err) {
-        console.error("LeanTabs Backup Write Failure:", err);
-        reject(err);
-      }
-    });
+    storageWriteQueue = storageWriteQueue
+      .catch(() => {})
+      .then(async () => {
+        try {
+          await chrome.storage.local.set({ backups });
+          resolve();
+        } catch (err) {
+          console.error("LeanTabs Backup Write Failure:", err);
+          reject(err);
+        }
+      });
   });
 }

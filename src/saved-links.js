@@ -1199,6 +1199,26 @@ async function triggerGlobalAction(fakeEvent, actionName, sessionId) {
       const targetValue = await showCustomModal("Move Links", `Move ${selectedInSession.length} links to:`, [{ text: "Cancel", value: false, class: "btn-modal-cancel" }, { text: "Move", value: true, class: "btn-modal-confirm" }], { type: 'select', options: sessionOptions });
       if (targetValue) {
           allLinks = await getLinks();
+
+          // Capture original states before mutation
+          const originalStates = [];
+          selectedInSession.forEach(sLink => {
+              const sKey = getLinkKey(sLink);
+              const idx = allLinks.findIndex(l => getLinkKey(l) === sKey);
+              if (idx > -1) {
+                  const l = allLinks[idx];
+                  originalStates.push({
+                      uniqueId: getLinkKey(l),
+                      sessionId: l.sessionId,
+                      sessionLabel: l.sessionLabel,
+                      isPinned: l.isPinned || false,
+                      timestamp: l.timestamp,
+                      dateGroup: l.dateGroup,
+                      originalIndex: idx
+                  });
+              }
+          });
+
           let targetSessionId = targetValue;
           let targetLabel = "";
           let targetPinned = false;
@@ -1225,8 +1245,20 @@ async function triggerGlobalAction(fakeEvent, actionName, sessionId) {
               }
           });
           selectedLinks.clear();
+
+          if (originalStates.length > 0) {
+              lpActiveUndoData = {
+                  type: 'move',
+                  data: originalStates
+              };
+          }
+
           await saveLinks(allLinks);
           await loadLinks();
+
+          if (originalStates.length > 0) {
+              showLpUndoToast(originalStates.length === 1 ? "Link moved" : `${originalStates.length} links moved`);
+          }
       }
   }
   else if (actionName === 'deleteSelected') {
@@ -2448,10 +2480,29 @@ async function handleDrop(e) {
   const targetIndex = freshLinks.findIndex(l => getLinkKey(l) === targetKey);
 
   if (targetIndex > -1) {
+      let originalStates = [];
+
       if (draggedSelection && draggedSelection.length > 0) {
           if (draggedSelection.includes(targetKey)) {
               return false;
           }
+
+          // Build snapshot before modifying
+          draggedSelection.forEach(key => {
+              const idx = freshLinks.findIndex(link => getLinkKey(link) === key);
+              if (idx > -1) {
+                  const l = freshLinks[idx];
+                  originalStates.push({
+                      uniqueId: getLinkKey(l),
+                      sessionId: l.sessionId,
+                      sessionLabel: l.sessionLabel,
+                      isPinned: l.isPinned || false,
+                      timestamp: l.timestamp,
+                      dateGroup: l.dateGroup,
+                      originalIndex: idx
+                  });
+              }
+          });
 
           const itemsToMove = [];
           // Modifikationen auf freshLinks statt allLinks ausführen
@@ -2482,6 +2533,17 @@ async function handleDrop(e) {
       else if (dragSourceEl && dragSourceKey && dragSourceEl !== this) {
           const sourceIndex = freshLinks.findIndex(l => getLinkKey(l) === dragSourceKey);
           if (sourceIndex > -1) {
+              const l = freshLinks[sourceIndex];
+              originalStates.push({
+                  uniqueId: getLinkKey(l),
+                  sessionId: l.sessionId,
+                  sessionLabel: l.sessionLabel,
+                  isPinned: l.isPinned || false,
+                  timestamp: l.timestamp,
+                  dateGroup: l.dateGroup,
+                  originalIndex: sourceIndex
+              });
+
               const [movedItem] = freshLinks.splice(sourceIndex, 1);
               if (dragSessionId !== targetSession) {
                   movedItem.sessionId = targetSession;
@@ -2499,9 +2561,20 @@ async function handleDrop(e) {
           }
       }
       
+      if (originalStates.length > 0) {
+          lpActiveUndoData = {
+              type: 'move',
+              data: originalStates
+          };
+      }
+
       sessionSortStates[targetSession] = 'date';
       await saveLinks(allLinks);
       await loadLinks(); 
+
+      if (originalStates.length > 0) {
+          showLpUndoToast(originalStates.length === 1 ? "Link moved" : `${originalStates.length} links moved`);
+      }
   }
   return false;
 }
@@ -2584,8 +2657,26 @@ async function handleHeaderDrop(e) {
   const targetLinkSample = freshLinks.find(l => (l.sessionId || `${l.dateGroup}-${l.timestamp}`) === targetSessionId);
   if (targetLinkSample?.isLocked) return false;
 
+  let originalStates = [];
+
   if (draggedSelection && draggedSelection.length > 0) {
       // --- MULTI-DROP ON COLLAPSED HEADER WITH TIMESTAMP SYNC ---
+      draggedSelection.forEach(key => {
+          const idx = freshLinks.findIndex(link => getLinkKey(link) === key);
+          if (idx > -1) {
+              const l = freshLinks[idx];
+              originalStates.push({
+                  uniqueId: getLinkKey(l),
+                  sessionId: l.sessionId,
+                  sessionLabel: l.sessionLabel,
+                  isPinned: l.isPinned || false,
+                  timestamp: l.timestamp,
+                  dateGroup: l.dateGroup,
+                  originalIndex: idx
+              });
+          }
+      });
+
       const itemsToMove = [];
       const remainingLinks = freshLinks.filter(l => {
           const key = getLinkKey(l);
@@ -2618,13 +2709,35 @@ async function handleHeaderDrop(e) {
       selectedLinks.clear();
       sessionSortStates[targetSessionId] = 'date';
       
+      if (originalStates.length > 0) {
+          lpActiveUndoData = {
+              type: 'move',
+              data: originalStates
+          };
+      }
+
       await saveLinks(allLinks);
       await loadLinks();
+
+      if (originalStates.length > 0) {
+          showLpUndoToast(originalStates.length === 1 ? "Link moved" : `${originalStates.length} links moved`);
+      }
   } 
   else if (dragSourceEl && dragSourceKey && dragSessionId !== targetSessionId) {
       // --- STANDARD SINGLE-DROP FALLBACK WITH TIMESTAMP SYNC ---
       const sourceIndex = freshLinks.findIndex(l => getLinkKey(l) === dragSourceKey);
       if (sourceIndex > -1) {
+          const l = freshLinks[sourceIndex];
+          originalStates.push({
+              uniqueId: getLinkKey(l),
+              sessionId: l.sessionId,
+              sessionLabel: l.sessionLabel,
+              isPinned: l.isPinned || false,
+              timestamp: l.timestamp,
+              dateGroup: l.dateGroup,
+              originalIndex: sourceIndex
+          });
+
           const [movedItem] = freshLinks.splice(sourceIndex, 1);
           movedItem.sessionId = targetSessionId;
           movedItem.sessionLabel = targetLinkSample ? targetLinkSample.sessionLabel : "Restored Session";
@@ -2647,8 +2760,19 @@ async function handleHeaderDrop(e) {
           allLinks = freshLinks;
           sessionSortStates[targetSessionId] = 'date';
           
+          if (originalStates.length > 0) {
+              lpActiveUndoData = {
+                  type: 'move',
+                  data: originalStates
+              };
+          }
+
           await saveLinks(allLinks);
           await loadLinks();
+
+          if (originalStates.length > 0) {
+              showLpUndoToast(originalStates.length === 1 ? "Link moved" : `${originalStates.length} links moved`);
+          }
       }
   }
   return false;
@@ -2804,6 +2928,23 @@ function showLpUndoToast(message) {
         sortedBackup.forEach(item => {
             const insertIndex = Math.min(item.index, currentLinks.length);
             currentLinks.splice(insertIndex, 0, item.data);
+        });
+      } else if (lpActiveUndoData.type === 'move') {
+        // Restore moved links to their original state and physical array position
+        const sortedBackups = [...lpActiveUndoData.data].sort((a, b) => a.originalIndex - b.originalIndex);
+        sortedBackups.forEach(backup => {
+            const currentIndex = currentLinks.findIndex(l => getLinkKey(l) === backup.uniqueId);
+            if (currentIndex > -1) {
+                const [link] = currentLinks.splice(currentIndex, 1);
+                link.sessionId = backup.sessionId;
+                link.sessionLabel = backup.sessionLabel;
+                link.isPinned = backup.isPinned;
+                link.timestamp = backup.timestamp;
+                link.dateGroup = backup.dateGroup;
+                
+                const insertIndex = Math.min(backup.originalIndex, currentLinks.length);
+                currentLinks.splice(insertIndex, 0, link);
+            }
         });
       }
       

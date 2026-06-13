@@ -11,6 +11,7 @@ import { extractDomain } from './modules/categorizer.js';
 
 // --- GLOBAL STATE FOR CONTEXT MENU ---
 let isRebuildingMenu = false;
+let pendingRebuild = false; // Neuer Zustandshalter für ausstehende Updates
 
 // --- GLOBAL COLD-START INITIATION (Manifest V3 Lifecycle Guard) ---
 // Runs every time the service worker starts or wakes up from hibernation
@@ -247,8 +248,12 @@ async function fetchPageTitle(url) {
 
 // --- DYNAMIC MENU BUILDER ---
 async function buildContextMenu() {
-  if (isRebuildingMenu) return; 
+  if (isRebuildingMenu) {
+    pendingRebuild = true; // Registriere, dass eine Änderung während des Rebuilds stattfand
+    return;
+  }
   isRebuildingMenu = true;
+  pendingRebuild = false;
 
   try {
     await new Promise(resolve => {
@@ -332,6 +337,9 @@ async function buildContextMenu() {
       console.error("Menu build failed:", err);
   } finally {
       isRebuildingMenu = false;
+      if (pendingRebuild) {
+          buildContextMenu(); // Führe das ausstehende Update sofort im Anschluss aus
+      }
   }
 }
 

@@ -1829,7 +1829,7 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
         // FALL A: REPLACE (Das gelbe Blitz-Symbol) — Ersetzen ist immer fenstergebunden
         let warningText = '';
         if (isMassiveRestore) {
-            warningText += `\n\n⚠️ WARNING: Opening ${sessionLinks.length} tabs simultaneously might temporarily slow down your browser!`;
+            warningText += `\n\n[WARNING] Opening ${sessionLinks.length} tabs simultaneously might temporarily slow down your browser!`;
         }
 
         const choice = await showCustomModal(
@@ -1853,7 +1853,7 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
             : `How do you want to restore these ${sessionLinks.length} link(s)?`;
 
         if (isMassiveRestore) {
-            msg += `\n\n⚠️ WARNING: Opening ${sessionLinks.length} tabs simultaneously might temporarily slow down your browser!`;
+            msg += `\n\n[WARNING] Opening ${sessionLinks.length} tabs simultaneously might temporarily slow down your browser!`;
         }
 
         let buttons = [];

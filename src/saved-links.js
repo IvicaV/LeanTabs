@@ -307,9 +307,12 @@ async function loadLinks() {
   
   const toggleBtn = document.getElementById('toggleAllBtn');
   if (toggleBtn) {
+      const iconRight = `<span class="icon" style="display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; margin-right: 6px;"><svg class="icon-svg" style="width: 12px; height: 12px; stroke-width: 2.5;" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
+      const iconDown = `<span class="icon" style="display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; margin-right: 6px;"><svg class="icon-svg" style="width: 12px; height: 12px; stroke-width: 2.5;" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
+      
       toggleBtn.innerHTML = sessionsDefaultCollapsed 
-        ? `<span class="icon">▶</span> Expand All` 
-        : `<span class="icon">▼</span> Collapse All`;
+        ? `${iconRight} Expand All` 
+        : `${iconDown} Collapse All`;
   }
   
   collapsedSessions.clear();
@@ -2249,7 +2252,13 @@ document.getElementById('toggleAllBtn').addEventListener('click', () => {
   const btn = document.getElementById('toggleAllBtn');
   const isCollapsing = btn.textContent.includes('Collapse');
   const newDisplay = isCollapsing ? 'none' : 'block';
-  const newHtml = isCollapsing ? `<span class="icon">▶</span> Expand All` : `<span class="icon">▼</span> Collapse All`;
+  
+  const iconRight = `<span class="icon" style="display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; margin-right: 6px;"><svg class="icon-svg" style="width: 12px; height: 12px; stroke-width: 2.5;" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
+  const iconDown = `<span class="icon" style="display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; margin-right: 6px;"><svg class="icon-svg" style="width: 12px; height: 12px; stroke-width: 2.5;" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
+  
+  const newHtml = isCollapsing 
+    ? `${iconRight} Expand All` 
+    : `${iconDown} Collapse All`;
 
   document.querySelectorAll('.links-list').forEach(list => {
     list.style.display = newDisplay;

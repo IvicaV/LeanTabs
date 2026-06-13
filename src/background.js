@@ -178,21 +178,21 @@ async function initializeDefaults() {
       const welcomeLinks = [
           {
               url: "https://github.com/IvicaV/LeanTabs#readme",
-              title: "1. Philosophy: Why tabs eat your RAM and how LeanTabs saves it",
+              title: "Step 1: Protect a page. Open the context-dropdown on the right of this link and select 'Add to Whitelist'.",
               timestamp: timestamp,
               dateGroup: dateGroup,
-              category: "Philosophy",
+              category: "Interactions",
               favicon: "https://github.com/favicon.ico",
               sessionId: welcomeSessionId,
               sessionLabel: "Welcome to LeanTabs (Quickstart Guide)",
               uniqueId: `welcome-link-1-${Date.now()}`,
               isPinned: false,
               rating: 0,
-              note: "Tabs keep active memory state. Links consume zero RAM. LeanTabs is your intelligent converter to keep your browser fast as lightning."
+              note: "Adding a domain to your Whitelist ensures that LeanTabs will keep it open during cleanups. Check your Whitelist inside Settings afterwards!"
           },
           {
               url: "chrome://extensions/shortcuts",
-              title: "2. Hotkeys: Press Ctrl+Shift+S to clean your active window",
+              title: "Step 2: Clean your workspace. Press Ctrl+Shift+S (Cmd+Shift+S on Mac) to run your first safe tab clean now.",
               timestamp: timestamp,
               dateGroup: dateGroup,
               category: "Shortcuts",
@@ -202,21 +202,21 @@ async function initializeDefaults() {
               uniqueId: `welcome-link-2-${Date.now()}`,
               isPinned: false,
               rating: 0,
-              note: "Toggle this dashboard at any time with Ctrl+Shift+L. Press Ctrl+Shift+K to perform an emergency reset (kills active window tabs without saving)."
+              note: "This instantly frees up memory by closing inactive background tabs and converting them to lightweight links. They are safely secured in a new card here."
           },
           {
               url: chrome.runtime.getURL("saved-links.html#settings"),
-              title: "3. Safety: Recover your last 50 cleanups under Data & Backups",
+              title: "Step 3: Try out our safety net. Delete this single link by clicking the Trash Icon on its hover-state.",
               timestamp: timestamp,
               dateGroup: dateGroup,
-              category: "Backup",
+              category: "Safety Net",
               favicon: "icon16.png",
               sessionId: welcomeSessionId,
               sessionLabel: "Welcome to LeanTabs (Quickstart Guide)",
               uniqueId: `welcome-link-3-${Date.now()}`,
               isPinned: false,
-              rating: 3, // Pre-rated to show the star rating system in action!
-              note: "LeanTabs runs a silent background backup engine. If you ever delete a session by mistake, you can recover it instantly in Settings > Data Management & Backups."
+              rating: 3, 
+              note: "Accidentally deleted? A glassmorphic Undo Toast will appear at the bottom of your screen, letting you restore deleted items with a single click."
           }
       ];
       await saveLinks(welcomeLinks);

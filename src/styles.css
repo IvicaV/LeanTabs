@@ -451,7 +451,12 @@ header h1 {
 .hidden { display: none !important; }
 
 /* --- GRID LAYOUT --- */
-.links-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 20px; }
+.links-container { 
+  display: grid; 
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); 
+  gap: 20px; 
+  align-items: start; /* Verhindert das ungleichmäßige Dehnen von Kacheln in derselben Zeile */
+}
 
 /* --- TILE CARD STYLE --- */
 .session-section { 

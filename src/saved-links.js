@@ -1604,8 +1604,16 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
           }
         });
         if (updated) {
+          // Optimistic UI: Titel direkt im DOM-Element anpassen ohne Neuladen
+          const linkItem = btn.closest('.link-item');
+          const linkTitleEl = linkItem ? linkItem.querySelector('.link-title') : null;
+          if (linkTitleEl) {
+            linkTitleEl.textContent = newTitle.trim();
+            linkTitleEl.title = newTitle.trim();
+          }
+          
+          ignoreNextStorageChange = true; // Blockiert das globale Storage-onChanged-Flackern
           await saveLinks(freshLinks);
-          await loadLinks(); // UI-Update
         }
       }
     }
@@ -1647,8 +1655,32 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
           }
         });
         if (updated) {
+          // Optimistic UI: Notizen-Icon dynamisch und flackerfrei im DOM anpassen
+          const linkItem = btn.closest('.link-item');
+          const linkHeader = linkItem ? linkItem.querySelector('.link-header') : null;
+          
+          if (linkHeader) {
+            let noteIndicator = linkHeader.querySelector('.link-note-indicator');
+            
+            if (newNote.trim() !== "") {
+              // Wenn eine neue Notiz existiert, erstelle oder aktualisiere das Icon
+              if (!noteIndicator) {
+                noteIndicator = document.createElement('span');
+                noteIndicator.className = 'link-note-indicator';
+                noteIndicator.innerHTML = ICONS.note;
+                linkHeader.appendChild(noteIndicator);
+              }
+              noteIndicator.title = newNote.trim();
+            } else {
+              // Wenn die Notiz gelöscht wurde, entferne das Icon aus der Zeile
+              if (noteIndicator) {
+                noteIndicator.remove();
+              }
+            }
+          }
+          
+          ignoreNextStorageChange = true; // Blockiert das globale Storage-onChanged-Flackern
           await saveLinks(freshLinks);
-          await loadLinks(); // UI Refresh
         }
       }
     }

@@ -572,7 +572,8 @@ function updateSelectionBar() {
 function renderLinks() {
   const container = document.getElementById('linksContainer');
   
-  if (filteredLinks.length === 0) {
+  // ZUSTAND A: Die Datenbank ist tatsächlich komplett leer
+  if (allLinks.length === 0) {
     container.innerHTML = `
         <div class="empty-state">
            <div style="opacity:0.3; margin-bottom:15px; transform: scale(2); display:inline-block;">${ICONS.box}</div>
@@ -586,6 +587,35 @@ function renderLinks() {
     `;
     const sessionCountEl = document.getElementById('sessionCount');
     if (sessionCountEl) sessionCountEl.textContent = '0';
+    return;
+  }
+  
+  // ZUSTAND B: Daten sind vorhanden, aber der aktive Filter liefert 0 Ergebnisse
+  if (filteredLinks.length === 0) {
+    container.innerHTML = `
+        <div class="empty-state" style="border-style: solid;">
+           <div style="opacity:0.3; margin-bottom:15px; transform: scale(2); display:inline-block;">
+             <svg class="icon-svg" style="width:24px; height:24px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+           </div>
+           <h3 style="margin-bottom:8px; color:var(--text-strong); font-size:16px;">No search results found</h3>
+           <p style="max-width:360px; margin:0 auto; font-size:13px; color:var(--text-muted); line-height:1.6;">
+             No sessions match your active filters or search query.<br>
+             <button id="resetFiltersBtn" class="btn btn-primary btn-sm" style="margin-top:12px; border-radius:20px;">Clear Search & Filters</button>
+           </p>
+        </div>
+    `;
+    const sessionCountEl = document.getElementById('sessionCount');
+    if (sessionCountEl) sessionCountEl.textContent = '0';
+    
+    document.getElementById('resetFiltersBtn')?.addEventListener('click', () => {
+        const searchInput = document.getElementById('searchInput');
+        const catFilter = document.getElementById('categoryFilter');
+        const winFilter = document.getElementById('windowFilter');
+        if (searchInput) searchInput.value = '';
+        if (catFilter) catFilter.value = '';
+        if (winFilter) winFilter.value = '';
+        applyFilters();
+    });
     return;
   }
   

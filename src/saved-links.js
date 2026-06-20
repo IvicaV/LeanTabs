@@ -281,6 +281,20 @@ async function loadLinks() {
   allLinks = await getLinks();
   const settings = await getSettings();
   
+  // FILTER-SENSITIVES INITIALISIERUNGS-SHIELD (Verhindert Zurücksetzen der Ansicht nach Drops)
+  const searchInput = document.getElementById('searchInput');
+  const catFilter = document.getElementById('categoryFilter');
+  const winFilter = document.getElementById('windowFilter');
+  
+  const hasActiveFilters = (searchInput && searchInput.value.trim() !== '') || 
+                           (catFilter && catFilter.value !== '') || 
+                           (winFilter && winFilter.value !== '');
+                           
+  if (hasActiveFilters) {
+      applyFilters(); // Re-applies filters cleanly on the fresh database!
+      return; // applyFilters handles renderLinks() and updateStats(), exiting safely!
+  }
+  
   // --- CONFIG-WEICHE FÜR STERNE START ---
   const enableRatings = settings.enableRatings !== false; // Default: true (aktiviert)
   const container = document.getElementById('linksContainer');
@@ -2473,11 +2487,7 @@ let dragSessionId = null;
 let draggedSelection = null; // Will hold array of keys of selected links being dragged
 
 function handleDragStart(e) {
-  const searchInput = document.getElementById('searchInput');
-  if (searchInput.value.trim() !== '' || document.getElementById('categoryFilter').value !== '' || document.getElementById('windowFilter').value !== '') {
-      e.preventDefault();
-      return;
-  }
+  // BLOCKIERUNG ENTFERNT: Drag & Drop ist nun auch bei aktiven Filtern sicher erlaubt!
   dragSourceEl = this;
   dragSourceKey = this.querySelector('.link-checkbox').dataset.linkKey;
   dragSessionId = this.closest('.links-list').dataset.sessionId;

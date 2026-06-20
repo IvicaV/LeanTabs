@@ -435,8 +435,8 @@ header h1 {
     border-color: var(--border-color); /* Macht den Rand sichtbar */
 }
 .btn-modal-cancel:hover {
-    background: var(--surface-bg);
-    border-color: var(--text-muted);
+    background: var(--border-color) !important; /* Erzeugt eine edle, sichtbare Aufhellung */
+    border-color: var(--text-muted) !important;
 }
 
 /* Der "Bestätigen"-Button (Primär-Stil) */
@@ -1460,7 +1460,7 @@ kbd {
 }
 
 .feedback-type-btn:hover {
-  background-color: var(--bg-hover) !important;
+  background-color: var(--border-color) !important;
   color: var(--text-strong) !important;
 }
 
@@ -1625,7 +1625,7 @@ kbd {
 
 /* 1. CSP-konformer Hover-Effekt für das Schließen-X im Feedback-Header */
 #feedbackCloseBtn:hover {
-  background-color: var(--surface-bg) !important;
+  background-color: var(--border-color) !important;
   color: var(--text-strong) !important;
 }
 

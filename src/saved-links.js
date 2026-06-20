@@ -2274,17 +2274,57 @@ function debounce(func, wait) {
 const debouncedApplyFilters = debounce(applyFilters, 150);
 
 const searchInputEl = document.getElementById('searchInput');
+const clearSearchBtn = document.getElementById('clearSearchBtn');
+
 if (searchInputEl) {
   searchInputEl.addEventListener('input', debouncedApplyFilters);
+}
+
+// Doppelschichtige Event-Steuerung (Sofortige visuelle Reaktion)
+if (searchInputEl && clearSearchBtn) {
+  const toggleClearButton = () => {
+    if (searchInputEl.value.trim() !== '') {
+      clearSearchBtn.classList.remove('hidden');
+    } else {
+      clearSearchBtn.classList.add('hidden');
+    }
+  };
+
+  // Instant-Reaktion beim Tippen (0ms Verzögerung für Premium-Haptik)
+  searchInputEl.addEventListener('input', toggleClearButton);
+
+  // Klick-Handler zum Löschen
+  clearSearchBtn.addEventListener('click', () => {
+    searchInputEl.value = '';
+    clearSearchBtn.classList.add('hidden');
+    applyFilters(); // Filtert die Ansicht sofort zurück
+    searchInputEl.focus();
+  });
 }
 
 document.getElementById('categoryFilter').addEventListener('change', applyFilters);
 document.getElementById('windowFilter').addEventListener('change', applyFilters);
 
 function applyFilters() {
-  const searchQuery = document.getElementById('searchInput').value.toLowerCase();
-  const selectedCategory = document.getElementById('categoryFilter').value;
-  const selectedWindow = document.getElementById('windowFilter').value;
+  const searchInput = document.getElementById('searchInput');
+  const searchQuery = searchInput ? searchInput.value.toLowerCase() : '';
+  
+  const categoryFilter = document.getElementById('categoryFilter');
+  const selectedCategory = categoryFilter ? categoryFilter.value : '';
+  
+  const windowFilter = document.getElementById('windowFilter');
+  const selectedWindow = windowFilter ? windowFilter.value : '';
+
+  // Fallback-Sicherung für die Sichtbarkeit des Buttons
+  const clearSearchBtn = document.getElementById('clearSearchBtn');
+  if (clearSearchBtn) {
+    if (searchQuery !== '') {
+      clearSearchBtn.classList.remove('hidden');
+    } else {
+      clearSearchBtn.classList.add('hidden');
+    }
+  }
+
   filteredLinks = allLinks.filter(link => {
     const title = (link.title || "").toLowerCase();
     const url = (link.url || "").toLowerCase();

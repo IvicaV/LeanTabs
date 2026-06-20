@@ -1040,6 +1040,12 @@ function renderLinks() {
     linksList.className = `links-list ${session.links.length > 4 ? 'has-scrollbar' : ''}`;
     linksList.dataset.sessionId = sessionId;
     
+    // REGISTRIERUNG DER DRAG & DROP LISTENER AUF DEM KACHEL-KÖRPER
+    linksList.addEventListener('dragenter', handleHeaderDragEnter);
+    linksList.addEventListener('dragover', handleHeaderDragOver);
+    linksList.addEventListener('dragleave', handleHeaderDragLeave);
+    linksList.addEventListener('drop', handleHeaderDrop);
+    
     if (isCollapsed) {
       linksList.style.display = 'none';
     }
@@ -1072,14 +1078,26 @@ function renderLinks() {
       displayedLinks.sort((a, b) => (b.openCount || 0) - (a.openCount || 0));
     }
     
+    let renderedRealLinksCount = 0;
     displayedLinks.forEach((link) => {
+      if (link.url === "leantabs://empty-placeholder") return; // Überspringe den virtuellen Link im UI
       try {
           const linkItem = createLinkElement(link);
           linksList.appendChild(linkItem);
+          renderedRealLinksCount++;
       } catch (err) {
           console.error("Skipping corrupted link", err);
       }
     });
+
+    // Falls die Session leer ist, zeichne ein edles leeres Kachel-Innere
+    if (renderedRealLinksCount === 0) {
+      const emptyPlaceholder = document.createElement('div');
+      emptyPlaceholder.className = 'empty-card-placeholder-text';
+      emptyPlaceholder.textContent = "Session is empty. Paste a URL or drag links here to organize.";
+      linksList.appendChild(emptyPlaceholder);
+    }
+
     sessionSection.appendChild(linksList);
     container.appendChild(sessionSection);
   });
@@ -1679,25 +1697,12 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
         allLinks = await getLinks();
         const normalizedIncomingUrl = normalizeUrlForComparison(validUrl);
         
-        // DEEP-CONSOLE DIAGNOSTIK: Zeigt uns genau, was in allLinks geladen wurde
-        console.log("[LeanTabs] Checking manual input:", {
-            rawInput: validUrl,
-            normalizedInput: normalizedIncomingUrl,
-            totalDbEntries: allLinks.length,
-            allDbUrlsNormalized: allLinks.map(l => ({
-                raw: l.url,
-                normalized: normalizeUrlForComparison(l.url)
-            }))
-        });
-
         const duplicateMatch = allLinks.find(link => {
             if (!link || !link.url) return false;
-            const normalizedDbUrl = normalizeUrlForComparison(link.url);
-            return normalizedDbUrl === normalizedIncomingUrl;
+            return normalizeUrlForComparison(link.url) === normalizedIncomingUrl;
         });
 
         if (duplicateMatch) {
-            console.log("[LeanTabs] ✓ MATCH FOUND! Showing custom modal now.");
             const existingSessionName = duplicateMatch.sessionLabel || "another session";
             
             const userConfirmed = await showCustomModal(
@@ -1711,10 +1716,8 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
             
             if (!userConfirmed) {
                 input.value = ''; // Feld leeren
-                return; // Vorgang abbrechen ohne Mutation
+                return; 
             }
-        } else {
-            console.log("[LeanTabs] ✗ No duplicate match found in database for:", normalizedIncomingUrl);
         }
     } catch (criticalCheckError) {
         console.error("[LeanTabs] Non-blocking duplicate check error:", criticalCheckError);
@@ -1729,24 +1732,29 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
 
     allLinks = await getLinks();
 
+    // 1. ZUERST: Metadaten der leeren Session auslesen und sichern
     const sessionSample = allLinks.find(l => (l.sessionId || `${l.dateGroup}-${l.timestamp}`) === sessionId);
-    const timestamp = new Date().toISOString();
-    const dateGroup = new Date().toLocaleDateString('en-US');
+    const labelToPreserve = sessionSample ? sessionSample.sessionLabel : 'Manually Added';
+    const isPinnedToPreserve = sessionSample ? (sessionSample.isPinned || false) : false;
+    const timestampToPreserve = sessionSample ? sessionSample.timestamp : new Date().toISOString();
+    const dateGroupToPreserve = sessionSample ? sessionSample.dateGroup : new Date().toLocaleDateString('en-US');
+
+    // 2. DANACH: Platzhalter löschen
+    allLinks = allLinks.filter(l => !(l.sessionId === sessionId && l.url === "leantabs://empty-placeholder"));
+
     const newLink = {
         url: validUrl,
         title: fetchedTitle,
-        // --- KACHEL-STABILITÄT-SYNCHRONISATION START ---
-        // Erbt den Erstellungszeitstempel der Kachel, um ein Springen der Karte zu verhindern!
-        timestamp: sessionSample ? sessionSample.timestamp : timestamp, 
-        // --- KACHEL-STABILITÄT-SYNCHRONISATION END ---
-        dateGroup: sessionSample ? sessionSample.dateGroup : dateGroup,
+        timestamp: timestampToPreserve,
+        dateGroup: dateGroupToPreserve,
         category: extractDomain(validUrl),
         favicon: `https://www.google.com/s2/favicons?domain=${new URL(validUrl).hostname}&sz=32`,
         sessionId: sessionId,
-        sessionLabel: sessionSample ? sessionSample.sessionLabel : 'Manually Added',
-        uniqueId: `${validUrl}-${timestamp}-${Math.random().toString(36).substr(2, 9)}`,
-        isPinned: sessionSample ? sessionSample.isPinned : false 
+        sessionLabel: labelToPreserve,
+        uniqueId: `${validUrl}-${timestampToPreserve}-${Math.random().toString(36).substr(2, 9)}`,
+        isPinned: isPinnedToPreserve
     };
+
     allLinks.unshift(newLink); 
     await saveLinks(allLinks);
     input.value = ''; 
@@ -1949,14 +1957,35 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
     allLinks = await getLinks();
     const indexToDelete = allLinks.findIndex(link => link.url === url && link.timestamp === timestamp);
     if (indexToDelete !== -1) {
-      // Sichern vor Mutation
+      const deletedLink = allLinks[indexToDelete];
+      
       lpActiveUndoData = {
         type: 'link',
         index: indexToDelete,
-        data: { ...allLinks[indexToDelete] } // Flache Kopie
+        data: { ...deletedLink } // Sichern für Undo
       };
 
-      allLinks.splice(indexToDelete, 1);
+      // Prüfe, ob dies der LETZTE reale Link in der Session ist
+      const sessionLinks = allLinks.filter(l => l.sessionId === deletedLink.sessionId);
+      if (sessionLinks.length === 1) {
+          // Statt zu löschen, ersetzen wir den Link in-place durch den leeren Platzhalter
+          allLinks[indexToDelete] = {
+              url: "leantabs://empty-placeholder",
+              title: "Empty Session Placeholder",
+              timestamp: deletedLink.timestamp,
+              dateGroup: deletedLink.dateGroup,
+              category: "Other",
+              favicon: "",
+              sessionId: deletedLink.sessionId,
+              sessionLabel: deletedLink.sessionLabel,
+              uniqueId: `placeholder-${deletedLink.timestamp}-${Math.random().toString(36).substr(2, 9)}`,
+              isPinned: deletedLink.isPinned || false
+          };
+      } else {
+          // Standard-Löschung bei mehreren Links
+          allLinks.splice(indexToDelete, 1);
+      }
+
       await saveLinks(allLinks);
       await loadLinks(); // UI Update
 
@@ -2139,6 +2168,13 @@ document.getElementById('linksContainer').addEventListener('click', async (e) =>
       const linkSessionId = link.sessionId || `${link.dateGroup}-${link.timestamp}`;
       return linkSessionId === sessionId;
     });
+    
+    // Bypasse modal bei leeren Sessions
+    const realLinks = sessionLinks.filter(l => l.url !== "leantabs://empty-placeholder");
+    if (realLinks.length === 0) {
+        await executeRestoreAction(isReplace ? 'discard_replace' : 'current_window', sessionLinks, {}, []);
+        return;
+    }
     
     // --- CONTEXTUAL RESTORE ENGINE START (Absolute UX-Sovereignty) ---
     const MAX_SAFE_TABS = 15;
@@ -2546,7 +2582,7 @@ async function handleDrop(e) {
 
           const itemsToMove = [];
           // Modifikationen auf freshLinks statt allLinks ausführen
-          const remainingLinks = freshLinks.filter(l => {
+          let remainingLinks = freshLinks.filter(l => {
               const key = getLinkKey(l);
               if (draggedSelection.includes(key)) {
                   l.sessionId = targetSession;
@@ -2558,8 +2594,29 @@ async function handleDrop(e) {
                   itemsToMove.push(l);
                   return false; 
               }
+              // Lösche eventuelle Platzhalter der Ziel-Session aus dem Array
+              if (l.sessionId === targetSession && l.url === "leantabs://empty-placeholder") {
+                  return false;
+              }
               return true;
           });
+
+          // HEILE DIE QUELL-SESSIONS (Erzeugt Platzhalter, falls leer gezogen)
+          const sourceSessionsMeta = {};
+          originalStates.forEach(state => {
+              const sId = state.sessionId;
+              if (sId && sId !== targetSession && !sourceSessionsMeta[sId]) {
+                  sourceSessionsMeta[sId] = {
+                      sessionLabel: state.sessionLabel,
+                      isPinned: state.isPinned || false,
+                      timestamp: state.timestamp,
+                      dateGroup: state.dateGroup
+                  };
+              }
+          });
+          for (const [sId, meta] of Object.entries(sourceSessionsMeta)) {
+              remainingLinks = healEmptySessions(remainingLinks, sId, meta);
+          }
 
           let adjustedTargetIndex = remainingLinks.findIndex(l => getLinkKey(l) === targetKey);
           if (adjustedTargetIndex === -1) adjustedTargetIndex = remainingLinks.length;
@@ -2584,6 +2641,14 @@ async function handleDrop(e) {
                   originalIndex: sourceIndex
               });
 
+              // Sichere die Quell-Metadaten vor dem Verschieben
+              const sourceMetadata = {
+                  sessionLabel: l.sessionLabel,
+                  isPinned: l.isPinned || false,
+                  timestamp: l.timestamp,
+                  dateGroup: l.dateGroup
+              };
+
               const [movedItem] = freshLinks.splice(sourceIndex, 1);
               if (dragSessionId !== targetSession) {
                   movedItem.sessionId = targetSession;
@@ -2592,12 +2657,24 @@ async function handleDrop(e) {
                   movedItem.timestamp = targetSessionLink ? targetSessionLink.timestamp : movedItem.timestamp;
                   movedItem.dateGroup = targetSessionLink ? targetSessionLink.dateGroup : movedItem.dateGroup;
               }
-              let adjustedTargetIndex = freshLinks.findIndex(l => getLinkKey(l) === targetKey);
-              if (adjustedTargetIndex === -1) adjustedTargetIndex = freshLinks.length;
-              freshLinks.splice(adjustedTargetIndex, 0, movedItem);
+
+              // Zwingend erforderlich: Entferne den leeren Platzhalter aus der Ziel-Session
+              let remainingLinks = freshLinks.filter(linkItem => {
+                  const sId = linkItem.sessionId || `${linkItem.dateGroup}-${linkItem.timestamp}`;
+                  return !(sId === targetSession && linkItem.url === "leantabs://empty-placeholder");
+              });
+
+              // HEILE DIE QUELL-SESSION (Erzeugt Platzhalter, falls leer gezogen)
+              if (dragSessionId !== targetSession) {
+                  remainingLinks = healEmptySessions(remainingLinks, dragSessionId, sourceMetadata);
+              }
+
+              let adjustedTargetIndex = remainingLinks.findIndex(l => getLinkKey(l) === targetKey);
+              if (adjustedTargetIndex === -1) adjustedTargetIndex = remainingLinks.length;
+              remainingLinks.splice(adjustedTargetIndex, 0, movedItem);
               
               // Zuweisung an die globale Referenz kurz vor dem Speichern
-              allLinks = freshLinks;
+              allLinks = remainingLinks;
           }
       }
       
@@ -2641,14 +2718,19 @@ function handleDragEnd(e) {
 
 function handleHeaderDragEnter(e) {
   e.preventDefault();
-  const header = this;
-  const targetSessionId = header.dataset.sessionId;
+  const element = this;
+  const targetSessionId = element.dataset.sessionId;
   
   // Check if target is locked
   const targetLink = allLinks.find(l => (l.sessionId || `${l.dateGroup}-${l.timestamp}`) === targetSessionId);
   if (targetLink?.isLocked) return;
 
-  header.classList.add('drag-over-header');
+  // Visuelles Feedback je nach getroffener Fläche aktivieren
+  if (element.classList.contains('session-header')) {
+      element.classList.add('drag-over-header');
+  } else if (element.classList.contains('links-list')) {
+      element.classList.add('drag-over-list');
+  }
   
   // If target session is collapsed, start the 700ms auto-expand timer
   const isCollapsed = collapsedSessions.has(`collapsed-${targetSessionId}`) || 
@@ -2658,7 +2740,8 @@ function handleHeaderDragEnter(e) {
       if (dragExpandTimeout) clearTimeout(dragExpandTimeout);
       dragExpandTimeout = setTimeout(() => {
           toggleSessionCollapse(targetSessionId);
-          header.classList.remove('drag-over-header');
+          if (element.classList.contains('session-header')) element.classList.remove('drag-over-header');
+          if (element.classList.contains('links-list')) element.classList.remove('drag-over-list');
       }, 700);
   }
 }
@@ -2673,7 +2756,12 @@ function handleHeaderDragLeave(e) {
   // Guard: Prevent premature cleanup when hovering over text children
   if (e.currentTarget.contains(e.relatedTarget)) return;
 
-  this.classList.remove('drag-over-header');
+  if (this.classList.contains('session-header')) {
+      this.classList.remove('drag-over-header');
+  } else if (this.classList.contains('links-list')) {
+      this.classList.remove('drag-over-list');
+  }
+  
   if (dragExpandTimeout) {
       clearTimeout(dragExpandTimeout);
       dragExpandTimeout = null;
@@ -2682,7 +2770,13 @@ function handleHeaderDragLeave(e) {
 
 async function handleHeaderDrop(e) {
   e.stopPropagation();
-  this.classList.remove('drag-over-header');
+  
+  if (this.classList.contains('session-header')) {
+      this.classList.remove('drag-over-header');
+  } else if (this.classList.contains('links-list')) {
+      this.classList.remove('drag-over-list');
+  }
+  
   if (dragExpandTimeout) {
       clearTimeout(dragExpandTimeout);
       dragExpandTimeout = null;
@@ -2725,7 +2819,7 @@ async function handleHeaderDrop(e) {
               l.sessionLabel = targetLinkSample ? targetLinkSample.sessionLabel : "Restored Session";
               l.isPinned = targetLinkSample ? (targetLinkSample.isPinned || false) : false;
               
-              // SYNC TIMESTAMPS: Freeze sorting position completely!
+              // SYNC TIMESTAMPS
               l.timestamp = targetLinkSample ? targetLinkSample.timestamp : l.timestamp;
               l.dateGroup = targetLinkSample ? targetLinkSample.dateGroup : l.dateGroup;
               
@@ -2735,18 +2829,40 @@ async function handleHeaderDrop(e) {
           return true;
       });
 
-      let insertIndex = remainingLinks.length;
-      for (let i = remainingLinks.length - 1; i >= 0; i--) {
-          const sId = remainingLinks[i].sessionId || `${remainingLinks[i].dateGroup}-${remainingLinks[i].timestamp}`;
+      // Platzhalter der Ziel-Session aus dem Array filtern
+      let finalLinks = remainingLinks.filter(l => {
+          const sId = l.sessionId || `${l.dateGroup}-${l.timestamp}`;
+          return !(sId === targetSessionId && l.url === "leantabs://empty-placeholder");
+      });
+
+      // HEILE DIE QUELL-SESSIONS (Erzeugt Platzhalter, falls leer gezogen)
+      const sourceSessionsMeta = {};
+      originalStates.forEach(state => {
+          const sId = state.sessionId;
+          if (sId && sId !== targetSessionId && !sourceSessionsMeta[sId]) {
+              sourceSessionsMeta[sId] = {
+                  sessionLabel: state.sessionLabel,
+                  isPinned: state.isPinned || false,
+                  timestamp: state.timestamp,
+                  dateGroup: state.dateGroup
+              };
+          }
+      });
+      for (const [sId, meta] of Object.entries(sourceSessionsMeta)) {
+          finalLinks = healEmptySessions(finalLinks, sId, meta);
+      }
+
+      let insertIndex = finalLinks.length;
+      for (let i = finalLinks.length - 1; i >= 0; i--) {
+          const sId = finalLinks[i].sessionId || `${finalLinks[i].dateGroup}-${finalLinks[i].timestamp}`;
           if (sId === targetSessionId) {
               insertIndex = i + 1;
               break;
           }
       }
 
-      remainingLinks.splice(insertIndex, 0, ...itemsToMove);
-      allLinks = remainingLinks;
-      selectedLinks.clear();
+      finalLinks.splice(insertIndex, 0, ...itemsToMove);
+      allLinks = finalLinks;
       sessionSortStates[targetSessionId] = 'date';
       
       if (originalStates.length > 0) {
@@ -2778,6 +2894,14 @@ async function handleHeaderDrop(e) {
               originalIndex: sourceIndex
           });
 
+          // Sichere die Quell-Metadaten vor dem Verschieben
+          const sourceMetadata = {
+              sessionLabel: l.sessionLabel,
+              isPinned: l.isPinned || false,
+              timestamp: l.timestamp,
+              dateGroup: l.dateGroup
+          };
+
           const [movedItem] = freshLinks.splice(sourceIndex, 1);
           movedItem.sessionId = targetSessionId;
           movedItem.sessionLabel = targetLinkSample ? targetLinkSample.sessionLabel : "Restored Session";
@@ -2787,17 +2911,26 @@ async function handleHeaderDrop(e) {
           movedItem.timestamp = targetLinkSample ? targetLinkSample.timestamp : movedItem.timestamp;
           movedItem.dateGroup = targetLinkSample ? targetLinkSample.dateGroup : movedItem.dateGroup;
 
-          let insertIndex = freshLinks.length;
-          for (let i = freshLinks.length - 1; i >= 0; i--) {
-              const sId = freshLinks[i].sessionId || `${freshLinks[i].dateGroup}-${freshLinks[i].timestamp}`;
+          // Platzhalter der Ziel-Session aus dem Array filtern
+          let remainingLinks = freshLinks.filter(linkItem => {
+              const sId = linkItem.sessionId || `${linkItem.dateGroup}-${linkItem.timestamp}`;
+              return !(sId === targetSessionId && linkItem.url === "leantabs://empty-placeholder");
+          });
+
+          // HEILE DIE QUELL-SESSION (Erzeugt Platzhalter, falls leer gezogen)
+          remainingLinks = healEmptySessions(remainingLinks, dragSessionId, sourceMetadata);
+
+          let insertIndex = remainingLinks.length;
+          for (let i = remainingLinks.length - 1; i >= 0; i--) {
+              const sId = remainingLinks[i].sessionId || `${remainingLinks[i].dateGroup}-${remainingLinks[i].timestamp}`;
               if (sId === targetSessionId) {
                   insertIndex = i + 1;
                   break;
               }
           }
 
-          freshLinks.splice(insertIndex, 0, movedItem);
-          allLinks = freshLinks;
+          remainingLinks.splice(insertIndex, 0, movedItem);
+          allLinks = remainingLinks;
           sessionSortStates[targetSessionId] = 'date';
           
           if (originalStates.length > 0) {
@@ -2821,43 +2954,35 @@ async function handleHeaderDrop(e) {
 const createSessionBtn = document.getElementById('createSessionBtn');
 if (createSessionBtn) {
   createSessionBtn.addEventListener('click', async () => {
-    const sessionName = await showCustomModal("Create New Session", "Enter a name for your new collection:", [{ text: "Cancel", value: null, class: "btn-modal-cancel" }, { text: "Next", value: true, class: "btn-modal-confirm" }], { placeholder: "e.g. Project Alpha, Reading List..." });
+    const sessionName = await showCustomModal(
+      "Create New Session", 
+      "Enter a name for your new collection:", 
+      [
+        { text: "Cancel", value: null, class: "btn-modal-cancel" }, 
+        { text: "Create Session", value: true, class: "btn-modal-confirm" }
+      ], 
+      { placeholder: "e.g. Project Alpha, Reading List..." }
+    );
     if (!sessionName || !sessionName.trim()) return;
-    const firstUrl = await showCustomModal("Add First Link", `Session "${sessionName}" needs a first link to start.\nEnter a URL:`, [{ text: "Cancel", value: null, class: "btn-modal-cancel" }, { text: "Create Session", value: true, class: "btn-modal-confirm" }], { placeholder: "https://..." });
-    if (!firstUrl || !firstUrl.trim()) return;
-    let validUrl = firstUrl.trim();
-    if (!/^https?:\/\//i.test(validUrl)) validUrl = 'https://' + validUrl;
-    try {
-        new URL(validUrl); 
-        const timestamp = new Date().toISOString();
-        const newLink = {
-            url: validUrl,
-            title: validUrl, 
-            timestamp: timestamp,
-            dateGroup: new Date().toLocaleDateString('en-US'),
-            category: extractDomain(validUrl),
-            favicon: `https://www.google.com/s2/favicons?domain=${new URL(validUrl).hostname}&sz=32`,
-            sessionId: `manual-${timestamp}`, 
-            sessionLabel: sessionName.trim(), 
-            uniqueId: `${validUrl}-${timestamp}-${Math.random().toString(36).substr(2, 9)}`,
-            isPinned: false
-        };
-        allLinks.unshift(newLink);
-        await saveLinks(allLinks);
-        await loadLinks();
-        fetchTitleFromUrl(validUrl).then(title => {
-            if (title && title !== validUrl) {
-                const linkIndex = allLinks.findIndex(l => l.uniqueId === newLink.uniqueId);
-                if (linkIndex > -1) {
-                    allLinks[linkIndex].title = title;
-                    saveLinks(allLinks);
-                    renderLinks();
-                }
-            }
-        });
-    } catch (e) {
-        await showCustomModal("Invalid URL", "That URL looks invalid. Session not created.", [{ text: "OK", value: true, class: "btn-modal-confirm" }]);
-    }
+
+    const timestamp = new Date().toISOString();
+    const newLink = {
+        url: "leantabs://empty-placeholder",
+        title: "Empty Session Placeholder", 
+        timestamp: timestamp,
+        dateGroup: new Date().toLocaleDateString('en-US'),
+        category: "Other",
+        favicon: "",
+        sessionId: `manual-${timestamp}`, 
+        sessionLabel: sessionName.trim(), 
+        uniqueId: `placeholder-${timestamp}-${Math.random().toString(36).substr(2, 9)}`,
+        isPinned: false
+    };
+
+    allLinks = await getLinks();
+    allLinks.unshift(newLink);
+    await saveLinks(allLinks);
+    await loadLinks();
   });
 }
 
@@ -3859,6 +3984,7 @@ function initFeedbackModal() {
 // Robust, isolated system-tab checker inside saved-links.js
 const isSystemTab = (url) => {
     if (!url) return true;
+    if (url.startsWith('leantabs://')) return true; // Verhindert das Verarbeiten bei Restores
     if (url.startsWith(chrome.runtime.getURL(''))) return true;
     return url.startsWith('chrome://') ||
            url.startsWith('edge://') ||
@@ -3871,7 +3997,23 @@ const isSystemTab = (url) => {
 
 // --- HELPER: EXECUTE CONTEXTUAL RESTORE ACTION WITH NATIVE GROUP SERIALIZATION ---
 async function executeRestoreAction(action, sessionLinks, linksByWindow, windowIds) {
-    // 1. Inkrementiere den Open-Count im Speicher
+    // 1. Sichere Filterung: Ignoriere Platzhalter-URLs vor dem Restore-Prozess vollständig
+    const realLinks = sessionLinks.filter(l => l.url !== "leantabs://empty-placeholder");
+    if (realLinks.length === 0) {
+        // Keine echten Links vorhanden -> Beende die Funktion geräuschlos und sicher
+        const settings = await getSettings();
+        if (settings.deleteAfterRestore && sessionLinks.length > 0) {
+            const sId = sessionLinks[0].sessionId || `${sessionLinks[0].dateGroup}-${sessionLinks[0].timestamp}`;
+            await deleteSession(sId);
+            await loadLinks();
+        }
+        return;
+    }
+
+    // Override sessionLinks mit echten Links für den gesamten nachfolgenden Prozess
+    sessionLinks = realLinks;
+
+    // 2. Inkrementiere den Open-Count im Speicher für die echten Links
     allLinks = await getLinks();
     sessionLinks.forEach(sLink => {
         const sKey = getLinkKey(sLink);
@@ -4108,6 +4250,27 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initOnboardingBanner);
 } else {
     initOnboardingBanner();
+}
+
+// --- HELPER: HEAL EMPTY SESSIONS AFTER DRAG-AWAY ---
+function healEmptySessions(links, sourceSessionId, sourceMetadata) {
+  const sourceSessionLinks = links.filter(l => l.sessionId === sourceSessionId);
+  if (sourceSessionLinks.length === 0 && sourceMetadata) {
+      const timestamp = new Date().toISOString();
+      links.push({
+          url: "leantabs://empty-placeholder",
+          title: "Empty Session Placeholder",
+          timestamp: sourceMetadata.timestamp || timestamp,
+          dateGroup: sourceMetadata.dateGroup || new Date().toLocaleDateString('en-US'),
+          category: "Other",
+          favicon: "",
+          sessionId: sourceSessionId,
+          sessionLabel: sourceMetadata.sessionLabel,
+          uniqueId: `placeholder-${timestamp}-${Math.random().toString(36).substr(2, 9)}`,
+          isPinned: sourceMetadata.isPinned || false
+      });
+  }
+  return links;
 }
 
 // --- END OF saved-links.js ---

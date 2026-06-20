@@ -1831,4 +1831,31 @@ kbd {
   outline-offset: 2px !important;
 }
 
+/* --- EMPTY SESSION CARD PLACEHOLDER --- */
+.empty-card-placeholder-text {
+  padding: 24px 16px !important;
+  text-align: center !important;
+  font-size: 12px !important;
+  color: var(--text-muted) !important;
+  border: 1px dashed var(--border-color) !important;
+  border-radius: var(--radius-sm) !important;
+  margin: 12px !important;
+  background-color: rgba(0, 0, 0, 0.02) !important;
+  user-select: none !important;
+}
+
+[data-theme="dark"] .empty-card-placeholder-text {
+  background-color: rgba(255, 255, 255, 0.01) !important;
+}
+
+/* --- DRAG OVER LIST BODY FEEDBACK --- */
+.links-list.drag-over-list {
+  background-color: var(--primary-light) !important;
+  box-shadow: inset 0 0 10px rgba(59, 130, 246, 0.15) !important;
+  transition: all 0.2s ease;
+}
+[data-theme="dark"] .links-list.drag-over-list {
+  background-color: rgba(59, 130, 246, 0.1) !important;
+}
+
 /* --- END OF styles.css --- */

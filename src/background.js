@@ -421,7 +421,7 @@ async function saveSingleLink(url, title, favicon, targetSessionId) {
     }
 
     // CRITICAL: Get fresh data AFTER the async fetch to prevent race conditions
-    const allLinks = await getLinks();
+    let allLinks = await getLinks();
     
     // --- DEFENSIRE DUPLIKAT-PRÜFUNG IM BACKGROUND START ---
     const normalizedIncomingUrl = normalizeUrlForComparison(url);
@@ -448,6 +448,7 @@ async function saveSingleLink(url, title, favicon, targetSessionId) {
         isPinned = false;
     } 
     else if (targetSessionId) {
+        // 1. ZUERST: Metadaten der leeren Kachel auslesen
         const existingLink = allLinks.find(l => l.sessionId === targetSessionId);
         if (existingLink) {
             sessionLabel = existingLink.sessionLabel;
@@ -455,6 +456,9 @@ async function saveSingleLink(url, title, favicon, targetSessionId) {
         } else {
             sessionLabel = "Restored Session";
         }
+        
+        // 2. DANACH: Platzhalter löschen
+        allLinks = allLinks.filter(l => !(l.sessionId === targetSessionId && l.url === "leantabs://empty-placeholder"));
     } 
     else {
         const baseId = `manual-save-${dateGroup}`;
@@ -516,6 +520,7 @@ async function saveSingleLink(url, title, favicon, targetSessionId) {
 
 function isSystemLink(url) {
     if (!url) return true;
+    if (url.startsWith('leantabs://')) return true; // SSRF-Blockade für interne Platzhalter
     if (url.startsWith(chrome.runtime.getURL(''))) return true;
     return url.startsWith('chrome://') ||
            url.startsWith('edge://') ||
